@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+data/
+
+# Temporary files
+tmp/
+temp/
+*.log
+*~
