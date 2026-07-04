@@ -1,0 +1,43 @@
+{
+    // Binning configs
+    "fine_bin_mins" : 5,
+    "coarse_bin_mins" : 60,
+
+    // Train, burn in, test validation split config
+    "train_days" : 7,
+    "burn_in_days" : 7,
+    "validation_days" : 7,
+    "test_days" : 7,
+    
+    // Min Params
+    // Note p cant be 0 or 1 else we get neg probs
+    "mean_min" : 1e-8,
+    "var_min" : 1e-8,
+    "p_min" : 1e-8,
+    "p_max" : 0.99999999,
+    "min_mean_var_diff" : 1e-8,
+    
+    // setting the seed (used in k means) and clustering method
+    "seed" : 110,
+    "clustering_method" : "k_means",
+    "clustering_matrix_name" : "u",
+    
+    // Calibration outputs and degen threshold (>= and we evaluate)
+    "degen_threshold" : 3, 
+    "calibration_thresholds" : [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 0.9],
+
+    // Tells us whether to evaluate only on the validation set
+    "use_validation" : true,
+
+    // ########################################
+    // Hyperparameter defaults these are overwritten by the values in hyperparameter dictionary
+    // TODO remove these later but keep until we can check it is running 
+    // #########################################
+    "w" : 0.1,
+    "smooth_a" : 0.1, 
+    "smooth_k" : 0.1, 
+    "linear_smooth" : true, 
+    "smoothing_target" : 0, 
+    "hurdle_model" : true,
+    "cluster_param" : 4,
+}
