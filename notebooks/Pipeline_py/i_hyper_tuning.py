@@ -1,3 +1,7 @@
+import h_ll_runner as h
+import numpy as np
+import c_clustering as c
+import f_grids_and_outputs as f
 
 #####################################
 # ll single iteration runner
@@ -12,13 +16,14 @@ def get_ll_param_grids(config_dict):
     else:
         return u_init, v_init, np.zeros_like(u_init), u_clustering, v_clustering, np.zeros_like(u_clustering)
     
-def run_pipeline_ll(model, config_nt, train_test_nt, config_dict, degen_mask):
+def run_pipeline_ll(config_nt, train_test_nt, config_dict, degen_mask):
     ''' 
     Makes a call to the numba lambert liu runner
     '''
     u, v, p, _, _, _ = get_ll_param_grids(config_dict)
+    model = c.make_cluster_model()
 
-    return run_lambert_liu(
+    return h.run_lambert_liu(
         u_init=u,
         v_init=v,
         p_init=p,
@@ -27,7 +32,7 @@ def run_pipeline_ll(model, config_nt, train_test_nt, config_dict, degen_mask):
         cluster_p_init=model['cluster_mean_p'],
         cluster_groups=model['cluster_assignments'],
         n_counts_init=n_counts_init,
-        alpha_grid_init=init_alpha_grid(n_counts_init, config_dict),
+        alpha_grid_init=f.init_alpha_grid(n_counts_init, config_dict),
         degen_mask=degen_mask,
         user_counts_nt=user_counts_nt,
         user_interactions_nt=user_interactions_nt,
@@ -179,7 +184,7 @@ def tune_models(hyperparams, train_test_dict, config_dict, degen_mask, config_nt
 
                         # Getting the init grids and model
                         _, _, _, u_cluster, v_cluster, p_cluster = get_ll_param_grids(temp_config)
-                        model = make_cluster_model(cluster_param=cluster_param, config_dict=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
+                        model = c.make_cluster_model(cluster_param=cluster_param, config_dict=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
 
 
                         # Running the LL and getting the output row
@@ -197,7 +202,7 @@ def tune_models(hyperparams, train_test_dict, config_dict, degen_mask, config_nt
 
                         # Getting the init grids and model
                         _, _, _, u_cluster, v_cluster, p_cluster = get_ll_param_grids(temp_config)
-                        model = make_cluster_model(cluster_param=cluster_param, config_dict=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
+                        model = c.make_cluster_model(cluster_param=cluster_param, config_dict=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
 
                         # Running the LL and getting the output row
                         output_metrics, calibration_outputs, *_ = run_pipeline_ll(model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)

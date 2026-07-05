@@ -1,4 +1,9 @@
 from numba import njit
+import d_math as d
+import polars as pl
+import numpy as np 
+import g_ll_runner_utils as g
+
 #####################################
 # Benchmark init
 #####################################
@@ -39,7 +44,7 @@ def run_poisson_benchmarks(user_poisson_rates, user_coarse_poisson_rates, degen_
     calibration_output = np.zeros((2, log_calibration_thresholds.shape[0], n_benchmarks), dtype='float64')
 
     # Init pointer for user interactions
-    usr_frst_rw = _init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
+    usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
 
     # Iterating over the weeks
     burn_in_first_week = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_week
@@ -62,11 +67,11 @@ def run_poisson_benchmarks(user_poisson_rates, user_coarse_poisson_rates, degen_
             for fine_bin in range(week_start, week_end):
 
                 # Get count and update pointer if necessary get time period and counts coarse bin
-                x, cnt_tbl_idx = _get_user_count(cnt_tbl_idx, user_counts_nt, usr_end_idx, fine_bin)
+                x, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, usr_end_idx, fine_bin)
 
-                crnt_coarse_bin, _ = _bin_computations(bin_metric_nt, fine_bin)
+                crnt_coarse_bin, _ = g._bin_computations(bin_metric_nt, fine_bin)
 
-                time_period_int = get_time_period(fine_bin, train_test_nt.validation_start, train_test_nt.validation_end, train_test_nt.test_start, train_test_nt.test_end)
+                time_period_int = g.get_time_period(fine_bin, train_test_nt.validation_start, train_test_nt.validation_end, train_test_nt.test_start, train_test_nt.test_end)
 
                 # Compute metrics for non degen bins
                 if ((time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, crnt_coarse_bin]):
@@ -75,11 +80,11 @@ def run_poisson_benchmarks(user_poisson_rates, user_coarse_poisson_rates, degen_
                     lambda_user = max(user_poisson_rates[user_id], config_nt.mean_min)
                     lambda_user_coarse = max(user_coarse_poisson_rates[user_id, crnt_coarse_bin], config_nt.mean_min,)
 
-                    lpmf_user = poisson_lpmf(x, lambda_user)
-                    lpmf_user_coarse = poisson_lpmf(x, lambda_user_coarse)
+                    lpmf_user = d.poisson_lpmf(x, lambda_user)
+                    lpmf_user_coarse = d.poisson_lpmf(x, lambda_user_coarse)
 
-                    log_upper_tail_user = poisson_log_upper_tail(x, lambda_user)
-                    log_upper_tail_user_coarse = poisson_log_upper_tail(x, lambda_user_coarse)
+                    log_upper_tail_user = d.poisson_log_upper_tail(x, lambda_user)
+                    log_upper_tail_user_coarse = d.poisson_log_upper_tail(x, lambda_user_coarse)
 
                     # Storing output metrics
                     user_idx = poisson_benchmark_idx_nt.user_poisson

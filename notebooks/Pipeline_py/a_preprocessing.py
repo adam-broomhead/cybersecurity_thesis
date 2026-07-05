@@ -1,39 +1,38 @@
 import polars as pl 
 import utils as ut
 
-config_dict = ut.load_json5('config_dict')
-('/home/ma/a/alb25/Project/thesis_code/notebooks/configs/config_dict.json')
+static_configs = ut.load_json5('static_configs')
 
 # Helper functions outputing dicitonaries
-def get_bin_metrics(config_dict=config_dict):
+def get_bin_metrics(static_configs=static_configs):
     ''' 
     Returns a dictionary containing all information needed about bin length these numbers are needed throughout the pipeline
     '''
     # Check that bin length divides number of days
-    assert 24 * 60 % config_dict['fine_bin_mins'] == 0
-    assert 24 * 60 % config_dict['coarse_bin_mins'] == 0
-    assert config_dict['coarse_bin_mins'] % config_dict['fine_bin_mins'] == 0
+    assert 24 * 60 % static_configs['fine_bin_mins'] == 0
+    assert 24 * 60 % static_configs['coarse_bin_mins'] == 0
+    assert static_configs['coarse_bin_mins'] % static_configs['fine_bin_mins'] == 0
 
-    output_dict = {'fine_bins_per_day' : 24 * 60 // config_dict['fine_bin_mins']}
+    output_dict = {'fine_bins_per_day' : 24 * 60 // static_configs['fine_bin_mins']}
     output_dict['fine_bins_per_week'] = output_dict['fine_bins_per_day'] * 7
-    output_dict['fine_bins_per_coarse_bin'] = config_dict['coarse_bin_mins'] // config_dict['fine_bin_mins']
+    output_dict['fine_bins_per_coarse_bin'] = static_configs['coarse_bin_mins'] // static_configs['fine_bin_mins']
     output_dict['coarse_bins_per_week'] = output_dict['fine_bins_per_week'] // output_dict['fine_bins_per_coarse_bin']
-    output_dict['fine_bin_seconds'] = config_dict['fine_bin_mins'] * 60 
+    output_dict['fine_bin_seconds'] = static_configs['fine_bin_mins'] * 60 
 
     return output_dict
 
-def get_train_test_split(config_dict=config_dict):
+def get_train_test_split(static_configs=static_configs):
     ''' 
     Calculates the fine bin index of the train test and validation period start and end
     Returns a dictionary with all this information in
     '''
 
-    fine_bins_per_day = 24 * 60 // config_dict['fine_bin_mins']
+    fine_bins_per_day = 24 * 60 // static_configs['fine_bin_mins']
 
-    train_bins = fine_bins_per_day * config_dict['train_days']
-    burn_in_bins = fine_bins_per_day * config_dict['burn_in_days']
-    validation_bins = fine_bins_per_day * config_dict['validation_days']
-    test_bins = fine_bins_per_day * config_dict['test_days']
+    train_bins = fine_bins_per_day * static_configs['train_days']
+    burn_in_bins = fine_bins_per_day * static_configs['burn_in_days']
+    validation_bins = fine_bins_per_day * static_configs['validation_days']
+    test_bins = fine_bins_per_day * static_configs['test_days']
 
     # Constructing a dict for the output
     output_dict = {'train_start' : 0,
@@ -51,7 +50,7 @@ def get_train_test_split(config_dict=config_dict):
     return output_dict
     
 # Adding the fine_bins_per_coarse_bin to the train_test_split_dict
-def add_training_denom(bin_metric_dict, config_dict=config_dict):
+def add_training_denom(bin_metric_dict, static_configs=static_configs):
     ''' 
     Finds how many fine bins are used for the estimate of the iniatial parameter.
     This is the denominator on the mean estimate as it is counts/bins and is similarly used in the variance estimate.
@@ -61,8 +60,8 @@ def add_training_denom(bin_metric_dict, config_dict=config_dict):
     Returns:
         An updated bin metric dict with a new column train denom and cluster denom
     '''
-    assert config_dict['train_days'] % 7 == 0
-    bin_metric_dict['train_denom'] = bin_metric_dict['fine_bins_per_coarse_bin'] * (config_dict['train_days'] // 7)
+    assert static_configs['train_days'] % 7 == 0
+    bin_metric_dict['train_denom'] = bin_metric_dict['fine_bins_per_coarse_bin'] * (static_configs['train_days'] // 7)
     return bin_metric_dict
 
 

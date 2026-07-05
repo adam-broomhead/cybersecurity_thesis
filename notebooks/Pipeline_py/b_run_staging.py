@@ -1,5 +1,8 @@
 import numpy as np 
 import polars as pl 
+import utils as ut 
+
+static_configs = ut.load_json5('static_configs')
 
 #####################################
 # Getting inital grids
@@ -23,7 +26,7 @@ def get_period_sums(user_counts, period_start, period_end):
     
     return period_df 
 
-def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict=bin_metric_dict):
+def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict):
     ''' 
     Returns the number of fine bins per coarse bin in the period
     '''
@@ -50,8 +53,8 @@ def init_grid_NB(user_counts, n_users, coarse_bins_per_week, period_start, perio
                                                             ((train_df['sum_cnt'] **2) / fb_per_cb))/(fb_per_cb - 1)
 
     # Capping the min values of u_init and v_init
-    u_init = np.maximum(u_init, config_dict['mean_min'])
-    v_init = np.maximum(v_init, config_dict['var_min'])
+    u_init = np.maximum(u_init, static_configs['mean_min'])
+    v_init = np.maximum(v_init, static_configs['var_min'])
 
     return u_init, v_init
 
@@ -84,9 +87,9 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_week, period_start, p
                                                                                 / (n_bins[var_mask] - 1))
 
     # Capping the min values of u_init and v_init
-    u_init = np.maximum(u_init, config_dict['mean_min'])
-    v_init = np.maximum(v_init, config_dict['var_min'])
-    p_init = np.minimum(np.maximum(p_init, config_dict['p_min']), config_dict['p_max'])
+    u_init = np.maximum(u_init, static_configs['mean_min'])
+    v_init = np.maximum(v_init, static_configs['var_min'])
+    p_init = np.minimum(np.maximum(p_init, static_configs['p_min']), static_configs['p_max'])
 
     return u_init, v_init, p_init
 
@@ -108,9 +111,9 @@ def init_n_counts_grid(user_counts, n_users, coarse_bins_per_week, period_start,
 # Degen mask and interpolation rates
 #####################################
 
-def get_degen_mask(user_counts, n_users, n_coarse_bins, config_dict, train_test_dict):
+def get_degen_mask(user_counts, n_users, n_coarse_bins, static_configs, train_test_dict):
     ''' 
-    Creates a grid of user x coarse bin combinations that have less than `config_dict.degen_threshold` 
+    Creates a grid of user x coarse bin combinations that have less than `static_configs.degen_threshold` 
     counts in them. These bins are excluded from scoring.
     '''
     # Get the number of counts for each user in the period
@@ -120,14 +123,14 @@ def get_degen_mask(user_counts, n_users, n_coarse_bins, config_dict, train_test_
     degen_mask = np.ones((n_users, n_coarse_bins), dtype='bool')
 
     # Finding which rows are not degen and setting the mask to false
-    non_degen_rows = train_df['n_bins'].to_numpy() >= config_dict['degen_threshold']
+    non_degen_rows = train_df['n_bins'].to_numpy() >= static_configs['degen_threshold']
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
     degen_mask[entries_to_assign[non_degen_rows, 0], entries_to_assign[non_degen_rows, 1]] = False
 
     return degen_mask
 
 
-def get_interpolation_weights(bin_metric_dict=bin_metric_dict):
+def get_interpolation_weights(bin_metric_dict):
     '''
     A function that returns the weights we apply when interpolating.
     To understand the computation steps see pages 11 and 12 of lambert liu
@@ -193,14 +196,14 @@ def get_model_and_output_idx_nt():
 
     return output_idx_nt, model_idx_nt
 
-def converting_dicts_to_nt(config_dict, train_test_dict, bin_metric_dict):
+def converting_dicts_to_nt(static_configs, train_test_dict, bin_metric_dict):
     ''' 
     Converts the config dictionaries to named tuples
     '''
     # Converting userful info to named tuples
     ## Creating a seperate config_nt_class and train_test_nt_class as they are reused in the tuning loop
-    config_nt_class = dictionary_to_named_tuple_class('config_nt', config_dict)
-    config_nt = config_nt_class(**config_dict)
+    config_nt_class = dictionary_to_named_tuple_class('config_nt', static_configs)
+    config_nt = config_nt_class(**static_configs)
     train_test_nt_class = dictionary_to_named_tuple_class('train_test_nt', train_test_dict)
     train_test_nt = train_test_nt_class(**train_test_dict)
     bin_metric_nt = dictionary_to_named_tuple_class('bin_metric_nt', bin_metric_dict)(**bin_metric_dict)

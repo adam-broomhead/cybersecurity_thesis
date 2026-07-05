@@ -54,3 +54,16 @@ def load_json5(filename):
 def dump_json5(dict, filename):
     with open(f'/home/ma/a/alb25/Project/thesis_code/notebooks/configs/{filename}.json5', 'w') as f:
         json5.dump(dict, f)
+
+#####################################
+# Merging configs
+#####################################
+
+def merge_configs(static_config, runtime_config):
+    ''' 
+    Merges runtime configs and static configs and converts lists to arrays for runs
+    '''
+    config_dict = {**static_config, **runtime_config}
+    config_dict["calibration_thresholds"] = np.array(config_dict["calibration_thresholds"], dtype=np.float64)
+
+    return config_dict

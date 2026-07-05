@@ -1,0 +1,25 @@
+{
+    // Static configs
+    // These will likely remain unchanged rerun 200 if these are changed
+    // Binning configs
+    "fine_bin_mins" : 5,
+    "coarse_bin_mins" : 60,
+
+    // Train, burn in, test validation split config
+    "train_days" : 7,
+    "burn_in_days" : 28,
+    "validation_days" : 7,
+    "test_days" : 14,
+
+    // degen threshold
+    "degen_threshold" : 3, 
+
+    // Min Params
+    // Note p cant be 0 or 1 else we get infinite log likelihood
+    "mean_min" : 1e-8,
+    "var_min" : 1e-8,
+    "p_min" : 1e-8,
+    "p_max" : 0.99999999,
+    "min_mean_var_diff" : 1e-8,
+
+}

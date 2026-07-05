@@ -1,10 +1,13 @@
 import numpy as np
 import polars as pl
+from sklearn.cluster import KMeans
+import utils as ut
+
+runtime_configs = ut.load_json5('runtime_configs')
 
 #####################################
 # Creating functions that return the correct vector for clustering
 #####################################
-
 # Matrix construction functions
 def make_u_matrix(u, v, p): return u
 
@@ -16,21 +19,21 @@ def make_normalised_u_clustering_matrix(u, v, p): return u / u.sum(axis=1)[:, No
 
 
 # Wrapper function
-def make_clustering_matrix(u, v, p, config_dict=config_dict): 
+def make_clustering_matrix(u, v, p, runtime_configs): 
     ''' 
     Constructs the matrix used for clustering. 
-    The construction used depends on `clustering_matrix_name` found within `config_dict`
+    The construction used depends on `clustering_matrix_name` found within `runtime_configs`
     '''
-    if config_dict['clustering_matrix_name'] == 'u':
+    if runtime_configs['clustering_matrix_name'] == 'u':
         return make_u_matrix(u, v, p)
-    elif config_dict['clustering_matrix_name'] == 'log_u':
+    elif runtime_configs['clustering_matrix_name'] == 'log_u':
         return make_log_u_matrix(u, v, p)
-    elif config_dict['clustering_matrix_name'] == 'v':
+    elif runtime_configs['clustering_matrix_name'] == 'v':
         return make_v_matrix(u, v, p)
-    elif config_dict['clustering_matrix_name'] == 'normalised_u':
+    elif runtime_configs['clustering_matrix_name'] == 'normalised_u':
         return make_normalised_u_clustering_matrix(u, v, p)
     else: 
-        raise ValueError("config_dict['clustering_matrix_name'] invalid")
+        raise ValueError("runtime_configs['clustering_matrix_name'] invalid")
     
 #####################################
 # Functions for getting cluster assignments
@@ -46,12 +49,12 @@ def get_k_means_assignments(k, random_state, matrix_to_cluster):
 
     return clusters, k_means_model
 
-def get_cluster_assignments(cluster_param, matrix_to_cluster, config_dict=config_dict):
+def get_cluster_assignments(cluster_param, matrix_to_cluster, runtime_configs : dict):
     ''' 
     Generic clustering runner that can be scaled to include multiple algorithms
     '''
-    if config_dict['clustering_method'] == 'k_means':
-        return get_k_means_assignments(k=cluster_param, random_state=config_dict['seed'], matrix_to_cluster=matrix_to_cluster)
+    if runtime_configs['clustering_method'] == 'k_means':
+        return get_k_means_assignments(k=cluster_param, randon_state=runtime_configs['seed'], matrix_to_cluster=matrix_to_cluster)
     else:
         raise ValueError('Clustering method not Reckognised')
     
@@ -82,13 +85,13 @@ def get_centroid_distance(cluster_centres):
 
     return output
 
-def create_cluster_summary_df(model, user_mapping=user_mapping, config_dict=config_dict):
+def create_cluster_summary_df(model, user_mapping, runtime_configs):
     ''' 
     Creates an output df which summarises cluster quality metrics
     '''
 
     # Getting the number of clusters
-    if config_dict['clustering_method'] == 'k_means':
+    if runtime_configs['clustering_method'] == 'k_means':
         n_clusters=model['cluster_param']
     else:
         raise ValueError('Clustering method not Reckognised')
@@ -164,7 +167,7 @@ def get_cluster_means(cluster_groups, u_init, v_init, p_init):
     '''
     return get_param_cluster_mean(cluster_groups, u_init), get_param_cluster_mean(cluster_groups, v_init), get_param_cluster_mean(cluster_groups, p_init)
 
-def make_cluster_model(cluster_param, config_dict, u_init, v_init, p_init=None):
+def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=None):
     ''' 
     Creates the clustering model dictionary 
     '''
@@ -172,7 +175,7 @@ def make_cluster_model(cluster_param, config_dict, u_init, v_init, p_init=None):
     # Init p and matrix to cluster
     if p_init is None:
         p_init = np.zeros_like(u_init)
-    matrix_to_cluster = make_clustering_matrix(u_init, v_init, p_init, config_dict=config_dict)
+    matrix_to_cluster = make_clustering_matrix(u_init, v_init, p_init, runtime_configs)
 
     # Global pooling defaults
     if cluster_param == 1:
@@ -183,7 +186,7 @@ def make_cluster_model(cluster_param, config_dict, u_init, v_init, p_init=None):
 
     # Getting cluster assignments and cluster centres
     else:
-        cluster_assignments, clustering_model = get_cluster_assignments(cluster_param=cluster_param, matrix_to_cluster=matrix_to_cluster, config_dict=config_dict)
+        cluster_assignments, clustering_model = get_cluster_assignments(cluster_param=cluster_param, matrix_to_cluster=matrix_to_cluster, runtime_configs=runtime_configs)
         cluster_centres = clustering_model.cluster_centers_
         cluster_inertia = clustering_model.inertia_
 
@@ -193,9 +196,9 @@ def make_cluster_model(cluster_param, config_dict, u_init, v_init, p_init=None):
 
     output = {
         # Clustering configs
-        'name' : f"{config_dict['clustering_method']}",
-        'clustering_matrix_name' : config_dict['clustering_matrix_name'],
-        'seed' : config_dict['seed'],
+        'name' : f"{runtime_configs['clustering_method']}",
+        'clustering_matrix_name' : runtime_configs['clustering_matrix_name'],
+        'seed' : runtime_configs['seed'],
         'cluster_param' : cluster_param,
 
         # Identified values

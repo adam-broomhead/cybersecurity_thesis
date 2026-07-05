@@ -1,6 +1,9 @@
 import numpy as np
 from numba import njit
 
+import d_math as d
+import e_smoothing as e
+
 #####################################
 # Init function
 #####################################
@@ -74,13 +77,13 @@ def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p
     Getting the values of mu and sigma for both the raw and smoothed model
     '''
     # Getting the smoothed params and capping them at the minimal value
-    mu_t, sigma_2_t, p_t = get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
+    mu_t, sigma_2_t, p_t = e.get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
                                             user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                             alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
     
 
     # Getting unsmoothed but interpolated params and using that for updates (difference from above call is passing smoothing strength 0):
-    mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
+    mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = e.get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
                                             user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                             alpha_zero_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
     
@@ -99,8 +102,8 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_
     ''' 
     Returns log p0, the lpmf, and upper tail values for the smoothed and raw models
     '''
-    lpmf_smoothed = get_lpmf_val(x, mu_t, sigma_2_t, p_t, config_nt)
-    lpmf_raw = get_lpmf_val(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
+    lpmf_smoothed = d.get_lpmf_val(x, mu_t, sigma_2_t, p_t, config_nt)
+    lpmf_raw = d.get_lpmf_val(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
 
     # Not currently used but might be used in future diagnostics.
     # if x == 0:
@@ -111,8 +114,8 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_
     #     log_p0_smoothed = get_lpmf_val(0, mu_t, sigma_2_t, p_t, config_nt)
 
     # Getting the upper tail value for both the raw and the smoothed model
-    log_upper_tail_raw = get_upper_tail_value(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
-    log_upper_tail_smoothed = get_upper_tail_value(x, mu_t, sigma_2_t, p_t, config_nt)
+    log_upper_tail_raw = d.get_upper_tail_value(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
+    log_upper_tail_smoothed = d.get_upper_tail_value(x, mu_t, sigma_2_t, p_t, config_nt)
     
     return lpmf_raw, lpmf_smoothed, log_upper_tail_raw, log_upper_tail_smoothed # ,log_p0_raw, log_p0_smoothed
 
