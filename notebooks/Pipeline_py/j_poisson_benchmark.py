@@ -132,7 +132,7 @@ def make_poisson_benchmark_output_rows(poisson_output_metrics, test_valid, poiss
 
     return output
 
-def make_poisson_benchmark_calibration_rows(poisson_output_metrics, poisson_calibration_outputs, config_dict, test_valid, poisson_benchmark_idx=poisson_benchmark_idx):
+def make_poisson_benchmark_calibration_rows(poisson_output_metrics, poisson_calibration_outputs, config_dict, test_valid, poisson_benchmark_idx):
     
     # Gets the period index
     if test_valid == 'valid':

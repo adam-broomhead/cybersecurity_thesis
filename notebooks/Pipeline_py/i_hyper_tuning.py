@@ -196,6 +196,7 @@ class Tuner:
         validation_only_nt = self.train_test_nt_class(**validation_only_dict)
 
         results = []
+        calibration_results = []
         for w in hyperparams['w_vals']:
             for cluster_param in hyperparams['cluster_param_vals']:
                 for hurdle_model in hyperparams['hurdle_model']:
@@ -217,8 +218,11 @@ class Tuner:
                             # Running the LL and getting the output row
                             output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
                             row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid')
+                            calibration_row = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid="valid", config_dict=temp_config)
 
                             results.append(row)
+                            calibration_results.append(calibration_row)
+
 
                         for smooth_k in hyperparams['smoothing_k_vals']:
 
@@ -234,7 +238,9 @@ class Tuner:
                             # Running the LL and getting the output row
                             output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
                             row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid')
+                            calibration_row = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid="valid", config_dict=temp_config)
 
                             results.append(row)
+                            calibration_results.append(calibration_row)
 
-        return results
+        return results, calibration_results
