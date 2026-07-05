@@ -1,6 +1,7 @@
 import numpy as np 
 import polars as pl 
 import utils as ut 
+from collections import namedtuple
 
 static_configs = ut.load_json5('static_configs')
 
@@ -33,13 +34,13 @@ def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict):
     return ((period_end - period_start)//bin_metric_dict['fine_bins_per_week']) * bin_metric_dict['fine_bins_per_coarse_bin']
 
 
-def init_grid_NB(user_counts, n_users, coarse_bins_per_week, period_start, period_end):
+def init_grid_NB(user_counts, n_users, coarse_bins_per_week, period_start, period_end, bin_metric_dict):
     ''' 
     Creates the u and v init grids from the training data
     '''
     # Getting the sum of counts and sum of counts squared needed for mean and variance calculations
     train_df = get_period_sums(user_counts, period_start, period_end)
-    fb_per_cb = get_fine_bins_per_cb(period_start, period_end)
+    fb_per_cb = get_fine_bins_per_cb(period_start, period_end, bin_metric_dict)
     
     # Init a grid of parmeters to use
     u_init = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
@@ -58,11 +59,11 @@ def init_grid_NB(user_counts, n_users, coarse_bins_per_week, period_start, perio
 
     return u_init, v_init
 
-def init_grid_hurdle(user_counts, n_users, coarse_bins_per_week, period_start, period_end):
+def init_grid_hurdle(user_counts, n_users, coarse_bins_per_week, period_start, period_end, bin_metric_dict):
 
     # Getting the sum of counts and sum of counts squared needed for mean and variance calculations
     train_df = get_period_sums(user_counts, period_start, period_end)
-    fb_per_cb = get_fine_bins_per_cb(period_start, period_end)
+    fb_per_cb = get_fine_bins_per_cb(period_start, period_end, bin_metric_dict)
     
     # Init a grid of parmeters to use
     u_init = np.zeros((n_users, coarse_bins_per_week), dtype='float64')

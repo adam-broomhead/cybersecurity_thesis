@@ -113,7 +113,7 @@ def run_poisson_benchmarks(user_poisson_rates, user_coarse_poisson_rates, degen_
 # Benchmark output rows
 #####################################
 
-def make_poisson_benchmark_output_rows(poisson_output_metrics, test_valid, poisson_benchmark_idx=poisson_benchmark_idx):
+def make_poisson_benchmark_output_rows(poisson_output_metrics, test_valid, poisson_benchmark_idx):
 
     # Gets the period index
     if test_valid == 'valid':

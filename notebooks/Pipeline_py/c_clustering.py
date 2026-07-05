@@ -54,7 +54,7 @@ def get_cluster_assignments(cluster_param, matrix_to_cluster, runtime_configs : 
     Generic clustering runner that can be scaled to include multiple algorithms
     '''
     if runtime_configs['clustering_method'] == 'k_means':
-        return get_k_means_assignments(k=cluster_param, randon_state=runtime_configs['seed'], matrix_to_cluster=matrix_to_cluster)
+        return get_k_means_assignments(k=cluster_param, random_state=runtime_configs['seed'], matrix_to_cluster=matrix_to_cluster)
     else:
         raise ValueError('Clustering method not Reckognised')
     
