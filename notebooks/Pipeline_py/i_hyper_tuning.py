@@ -44,12 +44,11 @@ class Tuner:
         else:
             return self.u_init, self.v_init, np.zeros_like(self.u_init), self.u_clustering, self.v_clustering, np.zeros_like(self.u_clustering)
         
-    def run_pipeline_ll(self, config_nt, train_test_nt, config_dict, degen_mask):
+    def run_pipeline_ll(self, model, config_nt, train_test_nt, config_dict, degen_mask):
         ''' 
         Makes a call to the numba lambert liu runner
         '''
         u, v, p, _, _, _ = self.get_ll_param_grids(config_dict)
-        model = c.make_cluster_model()
 
         return h.run_lambert_liu(
             u_init=u,
@@ -189,7 +188,7 @@ class Tuner:
         validation_only_dict['test_end'] = validation_only_dict['validation_end']
         return validation_only_dict
 
-    def tune_models(self, hyperparams, train_test_dict, config_dict, degen_mask, config_nt_class):
+    def tune_models(self, hyperparams, train_test_dict, config_dict, degen_mask):
         ''' 
         Runs the hyperparameter tuning for the cluster based smoothing model and the raw model
         '''
@@ -208,15 +207,15 @@ class Tuner:
                             temp_config = self.make_temp_config(config_dict=config_dict, w=w, cluster_param=cluster_param, hurdle_model=hurdle_model, 
                                                         smoothing_target=smoothing_target, linear_smooth=True, smooth_a=smooth_a, smooth_k=config_dict['smooth_k'])
 
-                            temp_config_nt = config_nt_class(**temp_config)
+                            temp_config_nt = self.config_nt_class(**temp_config)
 
                             # Getting the init grids and model
                             _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(temp_config)
-                            model = c.make_cluster_model(cluster_param=cluster_param, config_dict=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
+                            model = c.make_cluster_model(cluster_param=cluster_param, runtime_configs=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
 
 
                             # Running the LL and getting the output row
-                            output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
+                            output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
                             row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid')
 
                             results.append(row)
@@ -226,14 +225,14 @@ class Tuner:
                             # Creating a good config dict for the runs
                             temp_config = self.make_temp_config(config_dict=config_dict, w=w, cluster_param=cluster_param, hurdle_model=hurdle_model, 
                                                         smoothing_target=smoothing_target, linear_smooth=False, smooth_a=config_dict['smooth_a'], smooth_k=smooth_k)
-                            temp_config_nt = config_nt_class(**temp_config)
+                            temp_config_nt = self.config_nt_class(**temp_config)
 
                             # Getting the init grids and model
                             _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(temp_config)
-                            model = c.make_cluster_model(cluster_param=cluster_param, config_dict=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
+                            model = c.make_cluster_model(cluster_param=cluster_param, runtime_configs=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
 
                             # Running the LL and getting the output row
-                            output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
+                            output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
                             row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid')
 
                             results.append(row)
