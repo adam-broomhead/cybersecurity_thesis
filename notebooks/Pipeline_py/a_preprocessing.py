@@ -70,7 +70,7 @@ def add_training_denom(bin_metric_dict, config_dict=config_dict):
 
 # Creating a fine bin and identifying users with some counts in the bin
 
-def create_counts_data(df):
+def create_counts_data(df, bin_metric_dict):
     ''' 
     Gets the counts per fine bin x source user from the data
     '''
@@ -87,7 +87,7 @@ def create_user_to_id_mapping(users_df, mapping_file_name):
         user_mapping = users_df.select('source_user@domain').unique().sort(by='source_user@domain').with_row_index('user_id')
         user_mapping = user_mapping.with_columns(source_user_type = pl.when(pl.col('source_user@domain').str.contains(r"^U\d+@")).then(pl.lit("human")
                                                 ).when(pl.col('source_user@domain').str.contains(r"^C\d+\$@")).then(pl.lit("machine")))
-        store_data(user_mapping, mapping_file_name)
+        ut.store_data(user_mapping, mapping_file_name)
         
         # Joining on the lookup table and dropping columns
         users_df = users_df.join(user_mapping, on='source_user@domain', how='inner')
@@ -95,7 +95,7 @@ def create_user_to_id_mapping(users_df, mapping_file_name):
 
         return users_df, user_mapping
 
-def create_coarse_bins(users_df):
+def create_coarse_bins(users_df, bin_metric_dict):
         ''' 
         takes a DF and creates two new columns:
             coarse_bin_id

@@ -1,16 +1,22 @@
 {
+    // Contains configs for preprocessing step of pipeline
+    // These will likely remain unchanged
     // Binning configs
     "fine_bin_mins" : 5,
     "coarse_bin_mins" : 60,
 
     // Train, burn in, test validation split config
     "train_days" : 7,
-    "burn_in_days" : 7,
+    "burn_in_days" : 30,
     "validation_days" : 7,
-    "test_days" : 7,
-    
+    "test_days" : 14,
+
+    //////// Runtime configs
+    // Contains configs for runtime step of pipeline
+    // These will likely remain unchanged
+
     // Min Params
-    // Note p cant be 0 or 1 else we get neg probs
+    // Note p cant be 0 or 1 else we get infinite log likelihood
     "mean_min" : 1e-8,
     "var_min" : 1e-8,
     "p_min" : 1e-8,
