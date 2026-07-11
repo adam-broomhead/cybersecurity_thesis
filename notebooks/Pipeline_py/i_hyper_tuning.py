@@ -2,7 +2,7 @@ import h_ll_runner as h
 import numpy as np
 import c_clustering as c
 import f_grids_and_outputs as f
-from collections import namedtuple
+from itertools import product
 
 class Tuner:
 
@@ -75,7 +75,7 @@ class Tuner:
     #####################################
 
 
-    def make_output_table_row(self, model, output_metrics, config_dict, test_valid):
+    def make_output_table_row(self, model, output_metrics, config_dict, test_valid, experiment_name):
         ''' 
         Transforms the output row into a readable dictionary that can be used as an output df row.
         Args:
@@ -96,6 +96,7 @@ class Tuner:
         output = {
             # Row descriptions
             'smoothed_model_name': model['name'],
+            'experiment_name' : experiment_name,
             'w': config_dict['w'],
             'cluster_param': model['cluster_param'],
             'smooth_a': config_dict['smooth_a'],
@@ -112,13 +113,12 @@ class Tuner:
             # Clustering metrics
             'clustering_matrix_name': model['clustering_matrix_name'],
             'seed': model['seed'],
-            'cluster_inertia': model['cluster_inertia'],}
+            'cluster_inertia': model['cluster_inertia']}
 
         return output
 
 
-
-    def make_calibration_output_rows(self, model, output_metrics, calibration_outputs, test_valid, config_dict):
+    def make_calibration_output_rows(self, model, output_metrics, calibration_outputs, test_valid, config_dict, experiment_name):
         ''' 
         Creates a table of calibration outputs
         '''
@@ -140,6 +140,7 @@ class Tuner:
             output.append({
                 # Row descriptions
                 'smoothed_model_name': model['name'],
+                'experiment_name' : experiment_name,
                 'w': config_dict['w'],
                 'cluster_param': model['cluster_param'],
                 'smooth_a': config_dict['smooth_a'],
@@ -162,7 +163,7 @@ class Tuner:
     # Tuning loop
     #####################################
 
-    def make_temp_config(self, config_dict, w, cluster_param, hurdle_model, smoothing_target, linear_smooth, smooth_a, smooth_k):
+    def join_configs_and_hypers(self, config_dict, w, cluster_param, hurdle_model, smoothing_target, linear_smooth, smooth_a, smooth_k, clustering_matrix_name):
         ''' 
         Adds a set of hyperparameters to a temporary copy of the config dict
         '''
@@ -175,6 +176,7 @@ class Tuner:
         temp_config['linear_smooth'] = linear_smooth
         temp_config['smooth_a'] = smooth_a
         temp_config['smooth_k'] = smooth_k
+        temp_config['clustering_matrix_name'] = clustering_matrix_name
 
         return temp_config
 
@@ -188,59 +190,82 @@ class Tuner:
         validation_only_dict['test_end'] = validation_only_dict['validation_end']
         return validation_only_dict
 
-    def tune_models(self, hyperparams, train_test_dict, config_dict, degen_mask):
-        ''' 
-        Runs the hyperparameter tuning for the cluster based smoothing model and the raw model
+    def sample_configs(self, experiment_name, hyperparams):
         '''
+        Samples a random set of hyperparameters for the given experiment
+        '''
+        # If we dont smooth just iterate over w values and have the rest filled with defaults
+        if experiment_name == 'no_smoothing':
+            return [
+                {'w': w, 'cluster_param': 1, 'smoothing_target': 0, 'linear_smooth': True,
+                'smooth_a': 0.0, 'smooth_k': hyperparams['smoothing_k_vals'][0], 'clustering_matrix_name': 'u'} for w in hyperparams['w_vals']]
+
+        hypers_list = []
+
+        # Iterate over the smooth a configs
+        for w, smoothing_target, smooth_a in product(hyperparams['w_vals'], hyperparams['smoothing_target'], hyperparams['smoothing_a_vals']):
+            hyper_row = {'w': w, 'smoothing_target': smoothing_target, 'linear_smooth': True, 'smooth_a': smooth_a, 'smooth_k': hyperparams['smoothing_k_vals'][0]}
+            hypers_list.append(hyper_row)
+
+        # Iterate over the smooth k configs
+        for w, smoothing_target, smooth_k in product(hyperparams['w_vals'], hyperparams['smoothing_target'], hyperparams['smoothing_k_vals']):
+            hyper_row = { 'w': w, 'smoothing_target': smoothing_target, 'linear_smooth': False, 'smooth_a': hyperparams['smoothing_a_vals'][0], 'smooth_k': smooth_k}
+            hypers_list.append(hyper_row)
+
+        ## Adding cluster configs to smoothing configs
+        if experiment_name == 'global_smoothing':
+            hyper_list = [{**hyper_dict, 'cluster_param': 1, 'clustering_matrix_name': 'u'} for hyper_dict in hypers_list]
+
+        elif experiment_name == 'cluster_smoothing':
+            for hyper_dict, cluster_param, clustering_matrix_name in product(hypers_list, hyperparams['cluster_param_vals'], hyperparams['clustering_matrix_name_vals']):
+                hyper_list = [{**hyper_dict, 'cluster_param': cluster_param, 'clustering_matrix_name': clustering_matrix_name}]
+        else:
+            raise ValueError('Invalid experimental name')
+
+        # Sample from created lists 
+        rng = np.random.default_rng(hyperparams['seed'])
+        sampled_indices = rng.choice(len(hyper_list), size=min(hyperparams['n_random_configs'], len(hyper_list)), replace=False)
+
+        return [hyper_list[idx] for idx in sampled_indices]
+
+
+    def tune_models(self, experiment_name, hurdle_model, hyperparams, train_test_dict, config_dict, degen_mask):
+        '''
+        Runs the hyperparameter tuning for one fixed experiment name
+        '''
+
+        # Creates a dict that allows the runner to not run on test
         validation_only_dict = self.create_tuning_dict(train_test_dict)
         validation_only_nt = self.train_test_nt_class(**validation_only_dict)
 
+        sampled_configs = self.sample_configs(experiment_name, hyperparams)
+
+        # Creating output lists
         results = []
         calibration_results = []
-        for w in hyperparams['w_vals']:
-            for cluster_param in hyperparams['cluster_param_vals']:
-                for hurdle_model in hyperparams['hurdle_model']:
-                    for smoothing_target in hyperparams['smoothing_target']:
+        hypers_tested = []
 
-                        for smooth_a in hyperparams['smoothing_a_vals']:
+        # Iterate over the sample configs
+        for sampled_config in sampled_configs:
 
-                            # Creating a good config dict for the runs
-                            temp_config = self.make_temp_config(config_dict=config_dict, w=w, cluster_param=cluster_param, hurdle_model=hurdle_model, 
-                                                        smoothing_target=smoothing_target, linear_smooth=True, smooth_a=smooth_a, smooth_k=config_dict['smooth_k'])
+            # Making a copy of the config dict with our sampled hyperparameters and turning it into nt
+            temp_config = self.join_configs_and_hypers(config_dict=config_dict, w=sampled_config['w'], cluster_param=sampled_config['cluster_param'],
+                                                hurdle_model=hurdle_model, smoothing_target=sampled_config['smoothing_target'], linear_smooth=sampled_config['linear_smooth'], 
+                                                smooth_a=sampled_config['smooth_a'], smooth_k=sampled_config['smooth_k'], clustering_matrix_name=sampled_config['clustering_matrix_name'])
+            temp_config_nt = self.config_nt_class(**temp_config)
 
-                            temp_config_nt = self.config_nt_class(**temp_config)
+            # Getting the model and the cluster grids
+            _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(temp_config)
+            model = c.make_cluster_model(cluster_param=temp_config['cluster_param'], runtime_configs=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
 
-                            # Getting the init grids and model
-                            _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(temp_config)
-                            model = c.make_cluster_model(cluster_param=cluster_param, runtime_configs=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
+            # Running the LL pipeline
+            output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
 
+            # Updating outputs
+            results.append(self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid', 
+                                                      experiment_name=experiment_name))
+            calibration_results.extend(self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, 
+                                                                         test_valid='valid', config_dict=temp_config, experiment_name=experiment_name))
+            hypers_tested.append(temp_config)
 
-                            # Running the LL and getting the output row
-                            output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
-                            row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid')
-                            calibration_row = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid="valid", config_dict=temp_config)
-
-                            results.append(row)
-                            calibration_results.extend(calibration_row)
-
-
-                        for smooth_k in hyperparams['smoothing_k_vals']:
-
-                            # Creating a good config dict for the runs
-                            temp_config = self.make_temp_config(config_dict=config_dict, w=w, cluster_param=cluster_param, hurdle_model=hurdle_model, 
-                                                        smoothing_target=smoothing_target, linear_smooth=False, smooth_a=config_dict['smooth_a'], smooth_k=smooth_k)
-                            temp_config_nt = self.config_nt_class(**temp_config)
-
-                            # Getting the init grids and model
-                            _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(temp_config)
-                            model = c.make_cluster_model(cluster_param=cluster_param, runtime_configs=temp_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster)
-
-                            # Running the LL and getting the output row
-                            output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
-                            row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid')
-                            calibration_row = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid="valid", config_dict=temp_config)
-
-                            results.append(row)
-                            calibration_results.extend(calibration_row)
-
-        return results, calibration_results
+        return results, calibration_results, hypers_tested

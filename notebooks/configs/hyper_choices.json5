@@ -1,8 +1,17 @@
 {
-    "w_vals" : [0.01, 0.05, 0.1],
-    "cluster_param_vals" : [1, 4, 16, 64],
-    "hurdle_model" : [true, false],
-    "smoothing_target" : [0,1,2],
-    "smoothing_a_vals" : [0, 0.1, 0.2, 0.4, 1],
-    "smoothing_k_vals" : [2, 10, 50]
+    // The seed and the number of configs sampled
+    "seed": 110,
+    "n_hypers_sampled": 30,
+
+    // There are three comparisons to see here 
+    "experiment_name": ["no_smoothing", "global_smoothing", "cluster_smoothing"],
+    "hurdle_model_vals": [true, false],
+
+    // Hyperparameters for the experiment
+    "w_vals": [0.01, 0.05, 0.1],
+    "cluster_param_vals": [4, 16, 64],
+    "smoothing_target": [0, 1, 2],
+    "smoothing_a_vals": [0.1, 0.2, 0.4, 1.0],
+    "smoothing_k_vals": [2, 10, 50],
+    "clustering_matrix_name_vals": ["u", "log_u", "v", "normalised_u"],
 }
