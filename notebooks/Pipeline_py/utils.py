@@ -3,6 +3,7 @@ import json5
 import numpy as np
 
 data_path = '/home/ma/a/alb25/Project/thesis_code/data/processed/intermediate'
+results_path = '/home/ma/a/alb25/Project/thesis_code/data/processed/results'
 input_data = 'train_df'
 
 #####################################
@@ -10,7 +11,9 @@ input_data = 'train_df'
 #####################################
 
 # Creating functions for storing and reading data
-def store_data(data, filename, data_path=data_path, csv=False):
+def store_data(data, filename, csv=False, results=False, data_path=data_path, results_path=results_path):
+    if results:
+        data_path = results_path
     if isinstance(data, pl.LazyFrame):
         if csv == True:
             data.sink_csv(f'{data_path}/output/{filename}.csv')
@@ -25,14 +28,15 @@ def store_data(data, filename, data_path=data_path, csv=False):
         np.save(f'{data_path}/output/{filename}.npy', data)
     else:
         raise TypeError('Function doesnt support this data type')
-    
 
-def load_data(filename, data_type, data_path=data_path):
+def load_data(filename, data_type, results=False, data_path=data_path, results_path=results_path):
     ''' 
     Args:
         filename: the saved file name
         data_type: ['lazy', 'np', 'df'] the type of data we want to load in
     '''
+    if results:
+        data_path = results_path
     if data_type == 'lazy':
         data = pl.scan_parquet(f'{data_path}/output/{filename}.parquet')
     elif data_type == 'np':

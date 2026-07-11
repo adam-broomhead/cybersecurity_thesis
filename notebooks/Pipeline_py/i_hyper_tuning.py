@@ -217,14 +217,14 @@ class Tuner:
             hyper_list = [{**hyper_dict, 'cluster_param': 1, 'clustering_matrix_name': 'u'} for hyper_dict in hypers_list]
 
         elif experiment_name == 'cluster_smoothing':
-            for hyper_dict, cluster_param, clustering_matrix_name in product(hypers_list, hyperparams['cluster_param_vals'], hyperparams['clustering_matrix_name_vals']):
-                hyper_list = [{**hyper_dict, 'cluster_param': cluster_param, 'clustering_matrix_name': clustering_matrix_name}]
+            hyper_list = [{**hyper_dict, 'cluster_param': cluster_param, 'clustering_matrix_name': clustering_matrix_name} 
+                          for  hyper_dict, cluster_param, clustering_matrix_name in product(hypers_list, hyperparams['cluster_param_vals'], hyperparams['clustering_matrix_name_vals'])]
         else:
             raise ValueError('Invalid experimental name')
 
         # Sample from created lists 
         rng = np.random.default_rng(hyperparams['seed'])
-        sampled_indices = rng.choice(len(hyper_list), size=min(hyperparams['n_random_configs'], len(hyper_list)), replace=False)
+        sampled_indices = rng.choice(len(hyper_list), size=min(hyperparams['n_hypers_sampled'], len(hyper_list)), replace=False)
 
         return [hyper_list[idx] for idx in sampled_indices]
 
@@ -243,7 +243,6 @@ class Tuner:
         # Creating output lists
         results = []
         calibration_results = []
-        hypers_tested = []
 
         # Iterate over the sample configs
         for sampled_config in sampled_configs:
@@ -266,6 +265,5 @@ class Tuner:
                                                       experiment_name=experiment_name))
             calibration_results.extend(self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, 
                                                                          test_valid='valid', config_dict=temp_config, experiment_name=experiment_name))
-            hypers_tested.append(temp_config)
 
-        return results, calibration_results, hypers_tested
+        return results, calibration_results
