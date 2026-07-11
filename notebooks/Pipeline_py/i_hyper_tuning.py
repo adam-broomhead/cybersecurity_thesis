@@ -221,7 +221,7 @@ class Tuner:
                             calibration_row = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid="valid", config_dict=temp_config)
 
                             results.append(row)
-                            calibration_results.append(calibration_row)
+                            calibration_results.extend(calibration_row)
 
 
                         for smooth_k in hyperparams['smoothing_k_vals']:
@@ -241,6 +241,6 @@ class Tuner:
                             calibration_row = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid="valid", config_dict=temp_config)
 
                             results.append(row)
-                            calibration_results.append(calibration_row)
+                            calibration_results.extend(calibration_row)
 
         return results, calibration_results
