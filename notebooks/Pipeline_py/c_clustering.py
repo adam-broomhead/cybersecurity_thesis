@@ -78,7 +78,7 @@ def get_k_medians_assignments(k, random_state, matrix_to_cluster):
     distances = np.abs(matrix_to_cluster - cluster_centres[clusters]).sum(axis=1)
     cluster_inertia = distances.sum()
 
-    return model.get_clusters(), cluster_centres, cluster_inertia
+    return clusters, cluster_centres, cluster_inertia
 
 def get_cluster_assignments(cluster_param, matrix_to_cluster, runtime_configs : dict):
     ''' 
@@ -112,7 +112,7 @@ def get_centroid_distance(cluster_centres, distance_metric):
                 if distance_metric == 'l1':
                     distance = np.abs(cluster_centres[i] - cluster_centres[j]).sum()
                 elif distance_metric in ('l2', 'standardised_l2'):
-                    distance = np.sqrt(np.sum(cluster_centres[i] - cluster_centres[j]) ** 2)
+                    distance = np.sqrt(np.sum((cluster_centres[i] - cluster_centres[j]) ** 2))
 
                 cluster_distances.append(distance)
 
