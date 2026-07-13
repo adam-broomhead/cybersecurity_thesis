@@ -3,12 +3,20 @@
     // Contains configs for runtime step of pipeline
     // These will likely remain unchanged
     
-    // setting the seed (used in k means) and clustering method
+    // Clustering configuration
     "seed" : 110,
-    "clustering_method" : "k_means",
+    "clustering_method" : "k_clusters",
     "clustering_matrix_name" : "u",
-    
-    // Calibration outputs and degen threshold (>= and we evaluate)
+    "distance_metric" : "l2",
+
+    // Selected experimental condition
+    "experiment_name" : "cluster_smoothing",
+
+    // Determines the experiment to run
+    "model_family_selected" : false,
+    "final_config_selected" : false,
+
+    // Calibration outputs
     "calibration_thresholds" : [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 0.9],
 
     // Tells us whether to evaluate only on the validation set
@@ -25,4 +33,5 @@
     "smoothing_target" : 0, 
     "hurdle_model" : true,
     "cluster_param" : 4,
+    "experiment_name" : "cluster_smoothing",
 }

@@ -14,4 +14,5 @@
     "smoothing_a_vals": [0.1, 0.2, 0.4, 1.0],
     "smoothing_k_vals": [2, 10, 50],
     "clustering_matrix_name_vals": ["u", "log_u", "v", "normalised_u"],
+    "distance_metric_vals": ["l2", "standardised_l2", "l1"],
 }

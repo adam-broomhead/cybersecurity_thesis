@@ -112,6 +112,7 @@ class Tuner:
             
             # Clustering metrics
             'clustering_matrix_name': model['clustering_matrix_name'],
+            'distance_metric' : model['distance_metric'],
             'seed': model['seed'],
             'cluster_inertia': model['cluster_inertia']}
 
@@ -149,6 +150,7 @@ class Tuner:
                 'smoothing_target': config_dict['smoothing_target'],
                 'hurdle_model': config_dict['hurdle_model'],
                 'clustering_matrix_name': model['clustering_matrix_name'],
+                'distance_metric' : model['distance_metric'],
                 'test_valid': test_valid,
 
                 # Calibration metrics
@@ -163,7 +165,7 @@ class Tuner:
     # Tuning loop
     #####################################
 
-    def join_configs_and_hypers(self, config_dict, w, cluster_param, hurdle_model, smoothing_target, linear_smooth, smooth_a, smooth_k, clustering_matrix_name):
+    def join_configs_and_hypers(self, config_dict, w, cluster_param, hurdle_model, smoothing_target, linear_smooth, smooth_a, smooth_k, clustering_matrix_name, distance_metric):
         ''' 
         Adds a set of hyperparameters to a temporary copy of the config dict
         '''
@@ -177,6 +179,7 @@ class Tuner:
         temp_config['smooth_a'] = smooth_a
         temp_config['smooth_k'] = smooth_k
         temp_config['clustering_matrix_name'] = clustering_matrix_name
+        temp_config['distance_metric'] = distance_metric
 
         return temp_config
 
@@ -196,9 +199,8 @@ class Tuner:
         '''
         # If we dont smooth just iterate over w values and have the rest filled with defaults
         if experiment_name == 'no_smoothing':
-            return [
-                {'w': w, 'cluster_param': 1, 'smoothing_target': 0, 'linear_smooth': True,
-                'smooth_a': 0.0, 'smooth_k': hyperparams['smoothing_k_vals'][0], 'clustering_matrix_name': 'u'} for w in hyperparams['w_vals']]
+            return [{'w': w, 'cluster_param': 1, 'smoothing_target': 0, 'linear_smooth': True, 'smooth_a': 0,
+                    'smooth_k': hyperparams['smoothing_k_vals'][0], 'clustering_matrix_name': 'u', 'distance_metric': 'l2'} for w in hyperparams['w_vals']]
 
         hypers_list = []
 
@@ -212,13 +214,14 @@ class Tuner:
             hyper_row = { 'w': w, 'smoothing_target': smoothing_target, 'linear_smooth': False, 'smooth_a': hyperparams['smoothing_a_vals'][0], 'smooth_k': smooth_k}
             hypers_list.append(hyper_row)
 
-        ## Adding cluster configs to smoothing configs
+        ## Adding cluster configs to smoothing configs if we are smoothing
         if experiment_name == 'global_smoothing':
-            hyper_list = [{**hyper_dict, 'cluster_param': 1, 'clustering_matrix_name': 'u'} for hyper_dict in hypers_list]
-
+            hyper_list = [{**hyper_dict, 'cluster_param': 1, 'clustering_matrix_name': 'u', 'distance_metric': 'l2'} for hyper_dict in hypers_list]
+            
         elif experiment_name == 'cluster_smoothing':
-            hyper_list = [{**hyper_dict, 'cluster_param': cluster_param, 'clustering_matrix_name': clustering_matrix_name} 
-                          for  hyper_dict, cluster_param, clustering_matrix_name in product(hypers_list, hyperparams['cluster_param_vals'], hyperparams['clustering_matrix_name_vals'])]
+            hyper_list = [{**hyper_dict, 'cluster_param': cluster_param, 'clustering_matrix_name': clustering_matrix_name, 'distance_metric': distance_metric} 
+                          for hyper_dict, cluster_param, clustering_matrix_name, distance_metric 
+                          in product(hypers_list, hyperparams['cluster_param_vals'], hyperparams['clustering_matrix_name_vals'], hyperparams['distance_metric_vals'])]
         else:
             raise ValueError('Invalid experimental name')
 
@@ -248,9 +251,10 @@ class Tuner:
         for sampled_config in sampled_configs:
 
             # Making a copy of the config dict with our sampled hyperparameters and turning it into nt
-            temp_config = self.join_configs_and_hypers(config_dict=config_dict, w=sampled_config['w'], cluster_param=sampled_config['cluster_param'],
-                                                hurdle_model=hurdle_model, smoothing_target=sampled_config['smoothing_target'], linear_smooth=sampled_config['linear_smooth'], 
-                                                smooth_a=sampled_config['smooth_a'], smooth_k=sampled_config['smooth_k'], clustering_matrix_name=sampled_config['clustering_matrix_name'])
+            temp_config = self.join_configs_and_hypers(config_dict=config_dict, w=sampled_config['w'], cluster_param=sampled_config['cluster_param'], 
+                                hurdle_model=hurdle_model, smoothing_target=sampled_config['smoothing_target'], linear_smooth=sampled_config['linear_smooth'], 
+                                smooth_a=sampled_config['smooth_a'], smooth_k=sampled_config['smooth_k'], 
+                                clustering_matrix_name=sampled_config['clustering_matrix_name'], distance_metric=sampled_config['distance_metric'])
             temp_config_nt = self.config_nt_class(**temp_config)
 
             # Getting the model and the cluster grids
