@@ -2,6 +2,7 @@ import h_ll_runner as h
 import numpy as np
 import c_clustering as c
 import f_grids_and_outputs as f
+import b_run_staging as b
 from itertools import product
 
 class Tuner:
@@ -28,7 +29,6 @@ class Tuner:
             self.bin_metric_nt = bin_metric_nt
             self.output_idx_nt = output_idx_nt
             self.model_idx_nt = model_idx_nt
-            self.config_nt_class = config_nt_class
             self.train_test_nt_class = train_test_nt_class
 
     #####################################
@@ -151,6 +151,7 @@ class Tuner:
                 'hurdle_model': config_dict['hurdle_model'],
                 'clustering_matrix_name': model['clustering_matrix_name'],
                 'distance_metric' : model['distance_metric'],
+                'seed' : model['seed'],
                 'test_valid': test_valid,
 
                 # Calibration metrics
@@ -241,7 +242,17 @@ class Tuner:
         validation_only_dict = self.create_tuning_dict(train_test_dict)
         validation_only_nt = self.train_test_nt_class(**validation_only_dict)
 
+
         sampled_configs = self.sample_configs(experiment_name, hyperparams)
+        first_sampled_config = sampled_configs[0]
+
+        # Using the first config to create a nt class
+        first_config = self.join_configs_and_hypers(config_dict=config_dict, w=first_sampled_config['w'], cluster_param=first_sampled_config['cluster_param'], 
+                        hurdle_model=hurdle_model, smoothing_target=first_sampled_config['smoothing_target'], linear_smooth=first_sampled_config['linear_smooth'], 
+                        smooth_a=first_sampled_config['smooth_a'], smooth_k=first_sampled_config['smooth_k'], clustering_matrix_name=first_sampled_config['clustering_matrix_name'], 
+                        distance_metric=first_sampled_config['distance_metric'])
+        config_nt_class = (b.dictionary_to_named_tuple_class('config_nt', first_config))
+
 
         # Creating output lists
         results = []
@@ -255,7 +266,7 @@ class Tuner:
                                 hurdle_model=hurdle_model, smoothing_target=sampled_config['smoothing_target'], linear_smooth=sampled_config['linear_smooth'], 
                                 smooth_a=sampled_config['smooth_a'], smooth_k=sampled_config['smooth_k'], 
                                 clustering_matrix_name=sampled_config['clustering_matrix_name'], distance_metric=sampled_config['distance_metric'])
-            temp_config_nt = self.config_nt_class(**temp_config)
+            temp_config_nt = config_nt_class(**temp_config)
 
             # Getting the model and the cluster grids
             _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(temp_config)

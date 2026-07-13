@@ -1,0 +1,14 @@
+{
+    // The best model configs of each type for running on the test set
+    "no_smoothing": {"w": 0.05,
+                    "cluster_param": 1,
+                    "smoothing_target": 0,
+                    "linear_smooth": true,
+                    "smooth_a": 0.0,
+                    "smooth_k": 2,
+                    "clustering_matrix_name": "u",
+                    "distance_metric": "l2"},
+
+    "global_smoothing": null,
+    "cluster_smoothing": null,
+}

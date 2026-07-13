@@ -1,6 +1,8 @@
 import polars as pl 
 import json5
 import numpy as np
+from datetime import datetime
+import os
 
 data_path = '/home/ma/a/alb25/Project/thesis_code/data/processed/intermediate'
 results_path = '/home/ma/a/alb25/Project/thesis_code/data/processed/results'
@@ -47,6 +49,24 @@ def load_data(filename, data_type, results=False, data_path=data_path, results_p
         raise TypeError('Function doesnt support this data type')
     return data
 
+def store_run_results(results_df, calibration_df, stage, results_path=results_path):
+    '''
+    Writes run results to results folder
+    '''
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+
+    # Creating dirs if needed
+    os.makedirs(f'{results_path}/{stage}/summary')
+    os.makedirs(f'{results_path}/{stage}/calibration')
+
+    # Adding run timestamp column
+    results_df = results_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
+    calibration_df = calibration_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
+
+    # Writing results to the df
+    results_df.write_parquet(f'{results_path}/{stage}/summary/r_{timestamp}.parquet')
+    calibration_df.write_parquet(f'{results_path}/{stage}/calibration/r_{timestamp}.parquet')
+
 #####################################
 # Json 5 stuff
 #####################################
@@ -67,7 +87,18 @@ def merge_configs(static_config, runtime_config):
     ''' 
     Merges runtime configs and static configs and converts lists to arrays for runs
     '''
-    config_dict = {**static_config, **runtime_config}
-    config_dict["calibration_thresholds"] = np.array(config_dict["calibration_thresholds"], dtype=np.float64)
+def merge_configs(*configs):
+    '''
+    Merges config dicts
+    '''
+    config_dict = {}
+
+    # Insert configs into the config_dict
+    for config in configs:
+        config_dict.update(config)
+
+    # Converting lists to np arrays
+    if 'calibration_thresholds' in config_dict:
+        config_dict['calibration_thresholds'] = np.array(config_dict['calibration_thresholds'], dtype='float64')
 
     return config_dict
