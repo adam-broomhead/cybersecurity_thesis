@@ -49,24 +49,34 @@ def load_data(filename, data_type, results=False, data_path=data_path, results_p
         raise TypeError('Function doesnt support this data type')
     return data
 
-def store_run_results(results_df, calibration_df, stage, results_path=results_path):
+def store_run_results(results, calibration_results, stage, run_name, results_path=results_path):
     '''
     Writes run results to results folder
     '''
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
     # Creating dirs if needed
-    os.makedirs(f'{results_path}/{stage}/summary')
-    os.makedirs(f'{results_path}/{stage}/calibration')
+    os.makedirs(f'{results_path}/{stage}/summary', exist_ok=True)
+    os.makedirs(f'{results_path}/{stage}/calibration', exist_ok=True)
+
+    # Turning into polars dataframes
+    if isinstance(results, pl.DataFrame):
+        results_df = results
+    else:
+        results_df = pl.DataFrame(results)
+    if isinstance(calibration_results, pl.DataFrame):
+        calibration_df = calibration_results
+    else:
+        calibration_df = pl.DataFrame(calibration_results)
 
     # Adding run timestamp column
     results_df = results_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
     calibration_df = calibration_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
 
     # Writing results to the df
-    results_df.write_parquet(f'{results_path}/{stage}/summary/r_{timestamp}.parquet')
-    calibration_df.write_parquet(f'{results_path}/{stage}/calibration/r_{timestamp}.parquet')
-
+    results_df.write_parquet(f'{results_path}/{stage}/summary/{run_name}_{timestamp}.parquet')
+    calibration_df.write_parquet(f'{results_path}/{stage}/calibration/{run_name}_{timestamp}.parquet')
+    
 #####################################
 # Json 5 stuff
 #####################################
