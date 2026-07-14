@@ -274,9 +274,10 @@ def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=No
         'cluster_param' : cluster_param,
 
         # Identified values
-        'cluster_mean_u' : cluster_centre_u,
+        'cluster_centre_u' : cluster_centre_u,
         'cluster_centre_v' : cluster_centre_v,
         'cluster_centre_p' : cluster_centre_p,
+        'distance_metric': runtime_configs['distance_metric'],
         'cluster_assignments' : cluster_assignments,
         
         # Cluster quality metrics

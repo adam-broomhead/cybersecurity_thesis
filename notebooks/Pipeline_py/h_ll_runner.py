@@ -5,7 +5,7 @@ import e_smoothing as e
 import f_grids_and_outputs as f
 
 @njit
-def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, n_counts_init, 
+def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, n_counts_init, distance_metric,
                     alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init, degen_mask, user_counts_nt, user_interactions_nt,
                     interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, model_idx_nt):
     ''' 
@@ -111,10 +111,10 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             # Updating the users first row (for the next week) and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
-            f.update_n_counts_and_alpha_grid(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, config_nt)
-            n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
-            f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
+            f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, config_nt)
 
-        cluster_u, cluster_v, cluster_p = g.get_new_clustering_means(cluster_groups, u, v, p)
+        n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
+        f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
+        cluster_centre_u, cluster_centre_v, cluster_centre_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
-    return output_metrics, calibration_output, u, v, p, cluster_u, cluster_v, cluster_p, n_counts, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid
+    return output_metrics, calibration_output, u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid

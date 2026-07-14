@@ -136,11 +136,11 @@ def get_new_clustering_means(cluster_groups, u, v, p):
     n_clusters = cluster_groups.max() + 1
 
     # Init mean vectors
-    cluster_mean_u = np.zeros((n_clusters, n_coarse_bins), dtype=np.float64)
-    cluster_mean_v = np.zeros((n_clusters, n_coarse_bins), dtype=np.float64)
-    cluster_mean_p = np.zeros((n_clusters, n_coarse_bins), dtype=np.float64)
+    cluster_mean_u = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
+    cluster_mean_v = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
+    cluster_mean_p = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
 
-    users_per_cluster = np.zeros(n_clusters, dtype=np.float64)
+    users_per_cluster = np.zeros(n_clusters, dtype='float64')
 
     # Summing u and v contributions in each cluster
     # Extract the cluster assignment for each user and then add their parameters to each bin
@@ -161,3 +161,40 @@ def get_new_clustering_means(cluster_groups, u, v, p):
             cluster_mean_p[cluster_assignment, :] /= users_per_cluster[cluster_assignment]
 
     return cluster_mean_u, cluster_mean_v, cluster_mean_p
+
+@njit
+def get_param_cluster_medians(cluster_groups, param_grid):
+    '''
+    Gets cluster medians to use for smoothing
+    '''
+    n_users, n_coarse_bins =  np.zeros(n_clusters, dtype='int64')
+    n_clusters = cluster_groups.max() + 1
+
+    for user_id in range(n_users):
+        users_per_cluster[cluster_groups[user_id]] += 1
+
+    cluster_medians = np.zeros((n_clusters, n_coarse_bins), dtype='float64',)
+
+    for cluster_id in range(n_clusters):
+        for coarse_bin in range(n_coarse_bins):
+            values = np.zeros(users_per_cluster[cluster_id], dtype='float64')
+            value_idx = 0
+
+            for user_id in range(n_users):
+                if int(cluster_groups[user_id]) == cluster_id:
+                    values[value_idx] = param_grid[user_id, coarse_bin]
+                    value_idx += 1
+
+            cluster_medians[cluster_id, coarse_bin] = np.median(values)
+
+    return cluster_medians
+
+@njit(inline='always')
+def get_new_cluster_centres(cluster_groups, u, v, p, distance_metric):
+    '''
+    Returns either the cluster mean or the cluster median depending on the distance metric this run is for
+    '''
+    if distance_metric=='l1':
+        return get_param_cluster_medians(cluster_groups, u), get_param_cluster_medians(cluster_groups, v), get_param_cluster_medians(cluster_groups, p)
+    else:
+        return get_new_clustering_means(cluster_groups, u, v, p)
