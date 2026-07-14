@@ -7,29 +7,29 @@ import math
 # Alpha Grid update
 #####################################
 
-def init_alpha_grid(n_counts_init, config_dict):
-    ''' 
+def init_alpha_grid(n_counts_init, linear_smooth, smooth_a, smooth_k):
+    '''
     Init a grid of alpha values that are used in smoothing
     '''
     # Return a constant grid if we are using linear smoothing else make a count dependent alpha
-    if config_dict['linear_smooth']:
-        return np.full_like(n_counts_init, config_dict['smooth_a'], dtype='float64')
-    else: 
-        return config_dict['smooth_k'] / (np.log1p(n_counts_init) + config_dict['smooth_k'])
-    
-@njit
-def update_alpha_grid(n_counts, config_nt):
-    ''' 
-    Gets a value of alpha fron n_counts similarly to `init_alpha_grid`
-    '''
-    if config_nt.linear_smooth:
-        return config_nt.smooth_a
-    else: 
-        return config_nt.smooth_k / (math.log1p(n_counts) + config_nt.smooth_k)
+    if linear_smooth:
+        return np.full_like(n_counts_init, smooth_a, dtype='float64')
+    else:
+        return smooth_k / (np.log1p(n_counts_init) + smooth_k)
 
 @njit
-def update_n_counts_and_alpha_grid(n_counts, alpha_grid, crnt_user_id, usr_updt_n_counts, config_nt):
-    ''' 
+def get_alpha_val(n_counts, linear_smooth, smooth_a, smooth_k):
+    '''
+    Gets a value of alpha fron n_counts similarly to `init_alpha_grid`
+    '''
+    if linear_smooth:
+        return smooth_a
+    else:
+        return smooth_k/ (math.log1p(n_counts) + smooth_k)
+
+@njit
+def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, crnt_user_id, usr_updt_n_counts, config_nt):
+    '''
     Runs at the end of every week in the ll runner
     '''
     n_coarse_bins = n_counts.shape[1]
@@ -37,8 +37,22 @@ def update_n_counts_and_alpha_grid(n_counts, alpha_grid, crnt_user_id, usr_updt_
     # Iterating over the grid adding the weekly sums and updating the grid
     for coarse_bin in range(n_coarse_bins):
         n_counts[crnt_user_id, coarse_bin] += usr_updt_n_counts[coarse_bin]
+        current_n = n_counts[crnt_user_id, coarse_bin]
+        alpha_mu_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_mu, config_nt.smooth_k_mu)
+        alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_sigma2, config_nt.smooth_k_sigma2)
 
-        alpha_grid[crnt_user_id, coarse_bin] = update_alpha_grid(n_counts[crnt_user_id, coarse_bin], config_nt)
+@njit
+def update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt):
+    '''
+    updates alpha for p (which is not the positive number of counts only but the number of coarse bins as we have no nulls
+    '''
+
+    alpha_p = get_alpha_val(n_fine_bins_seen, config_nt.linear_smooth, config_nt.smooth_a_p, config_nt.smooth_k_p)
+    n_users, n_coarse_bins = alpha_p_grid.shape
+
+    for user_id in range(n_users):
+        for coarse_bin in range(n_coarse_bins):
+            alpha_p_grid[user_id, coarse_bin] = alpha_p
 
 #####################################
 # Collecting and updating u, v, p grids
@@ -51,7 +65,8 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
     returns nothing as we modify in place. Also has an update version for hurdle model using ll formula + new formula for p
     '''
     # updating the count sum
-    usr_updt_cnt_sum[crnt_coarse_bin] += x
+    if x > 0:
+        usr_updt_cnt_sum[crnt_coarse_bin] += 1
     
     # Update logic for the hurdle model
     if config_nt.hurdle_model:

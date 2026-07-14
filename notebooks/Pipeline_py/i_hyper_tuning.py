@@ -47,18 +47,29 @@ class Tuner:
         ''' 
         Makes a call to the numba lambert liu runner
         '''
+
+        alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_mu'], config_dict['smooth_k_mu'])
+        alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_sigma2'], config_dict['smooth_k_sigma2'])
+        alpha_p_grid_init = f.init_alpha_grid(p_trial_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_p'], config_dict['smooth_k_p'])
+
+        p_trial_counts_init = np.full_like(self.n_counts_init, self.bin_metric_nt.train_denom, dtype=np.float64)
+
+
+
         u, v, p, _, _, _ = self.get_ll_param_grids(config_dict)
 
         return h.run_lambert_liu(
             u_init=u,
             v_init=v,
             p_init=p,
-            cluster_u_init=model['cluster_mean_u'],
-            cluster_v_init=model['cluster_mean_v'],
-            cluster_p_init=model['cluster_mean_p'],
+            cluster_u_init=model['cluster_centre_u'],
+            cluster_v_init=model['cluster_centre_v'],
+            cluster_p_init=model['cluster_centre_p'],
             cluster_groups=model['cluster_assignments'],
             n_counts_init=self.n_counts_init,
-            alpha_grid_init=f.init_alpha_grid(self.n_counts_init, config_dict),
+            alpha_mu_grid_init=alpha_mu_grid_init,
+            alpha_sigma2_grid_init=alpha_sigma2_grid_init,
+            alpha_p_grid_init=alpha_p_grid_init,
             degen_mask=degen_mask,
             user_counts_nt=self.user_counts_nt,
             user_interactions_nt=self.user_interactions_nt,
@@ -112,7 +123,7 @@ class Tuner:
             # Clustering metrics
             'clustering_matrix_name': model['clustering_matrix_name'],
             'distance_metric' : model['distance_metric'],
-            'seed': model['seed'],
+            'clustering_seed': model['clustering_seed'],
             'cluster_inertia': model['cluster_inertia']}
 
         return output
@@ -150,7 +161,7 @@ class Tuner:
                 'hurdle_model': config_dict['hurdle_model'],
                 'clustering_matrix_name': model['clustering_matrix_name'],
                 'distance_metric' : model['distance_metric'],
-                'seed' : model['seed'],
+                'clustering_seed' : model['clustering_seed'],
                 'test_valid': test_valid,
 
                 # Calibration metrics
@@ -165,21 +176,15 @@ class Tuner:
     # Tuning loop
     #####################################
 
-    def join_configs_and_hypers(self, config_dict, w, cluster_param, hurdle_model, smoothing_target, linear_smooth, smooth_a, smooth_k, clustering_matrix_name, distance_metric):
-        ''' 
+    def join_configs_and_hypers(self, config_dict, hurdle_model, sampled_config, sampling_seed):
+        '''
         Adds a set of hyperparameters to a temporary copy of the config dict
         '''
         temp_config = config_dict.copy()
+        temp_config.update(sampled_config)
 
-        temp_config['w'] = w
-        temp_config['cluster_param'] = cluster_param
         temp_config['hurdle_model'] = hurdle_model
-        temp_config['smoothing_target'] = smoothing_target
-        temp_config['linear_smooth'] = linear_smooth
-        temp_config['smooth_a'] = smooth_a
-        temp_config['smooth_k'] = smooth_k
-        temp_config['clustering_matrix_name'] = clustering_matrix_name
-        temp_config['distance_metric'] = distance_metric
+        temp_config['sampling_seed'] = sampling_seed
 
         return temp_config
 
@@ -193,7 +198,7 @@ class Tuner:
         validation_only_dict['test_end'] = validation_only_dict['validation_end']
         return validation_only_dict
 
-    def sample_configs(self, experiment_name, hyperparams):
+    def sample_configs(self, experiment_name, hyperparams, hurdle_model):
         '''
         Samples a random set of hyperparameters for the given experiment
         '''
@@ -226,7 +231,7 @@ class Tuner:
             raise ValueError('Invalid experimental name')
 
         # Sample from created lists 
-        rng = np.random.default_rng(hyperparams['seed'])
+        rng = np.random.default_rng(hyperparams['sampling_seed'])
         sampled_indices = rng.choice(len(hyper_list), size=min(hyperparams['n_hypers_sampled'], len(hyper_list)), replace=False)
 
         return [hyper_list[idx] for idx in sampled_indices]

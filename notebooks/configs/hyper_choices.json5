@@ -1,13 +1,19 @@
 {
     // These are the hyperparameter configurations experimented with
-    "seed": 110,
+    "sampling_seed": 110,
     "n_hypers_sampled": 30,
 
     "w_vals": [0.01, 0.05, 0.1],
     "cluster_param_vals": [4, 16, 64],
     "smoothing_target": [0, 1, 2],
-    "smoothing_a_vals": [0.1, 0.2, 0.4, 1.0],
-    "smoothing_k_vals": [2, 10, 50],
+
+    "smoothing_a_mu_vals": [0.1, 0.2, 0.4, 1.0],
+    "smoothing_a_sigma2_vals": [0.1, 0.2, 0.4, 1.0],
+    "smoothing_a_p_vals": [0.1, 0.2, 0.4, 1.0],
+
+    "smoothing_k_mu_vals": [2, 10, 50],
+    "smoothing_k_sigma2_vals": [2, 10, 50],
+    "smoothing_k_p_vals": [2, 10, 50],
 
     "clustering_matrix_name_vals": ["u", "log_u", "v", "normalised_u"],
 

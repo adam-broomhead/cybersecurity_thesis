@@ -117,20 +117,21 @@ def smooth_params(user_param_grid, cluster_param_grid, cluster_assignments, user
 @njit
 def get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_assignments, 
                         user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
-                        alpha_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
+                        alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, crnt_user, crnt_coarse_bin, 
+                        crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
     '''
     Smooths my sigma2 and p if applicable
     '''
     
     mu = smooth_params(u, cluster_u, cluster_assignments, user_u_totals, cluster_u_totals, 
-                       alpha_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                       alpha_mu_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
     sigma2 = smooth_params(v, cluster_v, cluster_assignments, user_v_totals, cluster_v_totals, 
-                           alpha_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                           alpha_sigma2_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
     if config_nt.hurdle_model:
         p_val = smooth_params(p, cluster_p, cluster_assignments, user_p_totals, cluster_p_totals, 
-                              alpha_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                              alpha_p_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
     else:
         p_val = 0.0
 

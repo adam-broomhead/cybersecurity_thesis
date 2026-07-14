@@ -6,9 +6,8 @@ import f_grids_and_outputs as f
 
 @njit
 def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, n_counts_init, 
-                    alpha_grid_init, degen_mask, user_counts_nt, user_interactions_nt, interpolation_weights,
-                    train_test_nt, bin_metric_nt, config_nt,
-                    output_idx_nt, model_idx_nt):
+                    alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init, degen_mask, user_counts_nt, user_interactions_nt,
+                    interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, model_idx_nt):
     ''' 
     Runs the lambert liu algorithm
     Args:
@@ -33,9 +32,13 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     cluster_v = cluster_v_init.copy()
     cluster_p = cluster_p_init.copy()
 
+    # Init n counts and alpha grids
     n_counts = n_counts_init.copy()
-    alpha_grid = alpha_grid_init.copy()
-    zero_alpha_grid = np.zeros_like(alpha_grid)
+    alpha_mu_grid = alpha_mu_grid_init.copy()
+    alpha_sigma2_grid = alpha_sigma2_grid_init.copy()
+    alpha_p_grid = alpha_p_grid_init.copy()
+    zero_alpha_grid = np.zeros_like(alpha_mu_grid)
+    n_fine_bins_seen = bin_metric_nt.train_denom
 
 
     # Calculating needed values
@@ -92,7 +95,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
                 mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = g._get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, 
                                                                                     cluster_groups, user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
-                                                                                    alpha_grid, zero_alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                                                                                    alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
                 time_period_int = g.get_time_period(fine_bin, train_test_nt.validation_start, train_test_nt.validation_end, 
                                                                 train_test_nt.test_start, train_test_nt.test_end)
@@ -108,8 +111,10 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             # Updating the users first row (for the next week) and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
-            f.update_n_counts_and_alpha_grid(n_counts, alpha_grid, user_id, usr_updt_cnt_sum, config_nt)
+            f.update_n_counts_and_alpha_grid(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, config_nt)
+            n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
+            f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
 
         cluster_u, cluster_v, cluster_p = g.get_new_clustering_means(cluster_groups, u, v, p)
 
-    return output_metrics, calibration_output, u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_grid
+    return output_metrics, calibration_output, u, v, p, cluster_u, cluster_v, cluster_p, n_counts, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid

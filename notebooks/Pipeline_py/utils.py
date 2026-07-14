@@ -93,10 +93,6 @@ def dump_json5(dict, filename):
 # Merging configs
 #####################################
 
-def merge_configs(static_config, runtime_config):
-    ''' 
-    Merges runtime configs and static configs and converts lists to arrays for runs
-    '''
 def merge_configs(*configs):
     '''
     Merges config dicts

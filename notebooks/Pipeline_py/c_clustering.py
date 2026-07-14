@@ -86,10 +86,10 @@ def get_cluster_assignments(cluster_param, matrix_to_cluster, runtime_configs : 
     '''
     if runtime_configs['clustering_method'] == 'k_clusters':
         if runtime_configs['distance_metric'] in ('l2', 'standardised_l2'):
-            return get_k_means_assignments(k=cluster_param, random_state=runtime_configs['seed'], matrix_to_cluster=matrix_to_cluster)
+            return get_k_means_assignments(k=cluster_param, random_state=runtime_configs['clustering_seed'], matrix_to_cluster=matrix_to_cluster)
 
         elif runtime_configs['distance_metric'] == 'l1':
-            return get_k_medians_assignments(k=cluster_param, random_state=runtime_configs['seed'], matrix_to_cluster=matrix_to_cluster)
+            return get_k_medians_assignments(k=cluster_param, random_state=runtime_configs['clustering_seed'], matrix_to_cluster=matrix_to_cluster)
 
     
 #####################################
@@ -147,7 +147,7 @@ def create_cluster_summary_df(model, user_mapping, runtime_configs):
         output.append({
             'cluster_id' : cluster_id,
             'cluster_param' : model['cluster_param'],
-            'seed' : model['seed'],
+            'clustering_seed' : model['clustering_seed'],
             'clustering_matrix_name' : model['clustering_matrix_name'],
             'distance_metric': model['distance_metric'],
 
@@ -165,9 +165,35 @@ def create_cluster_summary_df(model, user_mapping, runtime_configs):
     return pl.DataFrame(output)
 
 #####################################
-# Model + cluster mean creation
+#  Cluster center creation
 #####################################
 
+def get_param_cluster_centre(cluster_groups, param_grid, distance_metric):
+    '''
+    Gets the cluster centre for each cluster
+    '''
+    # Getting number of clusters and bins and init a vector of centre points
+    n_clusters = cluster_groups.max() + 1
+    n_coarse_bins = param_grid.shape[1]
+    cluster_centre = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
+
+    for cluster_id in range(n_clusters):
+        # Identify the rows in the clsuter and get the centre
+        cluster_rows = param_grid[cluster_groups == cluster_id]
+        if distance_metric == 'l1':
+            cluster_centre[cluster_id] = np.median(cluster_rows, axis=0)
+        else:
+            cluster_centre[cluster_id] = cluster_rows.mean(axis=0)
+
+    return cluster_centre
+
+
+def get_cluster_centres(cluster_groups, u_init, v_init, p_init, distance_metric):
+    ''' 
+    Gets the cluster centre this is either the median (l1 distance) or the mean (l2 distance)
+    '''
+    return (get_param_cluster_centre(cluster_groups, u_init, distance_metric), get_param_cluster_centre(cluster_groups, v_init, distance_metric), 
+            get_param_cluster_centre(cluster_groups, p_init, distance_metric))
 
 def get_param_cluster_mean(cluster_groups, param_grid):
     ''' 
@@ -206,6 +232,10 @@ def get_cluster_means(cluster_groups, u_init, v_init, p_init):
     '''
     return get_param_cluster_mean(cluster_groups, u_init), get_param_cluster_mean(cluster_groups, v_init), get_param_cluster_mean(cluster_groups, p_init)
 
+#####################################
+#  Making the cluster model
+#####################################
+
 def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=None):
     ''' 
     Creates the clustering model dictionary 
@@ -232,21 +262,21 @@ def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=No
         cluster_assignments, cluster_centres, cluster_inertia = get_cluster_assignments(cluster_param=cluster_param, matrix_to_cluster=matrix_to_cluster, runtime_configs=runtime_configs)
 
     # Get mean cluster values
-    cluster_mean_u, cluster_mean_v, cluster_mean_p = get_cluster_means(cluster_groups=cluster_assignments, u_init=u_init, v_init=v_init, p_init=p_init)
-    
+    cluster_centre_u, cluster_centre_v, cluster_centre_p = get_cluster_centres(cluster_groups=cluster_assignments, u_init=u_init, v_init=v_init, p_init=p_init, 
+                                                                               distance_metric=runtime_configs['distance_metric'])
 
     output = {
         # Clustering configs
         'name' : f"{runtime_configs['clustering_method']}",
         'distance_metric': runtime_configs['distance_metric'],
         'clustering_matrix_name' : runtime_configs['clustering_matrix_name'],
-        'seed' : runtime_configs['seed'],
+        'clustering_seed' : runtime_configs['clustering_seed'],
         'cluster_param' : cluster_param,
 
         # Identified values
-        'cluster_mean_u' : cluster_mean_u,
-        'cluster_mean_v' : cluster_mean_v,
-        'cluster_mean_p' : cluster_mean_p,
+        'cluster_mean_u' : cluster_centre_u,
+        'cluster_centre_v' : cluster_centre_v,
+        'cluster_centre_p' : cluster_centre_p,
         'cluster_assignments' : cluster_assignments,
         
         # Cluster quality metrics

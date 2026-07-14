@@ -4,8 +4,14 @@
                     "cluster_param": 1,
                     "smoothing_target": 0,
                     "linear_smooth": true,
-                    "smooth_a": 0.0,
-                    "smooth_k": 2,
+
+                    "smooth_a_mu": 0.0,
+                    "smooth_a_sigma2": 0.0,
+                    "smooth_a_p": 0.0,
+                    "smooth_k_mu": 2,
+                    "smooth_k_sigma2": 2,
+                    "smooth_k_p": 2,
+                    
                     "clustering_matrix_name": "u",
                     "distance_metric": "l2"},
 

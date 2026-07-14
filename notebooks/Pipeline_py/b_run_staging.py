@@ -104,7 +104,7 @@ def init_n_counts_grid(user_counts, n_users, coarse_bins_per_week, period_start,
     # Init a grid and get entries to assign and assigning the number of counts
     n_counts = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
-    n_counts[entries_to_assign[:, 0], entries_to_assign[:, 1]] = train_df['sum_cnt'].to_numpy()
+    n_counts[entries_to_assign[:, 0], entries_to_assign[:, 1]] = train_df['n_bins'].to_numpy()
 
     return n_counts
 
