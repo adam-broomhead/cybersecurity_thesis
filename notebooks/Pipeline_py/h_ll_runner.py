@@ -5,7 +5,7 @@ import e_smoothing as e
 import f_grids_and_outputs as f
 
 @njit
-def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, n_counts_init, distance_metric,
+def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, n_counts_init, 
                     alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init, degen_mask, user_counts_nt, user_interactions_nt,
                     interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, model_idx_nt):
     ''' 
@@ -115,6 +115,6 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
         n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
         f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
-        cluster_centre_u, cluster_centre_v, cluster_centre_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
+        cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
     return output_metrics, calibration_output, u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid

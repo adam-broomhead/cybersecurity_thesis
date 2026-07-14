@@ -167,8 +167,9 @@ def get_param_cluster_medians(cluster_groups, param_grid):
     '''
     Gets cluster medians to use for smoothing
     '''
-    n_users, n_coarse_bins =  np.zeros(n_clusters, dtype='int64')
+    n_users, n_coarse_bins = param_grid.shape
     n_clusters = cluster_groups.max() + 1
+    users_per_cluster = np.zeros(n_clusters, dtype='int64')
 
     for user_id in range(n_users):
         users_per_cluster[cluster_groups[user_id]] += 1

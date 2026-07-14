@@ -105,7 +105,7 @@ class Tuner:
             # Row descriptions
             'smoothed_model_name': model['name'],
             'experiment_name' : experiment_name,
-            'sampling_seed' ; config_dict['sampling_seed'],
+            'sampling_seed' : config_dict['sampling_seed'],
             'w': config_dict['w'],
             'cluster_param': model['cluster_param'],
             'smooth_a_mu': config_dict['smooth_a_mu'],
@@ -267,14 +267,12 @@ class Tuner:
         validation_only_nt = self.train_test_nt_class(**validation_only_dict)
 
 
-        sampled_configs = self.sample_configs(experiment_name, hyperparams)
+        sampled_configs = self.sample_configs(experiment_name, hyperparams, hurdle_model)
         first_sampled_config = sampled_configs[0]
 
-        # Using the first config to create a nt class
-        first_config = self.join_configs_and_hypers(config_dict=config_dict, w=first_sampled_config['w'], cluster_param=first_sampled_config['cluster_param'], 
-                        hurdle_model=hurdle_model, smoothing_target=first_sampled_config['smoothing_target'], linear_smooth=first_sampled_config['linear_smooth'], 
-                        smooth_a=first_sampled_config['smooth_a'], smooth_k=first_sampled_config['smooth_k'], clustering_matrix_name=first_sampled_config['clustering_matrix_name'], 
-                        distance_metric=first_sampled_config['distance_metric'])
+        # Using the first config in loop to create a nt class
+        first_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=first_sampled_config, 
+                                                    sampling_seed=hyperparams['sampling_seed'])
         config_nt_class = (b.dictionary_to_named_tuple_class('config_nt', first_config))
 
 
@@ -286,10 +284,7 @@ class Tuner:
         for sampled_config in sampled_configs:
 
             # Making a copy of the config dict with our sampled hyperparameters and turning it into nt
-            temp_config = self.join_configs_and_hypers(config_dict=config_dict, w=sampled_config['w'], cluster_param=sampled_config['cluster_param'], 
-                                hurdle_model=hurdle_model, smoothing_target=sampled_config['smoothing_target'], linear_smooth=sampled_config['linear_smooth'], 
-                                smooth_a=sampled_config['smooth_a'], smooth_k=sampled_config['smooth_k'], 
-                                clustering_matrix_name=sampled_config['clustering_matrix_name'], distance_metric=sampled_config['distance_metric'])
+            temp_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=sampled_config, sampling_seed=hyperparams['sampling_seed'])
             temp_config_nt = config_nt_class(**temp_config)
 
             # Getting the model and the cluster grids
