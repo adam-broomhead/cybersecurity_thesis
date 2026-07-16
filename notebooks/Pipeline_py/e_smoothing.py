@@ -130,10 +130,14 @@ def get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_assign
                            alpha_sigma2_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
     if config_nt.hurdle_model:
-        p_val = smooth_params(p, cluster_p, cluster_assignments, user_p_totals, cluster_p_totals, 
-                              alpha_p_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+        p_val = smooth_params(p, cluster_p, cluster_assignments, user_p_totals, cluster_p_totals, alpha_p_grid, crnt_user, crnt_coarse_bin, 
+                    crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+
+        # Clipping values above 1 if we shape or rate smooth
+        if config_nt.smoothing_target == 1 or config_nt.smoothing_target == 2:
+            p_val = min(p_val, 1.0)
     else:
-        p_val = 0.0
+        p_val = 0
 
     return mu, sigma2, p_val
 
