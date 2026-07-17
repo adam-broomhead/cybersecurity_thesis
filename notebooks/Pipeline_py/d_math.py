@@ -1,9 +1,20 @@
 from numba import njit
 import math 
+import numba_scipy.special 
+from scipy.special import betainc, gammainc
 
 #####################################
 # Math helper functions
 #####################################
+@njit(inline="always")
+def safe_log(prob):
+    """
+    Safe log
+    """
+    if not math.isfinite(prob) or prob <= 0 or prob > 1:
+        raise ValueError("Invalid prob")
+    else:
+        return math.log(prob)
 
 ### Helper functions to stop overflow
 @njit(inline='always')
@@ -94,15 +105,9 @@ def poisson_log_upper_tail(x, mu):
     '''
     if x == 0:
         return 0
-    
-    # Looping over k and getting prob x = k and adding to lower tail
-    log_prob_k = -mu
-    lower_tail = log_prob_k
-    for k in range(1,x):
-        log_prob_k = log_prob_k + math.log(mu) - math.log(k)
-        lower_tail = logsumexp2(lower_tail, log_prob_k)
-
-    return log1minexp(lower_tail)
+    else:
+        upper_tail = gammainc(x, mu)
+        return safe_log(upper_tail)
 
 @njit 
 def neg_bin_log_upper_tail(x, mu, sigma2):
@@ -115,14 +120,8 @@ def neg_bin_log_upper_tail(x, mu, sigma2):
     p = mu/sigma2
     r = (mu*p) / (1-p)
 
-    # Looping over k and getting prob x = k and adding to lower tail
-    log_prob_k = r * math.log(p)
-    log_lower_tail = log_prob_k
-    for k in range(1,x):
-        log_prob_k = log_prob_k+ math.log((k-1)+r) - math.log(k) + math.log(1-p)
-        log_lower_tail =  logsumexp2(log_lower_tail, log_prob_k)
-
-    return log1minexp(log_lower_tail)
+    upper_tail = betainc(x, r, 1 - p)
+    return safe_log(upper_tail)
 
 @njit 
 def get_nb_upper_tail_value(x, mu, sigma2, config_nt):
