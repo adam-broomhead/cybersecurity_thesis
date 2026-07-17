@@ -1,5 +1,6 @@
 import numpy as np
 from numba import njit
+import math 
 
 import d_math as d
 import e_smoothing as e
@@ -116,6 +117,10 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_
     # Getting the upper tail value for both the raw and the smoothed model
     log_upper_tail_raw = d.get_upper_tail_value(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
     log_upper_tail_smoothed = d.get_upper_tail_value(x, mu_t, sigma_2_t, p_t, config_nt)
+
+
+    if not math.isfinite(lpmf_raw) or not math.isfinite(lpmf_smoothed) or math.isnan(log_upper_tail_raw) or math.isnan(log_upper_tail_smoothed):
+        raise ValueError('infinite or nan prob identified')
     
     return lpmf_raw, lpmf_smoothed, log_upper_tail_raw, log_upper_tail_smoothed # ,log_p0_raw, log_p0_smoothed
 
