@@ -49,15 +49,15 @@ def load_data(filename, data_type, results=False, data_path=data_path, results_p
         raise TypeError('Function doesnt support this data type')
     return data
 
-def store_run_results(results, calibration_results, stage, run_name, results_path=results_path):
+def store_run_results(results, calibration_results, dir, run_name, results_path=results_path):
     '''
     Writes run results to results folder
     '''
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
     # Creating dirs if needed
-    os.makedirs(f'{results_path}/{stage}/summary', exist_ok=True)
-    os.makedirs(f'{results_path}/{stage}/calibration', exist_ok=True)
+    os.makedirs(f'{results_path}/{dir}/summary', exist_ok=True)
+    os.makedirs(f'{results_path}/{dir}/calibration', exist_ok=True)
 
     # Turning into polars dataframes
     if isinstance(results, pl.DataFrame):

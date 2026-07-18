@@ -68,7 +68,7 @@ def get_nb_lpmf_val(x, mu, sigma2, config_nt):
     
     mu = max(mu, config_nt.mean_min)
     sigma2 = max(sigma2, config_nt.var_min)
-    if sigma2 <= mu + config_nt.min_mean_var_diff:
+    if sigma2 / mu <= config_nt.mean_var_ratio:
         return poisson_lpmf(x, mu)
     else: 
         return neg_bin_lpmf(x, mu, sigma2)
@@ -130,7 +130,7 @@ def get_nb_upper_tail_value(x, mu, sigma2, config_nt):
     '''
     mu = max(mu, config_nt.mean_min)
     sigma2 = max(sigma2, config_nt.var_min)
-    if sigma2 <= mu + config_nt.min_mean_var_diff:
+    if sigma2/mu <= config_nt.min_mean_var_ratio:
         return poisson_log_upper_tail(x, mu)
     else: 
         return neg_bin_log_upper_tail(x, mu, sigma2)
