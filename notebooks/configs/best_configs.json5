@@ -4,6 +4,7 @@
                     "cluster_param": 1,
                     "smoothing_target": 0,
                     "linear_smooth": true,
+                    "sampling_seed" : 100,
 
                     "smooth_a_mu": 0.0,
                     "smooth_a_sigma2": 0.0,

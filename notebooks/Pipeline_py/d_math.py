@@ -7,14 +7,14 @@ from scipy.special import betainc, gammainc
 # Math helper functions
 #####################################
 @njit(inline="always")
-def safe_log(prob):
+def safe_log(prob, config_nt):
     """
     Safe log
     """
     if not math.isfinite(prob) or prob <= 0 or prob > 1:
         raise ValueError("Invalid prob")
     else:
-        return math.log(prob)
+        return math.log(max(prob, config_nt.min_tail_prob))
 
 ### Helper functions to stop overflow
 @njit(inline='always')
@@ -68,7 +68,7 @@ def get_nb_lpmf_val(x, mu, sigma2, config_nt):
     
     mu = max(mu, config_nt.mean_min)
     sigma2 = max(sigma2, config_nt.var_min)
-    if sigma2 / mu <= config_nt.mean_var_ratio:
+    if sigma2 / mu <= config_nt.min_mean_var_ratio:
         return poisson_lpmf(x, mu)
     else: 
         return neg_bin_lpmf(x, mu, sigma2)
@@ -106,7 +106,7 @@ def poisson_log_upper_tail(x, mu):
     if x == 0:
         return 0
     else:
-        upper_tail = gammainc(x, mu)
+        upper_tail = gammainc(float(x), mu)
         return safe_log(upper_tail)
 
 @njit 
@@ -120,7 +120,7 @@ def neg_bin_log_upper_tail(x, mu, sigma2):
     p = mu/sigma2
     r = (mu*p) / (1-p)
 
-    upper_tail = betainc(x, r, 1 - p)
+    upper_tail = betainc(float(x), r, 1 - p)
     return safe_log(upper_tail)
 
 @njit 

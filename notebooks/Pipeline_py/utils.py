@@ -74,8 +74,8 @@ def store_run_results(results, calibration_results, dir, run_name, results_path=
     calibration_df = calibration_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
 
     # Writing results to the df
-    results_df.write_parquet(f'{results_path}/{stage}/summary/{run_name}_{timestamp}.parquet')
-    calibration_df.write_parquet(f'{results_path}/{stage}/calibration/{run_name}_{timestamp}.parquet')
+    results_df.write_parquet(f'{results_path}/{dir}/summary/{run_name}_{timestamp}.parquet')
+    calibration_df.write_parquet(f'{results_path}/{dir}/calibration/{run_name}_{timestamp}.parquet')
     
 #####################################
 # Json 5 stuff

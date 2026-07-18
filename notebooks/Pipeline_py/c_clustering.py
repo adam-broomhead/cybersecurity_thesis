@@ -63,11 +63,13 @@ def get_k_medians_assignments(k, random_state, matrix_to_cluster):
     ''' 
     Performc k medians clustering and returns a vector of cluster assignments
     '''
+    # Init centres
     rng = np.random.default_rng(random_state) 
-    initial_centres = matrix_to_cluster[rng.choice(len(matrix_to_cluster), size=k, replace=False)]
+    unique_vectors = np.unique(matrix_to_cluster, axis=0)
+    initial_centres = unique_vectors[rng.choice(unique_vectors.shape[0], size=k, replace=False)]
 
+    # Run the algo and get centres
     model = kmedians(matrix_to_cluster.tolist(), initial_centres.tolist()).process()
-
     cluster_centres = np.asarray(model.get_medians())
 
     # Creating a vecotr of cluster centres and getting interita
