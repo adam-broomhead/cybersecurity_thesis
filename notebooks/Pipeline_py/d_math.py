@@ -8,10 +8,12 @@ from scipy.special import betainc, gammainc
 #####################################
 @njit(inline='always')
 def safe_log(prob, config_nt):
-    if not math.isfinite(prob) or prob <= 0 or prob > 1:
+    if not math.isfinite(prob) or prob < 0 or prob > 1:
         raise ValueError('Invalid prob')
+    elif prob == 0:
+        return config_nt.min_prob
     else:
-        return math.log(max(prob, config_nt.min_tail_prob))
+        return math.log(max(prob, config_nt.min_prob))
 
 ### Helper functions to stop overflow
 @njit(inline='always')
@@ -96,7 +98,7 @@ def get_lpmf_val(x, mu, sigma2, p, config_nt):
 #####################################
 
 @njit 
-def poisson_log_upper_tail(x, mu):
+def poisson_log_upper_tail(x, mu, config_nt):
     ''' 
     Gets p(X>= x) for a poisson distribution 
     '''
@@ -104,10 +106,10 @@ def poisson_log_upper_tail(x, mu):
         return 0
     else:
         upper_tail = gammainc(float(x), mu)
-        return safe_log(upper_tail)
+        return safe_log(upper_tail, config_nt)
 
 @njit 
-def neg_bin_log_upper_tail(x, mu, sigma2):
+def neg_bin_log_upper_tail(x, mu, sigma2, config_nt):
     ''' 
     Gets p(X>= x) for a negative binomial distribution 
     '''
@@ -118,26 +120,62 @@ def neg_bin_log_upper_tail(x, mu, sigma2):
     r = (mu*p) / (1-p)
 
     upper_tail = betainc(float(x), r, 1 - p)
-    return safe_log(upper_tail)
+    return safe_log(upper_tail, config_nt)
 
 @njit 
 def get_nb_upper_tail_value(x, mu, sigma2, config_nt):
     ''' 
+    Gets the NB upper tail
+    Note:
     We dont need edge case checks here as the other function is called with the same mu and sigma
     '''
     mu = max(mu, config_nt.mean_min)
     sigma2 = max(sigma2, config_nt.var_min)
     if sigma2/mu <= config_nt.min_mean_var_ratio:
-        return poisson_log_upper_tail(x, mu)
+        return poisson_log_upper_tail(x, mu, config_nt)
     else: 
-        return neg_bin_log_upper_tail(x, mu, sigma2)
+        return neg_bin_log_upper_tail(x, mu, sigma2, config_nt)
 
 @njit 
 def hurdle_upper_tail(x, mu, sigma2, p, config_nt):
+    ''' 
+    Gets the upper tail value for the hurdle model
+    '''
+
+    # Special cases x = 0 and x = 1
     if x == 0:
         return 0
+
+    log_p = safe_log(p, config_nt)
+
+    if x == 1:
+        return log_p
+
+    # Poisson fallback for underdispersed positive counts note we have a denom p (x> 0) as we condition on positive counts
+    if sigma2 / mu <= config_nt.min_mean_var_ratio:
+        log_denom = log1minexp(-mu)
+        numerator = gammainc(float(x), mu)
+
+    # Calculate numerator and denominator for hurdle case
     else:
-        return math.log(p) + get_nb_upper_tail_value(x, mu, sigma2, config_nt) - log1minexp(get_nb_lpmf_val(0, mu, sigma2, config_nt))
+        mean_var_diff = sigma2 - mu
+        r = mu * mu / mean_var_diff
+        log_denom = log1minexp(-r * math.log1p(mean_var_diff / mu))
+        numerator = betainc(float(x), r, 1.0 - mu / sigma2)
+
+    if not math.isfinite(log_denom):
+        raise ValueError('Infinite hurdle log denom')
+
+    if numerator == 0:
+        # Handle numerator underflow by calcuating 1- p(1 <= X <x | X >= 1)
+        # init value for loop and then update it by adding sucessive terms
+        log_lower_tail = -math.inf
+        for count in range(1, x):
+            log_lower_tail = logsumexp2(log_lower_tail, get_nb_lpmf_val(count, mu, sigma2, config_nt))
+        log_prob_greater_than_x = log_p + log1minexp(log_lower_tail - log_denom)
+    else:
+        log_prob_greater_than_x = log_p + math.log(numerator) - log_denom
+    return max(min(log_prob_greater_than_x, log_p), math.log(config_nt.min_prob))
     
 @njit(inline='always')
 def get_upper_tail_value(x, mu, sigma2, p, config_nt):

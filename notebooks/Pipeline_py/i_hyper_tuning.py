@@ -55,14 +55,15 @@ class Tuner:
 
 
         u, v, p, _, _, _ = self.get_ll_param_grids(config_dict)
+        cluster_u_init, cluster_v_init, cluster_p_init = c.get_cluster_centres(cluster_groups=model['cluster_assignments'], u_init=u, v_init=v, p_init=p, distance_metric=config_dict['distance_metric'])
 
         return h.run_lambert_liu(
             u_init=u,
             v_init=v,
             p_init=p,
-            cluster_u_init=model['cluster_centre_u'],
-            cluster_v_init=model['cluster_centre_v'],
-            cluster_p_init=model['cluster_centre_p'],
+            cluster_u_init=cluster_u_init,
+            cluster_v_init=cluster_v_init,
+            cluster_p_init=cluster_p_init,
             cluster_groups=model['cluster_assignments'],
             n_counts_init=self.n_counts_init,
             alpha_mu_grid_init=alpha_mu_grid_init,
