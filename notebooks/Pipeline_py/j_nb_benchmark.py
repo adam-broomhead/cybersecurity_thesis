@@ -34,8 +34,8 @@ def get_user_nb_params(user_counts, n_usrs, period_start, period_end, config_dic
 
     # Getting counts and count 2 for the period to calc mean and variacne
     period_df = user_counts.filter((pl.col('fine_bin_id') >= period_start) & (pl.col('fine_bin_id') < period_end))
-    period_df = period_df.with_columns( cnt=pl.col('cnt').cast(pl.Float64), cnt_2=pl.col('count').cast(pl.Float64) ** 2)
-    period_df = period_df.group_by('user_id').agg(pl.sum('count').alias('sum_cnt'), pl.sum('cnt_2').alias('sum_cnt_2'))
+    period_df = period_df.with_columns( cnt=pl.col('cnt').cast(pl.Float64), cnt_2=pl.col('cnt').cast(pl.Float64) ** 2)
+    period_df = period_df.group_by('user_id').agg(pl.sum('cnt').alias('sum_cnt'), pl.sum('cnt_2').alias('sum_cnt_2'))
 
     # Init mean and variance vectors
     usr_means = np.zeros(n_usrs, dtype='float64')
