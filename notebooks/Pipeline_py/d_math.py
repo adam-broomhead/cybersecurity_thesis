@@ -6,13 +6,10 @@ from scipy.special import betainc, gammainc
 #####################################
 # Math helper functions
 #####################################
-@njit(inline="always")
+@njit(inline='always')
 def safe_log(prob, config_nt):
-    """
-    Safe log
-    """
     if not math.isfinite(prob) or prob <= 0 or prob > 1:
-        raise ValueError("Invalid prob")
+        raise ValueError('Invalid prob')
     else:
         return math.log(max(prob, config_nt.min_tail_prob))
 
@@ -31,11 +28,11 @@ def logsumexp2(a, b):
 
 log_0_5 = -math.log(2.0)
 
-@njit(inline="always")
+@njit(inline='always')
 def log1minexp(log_p):
-    """
+    '''
     Stable log(1 - exp(log_p))
-    """
+    '''
 
     if log_p < log_0_5:
         return math.log1p(-math.exp(log_p))

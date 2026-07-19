@@ -34,19 +34,19 @@ def get_user_nb_params(user_counts, n_usrs, period_start, period_end, config_dic
 
     # Getting counts and count 2 for the period to calc mean and variacne
     period_df = user_counts.filter((pl.col('fine_bin_id') >= period_start) & (pl.col('fine_bin_id') < period_end))
-    period_df = period_df.with_columns((pl.col('cnt') ** 2).alias('cnt_2')).group_by('user_id').agg(
-        pl.sum('cnt').alias('sum_cnt'), pl.sum('cnt_2').alias('sum_cnt_2'))
+    period_df = period_df.with_columns((pl.col('count') ** 2).alias('cnt_2')).group_by('user_id').agg(
+        pl.sum('count').alias('sum_cnt'), pl.sum('cnt_2').alias('sum_cnt_2'))
 
     # Init mean and variance vectors
     usr_means = np.zeros(n_usrs, dtype='float64')
     usr_variances = np.zeros(n_usrs, dtype='float64')
 
     # Calculating the means for each user and then assigning that mean to user means
-    usr_means = period_df['sum_cnt'].to_numpy() / n_fine_bins
-    usr_variances = (period_df['sum_cnt_2'].to_numpy() - (period_df['sum_cnt'].to_numpy() ** 2) / n_fine_bins) / (n_fine_bins - 1)
+    means_to_assign = period_df['sum_cnt'].to_numpy() / n_fine_bins
+    vars_to_assign = (period_df['sum_cnt_2'].to_numpy() - (period_df['sum_cnt'].to_numpy() ** 2) / n_fine_bins) / (n_fine_bins - 1)
     usrs = period_df['usr_id'].to_numpy()
-    usr_means[usrs] = usr_means
-    usr_variances[usrs] = usr_variances
+    usr_means[usrs] = means_to_assign
+    usr_variances[usrs] = vars_to_assign
 
     # Capping mean and variance values
     usr_means = np.maximum(usr_means, config_dict['mean_min'])
@@ -66,6 +66,7 @@ def run_nb_benchmarks(evaluation_counts, user_means, user_variances, user_hour_m
     # Creating log likelihood scores and calibration outputs
     user_log_likelihood = 0
     user_hour_log_likelihood = 0
+    n_scored = 0
 
     user_calibration = np.zeros(calibration_thresholds.shape[0])
     user_hour_calibration = np.zeros(calibration_thresholds.shape[0])
@@ -99,10 +100,10 @@ def run_nb_benchmarks(evaluation_counts, user_means, user_variances, user_hour_m
         for threshold_idx in range(calibration_thresholds.shape[0]):
             log_threshold = math.log(calibration_thresholds[threshold_idx])
 
-            if user_log_tail <= log_threshold:
+            if user_log_tail < log_threshold:
                 user_calibration[threshold_idx] += 1
 
-            if user_hour_log_tail <= log_threshold:
+            if user_hour_log_tail < log_threshold:
                 user_hour_calibration[threshold_idx] += 1
 
     return user_log_likelihood, user_hour_log_likelihood, user_calibration, user_hour_calibration, n_scored
