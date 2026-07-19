@@ -80,8 +80,8 @@ def hurdle_lpmf(x, mu, sigma2, p, config_nt):
     if x == 0:
         return math.log1p(-p)
     else:
-        return math.log(p) + get_nb_lpmf_val(x, mu, sigma2, config_nt) - log1minexp(get_nb_lpmf_val(0, mu, sigma2, config_nt))
-
+        return math.log(p) + get_nb_lpmf_val(x - 1, mu, sigma2, config_nt)
+    
 
 @njit(inline='always')
 def get_lpmf_val(x, mu, sigma2, p, config_nt):
@@ -142,41 +142,11 @@ def hurdle_upper_tail(x, mu, sigma2, p, config_nt):
     Gets the upper tail value for the hurdle model
     '''
 
-    # Special cases x = 0 and x = 1
+    # Special case x = 0
     if x == 0:
         return 0
 
-    log_p = safe_log(p, config_nt)
-
-    if x == 1:
-        return log_p
-
-    # Poisson fallback for underdispersed positive counts note we have a denom p (x> 0) as we condition on positive counts
-    if sigma2 / mu <= config_nt.min_mean_var_ratio:
-        log_denom = log1minexp(-mu)
-        numerator = gammainc(float(x), mu)
-
-    # Calculate numerator and denominator for hurdle case
-    else:
-        mean_var_diff = sigma2 - mu
-        r = mu * mu / mean_var_diff
-        log_denom = log1minexp(-r * math.log1p(mean_var_diff / mu))
-        numerator = betainc(float(x), r, 1.0 - mu / sigma2)
-
-    if not math.isfinite(log_denom):
-        raise ValueError('Infinite hurdle log denom')
-
-    if numerator == 0:
-        # Handle numerator underflow by calcuating 1- p(1 <= X <x | X >= 1)
-        # init value for loop and then update it by adding sucessive terms
-        log_lower_tail = -math.inf
-        for count in range(1, x):
-            log_lower_tail = logsumexp2(log_lower_tail, get_nb_lpmf_val(count, mu, sigma2, config_nt))
-
-        log_prob_greater_than_x = log_p + log1minexp(min(log_lower_tail - log_denom, -config_nt.min_prob))
-    else:
-        log_prob_greater_than_x = log_p + math.log(numerator) - log_denom
-    return max(min(log_prob_greater_than_x, log_p), math.log(config_nt.min_prob))
+    return safe_log(p, config_nt) + get_nb_upper_tail_value(x - 1, mu, sigma2, config_nt)
     
 @njit(inline='always')
 def get_upper_tail_value(x, mu, sigma2, p, config_nt):

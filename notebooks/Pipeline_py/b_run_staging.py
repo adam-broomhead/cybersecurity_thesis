@@ -78,14 +78,18 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_week, period_start, p
     sum_cnt = train_df['sum_cnt'].to_numpy()
     sum_cnt_2 = train_df['sum_cnt_2'].to_numpy()
 
+    # shifted sums (as hurdle model is 1+ nb)
+    sum_cnt_shifted = sum_cnt - n_bins
+    sum_cnt_2_shifted = sum_cnt_2 - (2 * sum_cnt) + n_bins
+
     # Creating a mask we use to assign values
     mean_mask = n_bins > 0
     var_mask = n_bins > 1
 
     p_init[entries_to_assign[:,0], entries_to_assign[:,1]] = n_bins / fb_per_cb
-    u_init[entries_to_assign[mean_mask, 0], entries_to_assign[mean_mask, 1]] = sum_cnt[mean_mask] / n_bins[mean_mask]
-    v_init[entries_to_assign[var_mask, 0], entries_to_assign[var_mask, 1]] = ((sum_cnt_2[var_mask]- ((sum_cnt[var_mask] ** 2) / n_bins[var_mask]))
-                                                                                / (n_bins[var_mask] - 1))
+    u_init[entries_to_assign[mean_mask, 0], entries_to_assign[mean_mask, 1]] = sum_cnt_shifted[mean_mask]/ n_bins[mean_mask]
+    v_init[entries_to_assign[var_mask, 0], entries_to_assign[var_mask, 1]] = (sum_cnt_2_shifted[var_mask] - (sum_cnt_shifted[var_mask] ** 2 / n_bins[var_mask])
+                                                                              ) / (n_bins[var_mask] - 1)
 
     # Capping the min values of u_init and v_init
     u_init = np.maximum(u_init, static_configs['mean_min'])
