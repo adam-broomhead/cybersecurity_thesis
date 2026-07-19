@@ -44,7 +44,7 @@ def get_user_nb_params(user_counts, n_usrs, period_start, period_end, config_dic
     # Calculating the means for each user and then assigning that mean to user means
     means_to_assign = period_df['sum_cnt'].to_numpy() / n_fine_bins
     vars_to_assign = (period_df['sum_cnt_2'].to_numpy() - (period_df['sum_cnt'].to_numpy() ** 2) / n_fine_bins) / (n_fine_bins - 1)
-    usrs = period_df['usr_id'].to_numpy()
+    usrs = period_df['user_id'].to_numpy()
     usr_means[usrs] = means_to_assign
     usr_variances[usrs] = vars_to_assign
 
