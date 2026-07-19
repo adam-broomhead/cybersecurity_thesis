@@ -11,7 +11,7 @@ def safe_log(prob, config_nt):
     if not math.isfinite(prob) or prob < 0 or prob > 1:
         raise ValueError('Invalid prob')
     elif prob == 0:
-        return config_nt.min_prob
+        return math.log(config_nt.min_prob)
     else:
         return math.log(max(prob, config_nt.min_prob))
 
@@ -172,7 +172,8 @@ def hurdle_upper_tail(x, mu, sigma2, p, config_nt):
         log_lower_tail = -math.inf
         for count in range(1, x):
             log_lower_tail = logsumexp2(log_lower_tail, get_nb_lpmf_val(count, mu, sigma2, config_nt))
-        log_prob_greater_than_x = log_p + log1minexp(log_lower_tail - log_denom)
+
+        log_prob_greater_than_x = log_p + log1minexp(min(log_lower_tail - log_denom, -config_nt.min_prob))
     else:
         log_prob_greater_than_x = log_p + math.log(numerator) - log_denom
     return max(min(log_prob_greater_than_x, log_p), math.log(config_nt.min_prob))
