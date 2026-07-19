@@ -83,9 +83,8 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
 
         # Update other values if x > 0
         if x > 0:
-            mu_new = (1 - config_nt.w) * mu_t + config_nt.w * x-1
-            sigma2_new = (1 - config_nt.w) * sigma_2_t + config_nt.w * (x-1 - mu_t) * (x-1 - mu_new)
-
+            mu_new = (1 - config_nt.w) * mu_t + config_nt.w * (x - 1)
+            sigma2_new = (1 - config_nt.w) * sigma_2_t + config_nt.w * (x - 1 - mu_t) * (x - 1 - mu_new)
 
             mu_new = max(mu_new, config_nt.mean_min)
             sigma2_new = max(sigma2_new, config_nt.var_min)
