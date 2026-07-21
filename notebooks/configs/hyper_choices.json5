@@ -3,7 +3,7 @@
     "sampling_seed": 110,
     "n_hypers_sampled": 30,
 
-    "w_vals": [0.01, 0.05, 0.1],
+    "w_vals": [0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.4, 0.7],
     "cluster_param_vals": [4, 16, 64],
     "smoothing_target": [0, 1, 2],
 

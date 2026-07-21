@@ -17,9 +17,9 @@ def get_period_sums(user_counts, period_start, period_end):
     It is also used to create the grids for clustering
     '''
 
-    period_df = user_counts.filter((pl.col('fine_bin_id') >= period_start)
-                                    & (pl.col('fine_bin_id') < period_end))
+    period_df = user_counts.filter((pl.col('fine_bin_id') >= period_start) & (pl.col('fine_bin_id') < period_end))
 
+    period_df = period_df.with_columns(count=pl.col('count').cast(pl.Float64))
     period_df = period_df.with_columns(count_2 = pl.col('count') ** 2)
     period_df = period_df.group_by(['user_id', 'coarse_bin_id']).agg(pl.sum('count').alias('sum_cnt'), 
                                                                     pl.sum('count_2').alias('sum_cnt_2'),
