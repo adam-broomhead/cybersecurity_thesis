@@ -19,3 +19,5 @@ savedplots/
 
 project_root.json5
 junk/
+
+*.zip

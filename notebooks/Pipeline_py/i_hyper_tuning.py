@@ -214,10 +214,10 @@ class Tuner:
         '''
         # If we dont smooth just iterate over w values and have the rest filled with defaults
         if experiment_name == 'no_smoothing':
-            return [{'w_decay_rate': w_decay_rate, 'w_inf': w_inf, 'cluster_param': 1, 'linear_smooth': True, 
-                     'smoothing_target': 0, 'smooth_a_sigma2': 0, 'smooth_a_mu': 0, 'smooth_k_mu': hyperparams['smoothing_k_mu_vals'][0], 'smooth_a_p': 0, 
-                     'smooth_k_p': hyperparams['smoothing_k_p_vals'][0], 'smooth_k_sigma2': hyperparams['smoothing_k_sigma2_vals'][0], 
-                     'distance_metric': 'l2', 'clustering_matrix_name': 'u'}
+            return [{'w_decay_rate': w_decay_rate, 'w_inf': w_inf, 
+                     'cluster_param': 1, 'linear_smooth': True, 'smoothing_target': 0, 'smooth_a_sigma2': 0, 'smooth_a_mu': 0, 
+                     'smooth_k_mu': hyperparams['smoothing_k_mu_vals'][0], 'smooth_a_p': 0, 'smooth_k_p': hyperparams['smoothing_k_p_vals'][0], 
+                     'smooth_k_sigma2': hyperparams['smoothing_k_sigma2_vals'][0], 'distance_metric': 'l2', 'clustering_matrix_name': 'u'}
                      for w_decay_rate, w_inf in product(hyperparams['w_decay_rate'], hyperparams['w_inf'])]
            
         hypers_list = []
