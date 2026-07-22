@@ -56,7 +56,12 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     # Init pointer for user interactions
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
 
+    # Initialise weeks seen for 
+    weeks_elapsed = config_nt.train_days // 7
+
     for week in range(burn_in_first_week, test_last_week + 1):
+        weeks_elapsed += 1
+        w = max((weeks_elapsed) ** (-config_nt.w_decay_rate), config_nt.w_inf)
         
         week_start = week * bin_metric_nt.fine_bins_per_week
         week_end = (week + 1) * bin_metric_nt.fine_bins_per_week
@@ -106,8 +111,8 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                     # Updating outputs
                     f.update_outputs(time_period_int, output_metrics, calibration_output, output_idx_nt, model_idx_nt, log_calibration_thresholds, log_upper_tail_raw, log_upper_tail_smoothed, lpmf_raw, lpmf_smoothed)
 
-                f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
-                            
+                f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
+            
             # Updating the users first row (for the next week) and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)

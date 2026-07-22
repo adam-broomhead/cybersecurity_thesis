@@ -107,7 +107,7 @@ class Tuner:
             'smoothed_model_name': model['name'],
             'experiment_name' : experiment_name,
             'sampling_seed' : config_dict['sampling_seed'],
-            'w': config_dict['w'],
+            'w_decay_rate': config_dict['w_decay_rate'],
             'cluster_param': model['cluster_param'],
             'smooth_a_mu': config_dict['smooth_a_mu'],
             'smooth_a_sigma2': config_dict['smooth_a_sigma2'],
@@ -157,7 +157,7 @@ class Tuner:
                 'smoothed_model_name': model['name'],
                 'sampling_seed' : config_dict['sampling_seed'],
                 'experiment_name' : experiment_name,
-                'w': config_dict['w'],
+                'w_decay_rate': config_dict['w_decay_rate'],
                 'cluster_param': model['cluster_param'],
                 'smooth_a_mu': config_dict['smooth_a_mu'],
                 'smooth_a_sigma2': config_dict['smooth_a_sigma2'],
@@ -213,9 +213,9 @@ class Tuner:
         '''
         # If we dont smooth just iterate over w values and have the rest filled with defaults
         if experiment_name == 'no_smoothing':
-            return [{'w': w, 'cluster_param': 1, 'smoothing_target': 0, 'linear_smooth': True, 'smooth_a_mu': 0, 'smooth_a_sigma2': 0, 'smooth_a_p': 0, 
+            return [{'w_decay_rate': hyperparams['w_decay_rate', 'w_inf' : hyperparams['w_inf'], 'cluster_param': 1, 'smoothing_target': 0, 'linear_smooth': True, 'smooth_a_mu': 0, 'smooth_a_sigma2': 0, 'smooth_a_p': 0, 
                      'smooth_k_mu': hyperparams['smoothing_k_mu_vals'][0], 'smooth_k_sigma2': hyperparams['smoothing_k_sigma2_vals'][0], 'smooth_k_p': hyperparams['smoothing_k_p_vals'][0], 
-                     'clustering_matrix_name': 'u', 'distance_metric': 'l2' } for w in hyperparams['w_vals']]
+                     'clustering_matrix_name': 'u', 'distance_metric': 'l2' } for w in hyperparams['w_decay_rate']]
         
         hypers_list = []
         if hurdle_model:
@@ -226,17 +226,17 @@ class Tuner:
             smooth_k_p_vals = [hyperparams['smoothing_k_p_vals'][0]]
 
         # Iterate over the smooth a configs
-        for w, smoothing_target, smooth_a_mu, smooth_a_sigma2, smooth_a_p in product(hyperparams['w_vals'], hyperparams['smoothing_target'], hyperparams['smoothing_a_mu_vals'], 
+        for w_decay_rate, w_inf, smoothing_target, smooth_a_mu, smooth_a_sigma2, smooth_a_p in product(hyperparams['w_decay_rate'], hyperparams['smoothing_target'], hyperparams['smoothing_a_mu_vals'], 
                                                                                      hyperparams['smoothing_a_sigma2_vals'], smooth_a_p_vals):
-            hyper_row = {'w': w, 'smoothing_target': smoothing_target, 'linear_smooth': True, 'smooth_a_mu': smooth_a_mu, 'smooth_a_sigma2': smooth_a_sigma2, 
+            hyper_row = {'w_decay_rate': w_decay_rate, 'smoothing_target': smoothing_target, 'linear_smooth': True, 'smooth_a_mu': smooth_a_mu, 'smooth_a_sigma2': smooth_a_sigma2, 
                          'smooth_a_p': smooth_a_p, 'smooth_k_mu': hyperparams['smoothing_k_mu_vals'][0], 'smooth_k_sigma2': hyperparams['smoothing_k_sigma2_vals'][0], 
                          'smooth_k_p': hyperparams['smoothing_k_p_vals'][0]}
             hypers_list.append(hyper_row)
 
         # Iterate over the smooth k configs
-        for w, smoothing_target, smooth_k_mu, smooth_k_sigma2, smooth_k_p in product( hyperparams['w_vals'], hyperparams['smoothing_target'], 
+        for w_decay_rate, w_inf, smoothing_target, smooth_k_mu, smooth_k_sigma2, smooth_k_p in product( hyperparams['w_decay_rate'], hyperparams['w_inf'], hyperparams['smoothing_target'], 
                                             hyperparams['smoothing_k_mu_vals'], hyperparams['smoothing_k_sigma2_vals'], smooth_k_p_vals):
-            hyper_row = {'w': w, 'smoothing_target': smoothing_target, 'linear_smooth': False, 'smooth_a_mu': hyperparams['smoothing_a_mu_vals'][0], 'smooth_a_sigma2': hyperparams['smoothing_a_sigma2_vals'][0], 
+            hyper_row = {'w_decay_rate': w, 'smoothing_target': smoothing_target, 'linear_smooth': False, 'smooth_a_mu': hyperparams['smoothing_a_mu_vals'][0], 'smooth_a_sigma2': hyperparams['smoothing_a_sigma2_vals'][0], 
                          'smooth_a_p': hyperparams['smoothing_a_p_vals'][0], 'smooth_k_mu': smooth_k_mu, 'smooth_k_sigma2': smooth_k_sigma2, 'smooth_k_p': smooth_k_p}
             hypers_list.append(hyper_row)
 

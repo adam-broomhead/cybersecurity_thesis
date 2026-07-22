@@ -135,7 +135,7 @@ def get_degen_mask(user_counts, n_users, n_coarse_bins, static_configs, train_te
     return degen_mask
 
 
-def get_interpolation_weights(bin_metric_dict):
+def get_quadratic_interpolation_weights(bin_metric_dict):
     '''
     A function that returns the weights we apply when interpolating.
     To understand the computation steps see pages 11 and 12 of lambert liu
@@ -161,6 +161,29 @@ def get_interpolation_weights(bin_metric_dict):
     weights[:, 0] = term_1/6 - term_2/2 + 1/3
     weights[:, 1] = -term_1/3 + term_2/2 + 5/6
     weights[:, 2] = term_1/ 6 - 1/6
+
+    return weights
+
+def get_linear_interpolation_weights(bin_metric_dict):
+    '''
+    Gets the interpolate weights for the linear interpolation correction
+    '''
+
+    # getting M and the fraction through the coarse bin
+    M = bin_metric_dict['fine_bins_per_coarse_bin']
+    position_fraction = (np.arange(M, dtype='float64') + 0.5) / M
+
+    # Init the weights and array that tells us if we interpolate with the left or right value
+    weights = np.zeros((M, 3), dtype='float64')
+    left_half = position_fraction < 0.5
+
+    # Linearly interpolate the left half
+    weights[left_half, 0] = 0.5 - position_fraction[left_half]
+    weights[left_half, 1] = 1 - weights[left_half, 0]
+
+    # Linearly interpolate the right half
+    weights[~left_half, 2] = position_fraction[~left_half] - 0.5
+    weights[~left_half, 1] = 1 - weights[~left_half, 2]
 
     return weights
 

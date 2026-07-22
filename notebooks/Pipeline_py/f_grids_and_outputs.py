@@ -59,7 +59,7 @@ def update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt):
 #####################################
 
 @njit
-def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_t, sigma_2_t, p_t, config_nt):
+def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_t, sigma_2_t, p_t, w, config_nt):
     '''
     As data comes in we update the interpolated mu values by combining with incoming data as per lambert and liu formula
     returns nothing as we modify in place. Also has an update version for hurdle model using ll formula + new formula for p
@@ -77,14 +77,14 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
             z = 0
 
         # Updating p value and sum of p vals in the bin   
-        p_new = (1 - config_nt.w) * p_t + config_nt.w * z
+        p_new = (1 - w) * p_t + w * z
         p_new = min(max(p_new, config_nt.p_min), config_nt.p_max)
         usr_updt_p_sum[crnt_coarse_bin] += p_new
 
         # Update other values if x > 0
         if x > 0:
-            mu_new = (1 - config_nt.w) * mu_t + config_nt.w * (x - 1)
-            sigma2_new = (1 - config_nt.w) * sigma_2_t + config_nt.w * (x - 1 - mu_t) * (x - 1 - mu_new)
+            mu_new = (1 - w) * mu_t + w * (x - 1)
+            sigma2_new = (1 - w) * sigma_2_t + w * (x - 1 - mu_t) * (x - 1 - mu_new)
 
             mu_new = max(mu_new, config_nt.mean_min)
             sigma2_new = max(sigma2_new, config_nt.var_min)
@@ -95,8 +95,8 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
 
     # Update logic for the NB model
     else: 
-        mu_new = (1-config_nt.w)*mu_t + config_nt.w*x
-        sigma2_new = (1-config_nt.w)*sigma_2_t + config_nt.w*(x-mu_t)*(x-mu_new)
+        mu_new = (1-w)*mu_t + w*x
+        sigma2_new = (1-w)*sigma_2_t + w*(x-mu_t)*(x-mu_new)
 
         mu_new = max(mu_new, config_nt.mean_min)
         sigma2_new = max(sigma2_new, config_nt.var_min)
