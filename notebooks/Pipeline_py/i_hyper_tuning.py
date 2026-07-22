@@ -4,6 +4,7 @@ import c_clustering as c
 import f_grids_and_outputs as f
 import b_run_staging as b
 from itertools import product
+from time import perf_counter
 
 class Tuner:
 
@@ -285,7 +286,10 @@ class Tuner:
         calibration_results = []
 
         # Iterate over the sample configs
-        for sampled_config in sampled_configs:
+        for config_idx, sampled_config in enumerate(sampled_configs, start=1):
+
+            # Recording start of config
+            config_start = perf_counter()
 
             # Making a copy of the config dict with our sampled hyperparameters and turning it into nt
             temp_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=sampled_config, sampling_seed=hyperparams['sampling_seed'])
@@ -303,5 +307,7 @@ class Tuner:
                                                       experiment_name=experiment_name))
             calibration_results.extend(self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, 
                                                                          test_valid='valid', config_dict=temp_config, experiment_name=experiment_name))
+
+            print(f'finished_config {config_idx}/{len(sampled_configs)} in {perf_counter() - config_start:.1f}s')
 
         return results, calibration_results

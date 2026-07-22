@@ -4,6 +4,10 @@
     // These will likely remain unchanged
     "clustering_seed": 110,
     "clustering_method": "k_clusters",
+    
 
     "calibration_thresholds": [0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 0.9],
+
+    "nll_only" : true, 
+    "user_step" : 4,
 }
