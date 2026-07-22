@@ -175,15 +175,11 @@ def get_linear_interpolation_weights(bin_metric_dict):
 
     # Init the weights and array that tells us if we interpolate with the left or right value
     weights = np.zeros((M, 3), dtype='float64')
-    left_half = position_fraction < 0.5
 
-    # Linearly interpolate the left half
-    weights[left_half, 0] = 0.5 - position_fraction[left_half]
-    weights[left_half, 1] = 1 - weights[left_half, 0]
-
-    # Linearly interpolate the right half
-    weights[~left_half, 2] = position_fraction[~left_half] - 0.5
-    weights[~left_half, 1] = 1 - weights[~left_half, 2]
+    # Obtain linear interpolation weights
+    weights[:, 0] = np.maximum(0, 0.5 - position_fraction)
+    weights[:, 2] = np.maximum(0, position_fraction - 0.5)
+    weights[:, 1] = 1 - weights[:, 0] - weights[:, 2]
 
     return weights
 

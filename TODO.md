@@ -7,3 +7,5 @@
 - Replace 2 benchmark models with hurdle models
 - Do final metric split by human and machine users
 - Add oracle runner
+- Probs want to add a tail value accumulator
+- Update the clsutering matricies used, i was thinking u, v, p, uv, up, vp, uvp and log or not
