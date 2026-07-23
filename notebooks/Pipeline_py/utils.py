@@ -6,9 +6,9 @@ from pathlib import Path
 import os
 
 project_root = Path(__file__).resolve().parent.parent.parent
-data_dir = f'project_root/data/processed/intermediate'
-results_dir = f'project_root/data/processed/results'
-configs_dir = f'project_root/notebooks/configs'
+data_dir = f'{project_root}/data/processed/intermediate'
+results_dir = f'{project_root}/data/processed/results'
+configs_dir = f'{project_root}/notebooks/configs'
 input_data = 'train_df'
 
 #####################################
@@ -127,7 +127,9 @@ def merge_configs(*configs):
 
     return config_dict
 
-############################
+#####################################
+# Setting env vars for performance
+#####################################
 
 def set_threads_env_vars():
     '''

@@ -152,7 +152,7 @@ def run_hurdle_benchmarks(evaluation_counts, user_means, user_variances, user_p,
 
     user_log_likelihood = 0
     user_hour_log_likelihood = 0
-    n_obs = 0
+    n_scored = 0
 
     for row_idx in range(evaluation_counts.shape[0]):
 
@@ -170,9 +170,9 @@ def run_hurdle_benchmarks(evaluation_counts, user_means, user_variances, user_p,
         user_hour_log_likelihood += d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], user_hour_variances[user_id, coarse_bin_id], 
                                                    user_hour_p[user_id, coarse_bin_id], config_nt)
 
-        n_obs += 1
+        n_scored += 1
 
-    return user_log_likelihood, user_hour_log_likelihood, n_obs
+    return user_log_likelihood, user_hour_log_likelihood, n_scored
 
 #####################################
 # Benchmark output rows
