@@ -44,7 +44,10 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     # Calculating needed values
     n_users, n_coarse_bins = u.shape
 
-    log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
+    if config_nt.nll_only:
+        log_calibration_thresholds = np.empty(0, dtype='float64')
+    else:
+        log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
 
     burn_in_first_week = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_week
     test_last_week = (train_test_nt.test_end-1)// bin_metric_nt.fine_bins_per_week
@@ -61,8 +64,8 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
     for week in range(burn_in_first_week, test_last_week + 1):
         weeks_elapsed += 1
-        w = max((weeks_elapsed) ** (-config_nt.w_decay_rate), config_nt.w_inf)
-        
+        w = config_nt.w_inf + (1 - config_nt.w_inf) / (1 + weeks_elapsed)
+            
         week_start = week * bin_metric_nt.fine_bins_per_week
         week_end = (week + 1) * bin_metric_nt.fine_bins_per_week
 
@@ -122,4 +125,4 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
-    return output_metrics, calibration_output, u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid
+    return output_metrics, calibration_output

@@ -49,9 +49,10 @@ def _bin_computations(bin_metric_nt, fine_bin_idx):
     ''' 
     Computes coarse bin and fine bin within the week and coarse bin
     '''
-    fine_bin_pos_in_week = fine_bin_idx % bin_metric_nt.fine_bins_per_week
-    crnt_coarse_bin = fine_bin_pos_in_week // bin_metric_nt.fine_bins_per_coarse_bin
-    crnt_fine_bin_within_coarse_pos = fine_bin_pos_in_week % bin_metric_nt.fine_bins_per_coarse_bin
+    fine_bin_pos_in_day = fine_bin_idx % bin_metric_nt.fine_bins_per_day
+    crnt_coarse_bin = fine_bin_pos_in_day // bin_metric_nt.fine_bins_per_coarse_bin
+    crnt_fine_bin_within_coarse_pos = fine_bin_pos_in_day % bin_metric_nt.fine_bins_per_coarse_bin
+
     return crnt_coarse_bin, crnt_fine_bin_within_coarse_pos
 
 #####################################

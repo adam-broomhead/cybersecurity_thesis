@@ -7,7 +7,7 @@ import math
 # Alpha Grid update
 #####################################
 
-def init_alpha_grid(n_counts_init, linear_smooth, smooth_a, smooth_k):
+def init_alpha_grid(n_counts_init, linear_smooth, smooth_a, smooth_t):
     '''
     Init a grid of alpha values that are used in smoothing
     '''
@@ -15,17 +15,17 @@ def init_alpha_grid(n_counts_init, linear_smooth, smooth_a, smooth_k):
     if linear_smooth:
         return np.full_like(n_counts_init, smooth_a, dtype='float64')
     else:
-        return smooth_k / (np.log1p(n_counts_init) + smooth_k)
+        return smooth_t / (n_counts_init + smooth_t)
 
 @njit
-def get_alpha_val(n_counts, linear_smooth, smooth_a, smooth_k):
+def get_alpha_val(n_counts, linear_smooth, smooth_a, smooth_t):
     '''
     Gets a value of alpha fron n_counts similarly to `init_alpha_grid`
     '''
     if linear_smooth:
         return smooth_a
     else:
-        return smooth_k/ (math.log1p(n_counts) + smooth_k)
+        return smooth_t / (n_counts_init + smooth_t)
 
 @njit
 def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, crnt_user_id, usr_updt_n_counts, config_nt):
@@ -38,8 +38,8 @@ def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, 
     for coarse_bin in range(n_coarse_bins):
         n_counts[crnt_user_id, coarse_bin] += usr_updt_n_counts[coarse_bin]
         current_n = n_counts[crnt_user_id, coarse_bin]
-        alpha_mu_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_mu, config_nt.smooth_k_mu)
-        alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_sigma2, config_nt.smooth_k_sigma2)
+        alpha_mu_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_mu, config_nt.smooth_t_mu)
+        alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_sigma2, config_nt.smooth_t_sigma2)
 
 @njit
 def update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt):
@@ -47,7 +47,7 @@ def update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt):
     updates alpha for p (which is not the positive number of counts only but the number of coarse bins as we have no nulls
     '''
 
-    alpha_p = get_alpha_val(n_fine_bins_seen, config_nt.linear_smooth, config_nt.smooth_a_p, config_nt.smooth_k_p)
+    alpha_p = get_alpha_val(n_fine_bins_seen, config_nt.linear_smooth, config_nt.smooth_a_p, config_nt.smooth_t_p)
     n_users, n_coarse_bins = alpha_p_grid.shape
 
     for user_id in range(n_users):

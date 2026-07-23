@@ -31,10 +31,11 @@ def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict):
     ''' 
     Returns the number of fine bins per coarse bin in the period
     '''
-    return ((period_end - period_start)//bin_metric_dict['fine_bins_per_week']) * bin_metric_dict['fine_bins_per_coarse_bin']
+    period_length = period_end - period_start
 
+    return ((period_length // bin_metric_dict["fine_bins_per_day"]) * bin_metric_dict["fine_bins_per_coarse_bin"])
 
-def init_grid_NB(user_counts, n_users, coarse_bins_per_week, period_start, period_end, bin_metric_dict):
+def init_grid_NB(user_counts, n_users, coarse_bins_per_day, period_start, period_end, bin_metric_dict):
     ''' 
     Creates the u and v init grids from the training data
     '''
@@ -43,8 +44,8 @@ def init_grid_NB(user_counts, n_users, coarse_bins_per_week, period_start, perio
     fb_per_cb = get_fine_bins_per_cb(period_start, period_end, bin_metric_dict)
     
     # Init a grid of parmeters to use
-    u_init = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
-    v_init = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
+    u_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
+    v_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
 
     # Extrating the entries to assign and assigning them to the df
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
@@ -59,16 +60,16 @@ def init_grid_NB(user_counts, n_users, coarse_bins_per_week, period_start, perio
 
     return u_init, v_init
 
-def init_grid_hurdle(user_counts, n_users, coarse_bins_per_week, period_start, period_end, bin_metric_dict):
+def init_grid_hurdle(user_counts, n_users, coarse_bins_per_day, period_start, period_end, bin_metric_dict):
 
     # Getting the sum of counts and sum of counts squared needed for mean and variance calculations
     train_df = get_period_sums(user_counts, period_start, period_end)
     fb_per_cb = get_fine_bins_per_cb(period_start, period_end, bin_metric_dict)
     
     # Init a grid of parmeters to use
-    u_init = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
-    v_init = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
-    p_init = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
+    u_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
+    v_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
+    p_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
 
     # Extrating the entries to assign and assigning them to the df
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
@@ -98,7 +99,7 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_week, period_start, p
 
     return u_init, v_init, p_init
 
-def init_n_counts_grid(user_counts, n_users, coarse_bins_per_week, period_start, period_end):
+def init_n_counts_grid(user_counts, n_users, coarse_bins_per_day, period_start, period_end):
     '''
     Counts how many counts were observed in the period needed for the smoothing equation that relies on n counts
     '''
@@ -106,7 +107,7 @@ def init_n_counts_grid(user_counts, n_users, coarse_bins_per_week, period_start,
     train_df = get_period_sums(user_counts, period_start, period_end)
 
     # Init a grid and get entries to assign and assigning the number of counts
-    n_counts = np.zeros((n_users, coarse_bins_per_week), dtype='float64')
+    n_counts = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
     n_counts[entries_to_assign[:, 0], entries_to_assign[:, 1]] = train_df['n_bins'].to_numpy()
 

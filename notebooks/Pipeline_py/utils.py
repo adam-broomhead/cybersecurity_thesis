@@ -2,10 +2,12 @@ import polars as pl
 import json5
 import numpy as np
 from datetime import datetime
-import os
+from pathlib import Path
 
-data_path = '/home/ma/a/alb25/Project/thesis_code/data/processed/intermediate'
-results_path = '/home/ma/a/alb25/Project/thesis_code/data/processed/results'
+project_root = Path(__file__).resolve().parent.parent
+data_dir = f'project_root/data/processed/intermediate'
+results_dir = f'project_root/data/processed/results'
+configs_dir = f'project_root/notebooks/configs'
 input_data = 'train_df'
 
 #####################################
@@ -13,53 +15,68 @@ input_data = 'train_df'
 #####################################
 
 # Creating functions for storing and reading data
-def store_data(data, filename, csv=False, results=False, data_path=data_path, results_path=results_path):
+def store_data(data, filename, csv=False, results=False, data_dir=data_dir, results_dir=results_dir):
+
     if results:
-        data_path = results_path
+        output_dir = Path(results_dir)
+    else:
+        output_dir = Path(data_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     if isinstance(data, pl.LazyFrame):
-        if csv == True:
-            data.sink_csv(f'{data_path}/output/{filename}.csv')
-        else: 
-            data.sink_parquet(f'{data_path}/output/{filename}.parquet')
-    elif isinstance(data, pl.DataFrame):
-        if csv == True:
-            data.write_csv(f'{data_path}/output/{filename}.csv')
+        if csv:
+            data.sink_csv(f'output_dir/{filename}.csv')
         else:
-            data.write_parquet(f'{data_path}/output/{filename}.parquet')
-    elif isinstance(data, np.ndarray):
-        np.save(f'{data_path}/output/{filename}.npy', data)
-    else:
-        raise TypeError('Function doesnt support this data type')
+            data.sink_parquet(f'output_dir/{filename}.parquet')
 
-def load_data(filename, data_type, results=False, data_path=data_path, results_path=results_path):
-    ''' 
+    elif isinstance(data, pl.DataFrame):
+        if csv:
+            data.write_csv(f'output_dir/{filename}.csv')
+        else:
+            data.write_parquet(f'output_dir/{filename}.parquet')
+
+    elif isinstance(data, np.ndarray):
+        np.save(f'output_dir/{filename}.npy', data)
+
+    else:
+        raise TypeError('cant pass this datatype')
+
+def load_data(filename, data_type, results=False, data_path=data_path, results_path=results_path,
+):
+    '''
     Args:
-        filename: the saved file name
-        data_type: ['lazy', 'np', 'df'] the type of data we want to load in
+        filename: saved file name
+        data_type: one of 'lazy', 'np', or 'df'
     '''
     if results:
-        data_path = results_path
-    if data_type == 'lazy':
-        data = pl.scan_parquet(f'{data_path}/output/{filename}.parquet')
-    elif data_type == 'np':
-        data = np.load(f'{data_path}/output/{filename}.npy')
-    elif data_type == 'df':
-        data = pl.read_parquet(f'{data_path}/output/{filename}.parquet')
+        output_dir = Path(results_dir)
     else:
-        raise TypeError('Function doesnt support this data type')
-    return data
+        output_dir = Path(data_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-def store_run_results(results, calibration_results, dir, run_name, results_path=results_path):
+    if data_type == 'lazy':
+        return pl.scan_parquet(f'output_dir/{filename}.parquet')
+
+    if data_type == 'np':
+        return np.load(f'output_dir/{filename}.npy')
+
+    if data_type == 'df':
+        return pl.read_parquet(f'output_dir/{filename}.parquet')
+
+    raise TypeError('cant pass this datatype')
+
+def store_run_results(results, calibration_results, dir, run_name, results_dir=results_dir):
     '''
-    Writes run results to results folder
+    Writes run results to results folder, calibration results ony if present
     '''
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
-    # Creating dirs if needed
-    os.makedirs(f'{results_path}/{dir}/summary', exist_ok=True)
-    os.makedirs(f'{results_path}/{dir}/calibration', exist_ok=True)
+    summary_dir = Path(f'{results_dir}/{dir}/summary')
+    calibration_dir = Path(f'{results_dir}/{dir}/calibration')
 
-    # Turning into polars dataframes
+    summary_dir.mkdir(parents=True, exist_ok=True)
+
+    # converting to polars df if needed
     if isinstance(results, pl.DataFrame):
         results_df = results
     else:
@@ -69,24 +86,25 @@ def store_run_results(results, calibration_results, dir, run_name, results_path=
     else:
         calibration_df = pl.DataFrame(calibration_results)
 
-    # Adding run timestamp column
+    #writing results to file
     results_df = results_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
-    calibration_df = calibration_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
+    results_df.write_parquet(f'{summary_dir}/{run_name}_{timestamp}.parquet')
 
-    # Writing results to the df
-    results_df.write_parquet(f'{results_path}/{dir}/summary/{run_name}_{timestamp}.parquet')
-    calibration_df.write_parquet(f'{results_path}/{dir}/calibration/{run_name}_{timestamp}.parquet')
+    if calibration_df.height > 0:
+        calibration_dir.mkdir(parents=True, exist_ok=True)
+        calibration_df = calibration_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
+        calibration_df.write_parquet(f'{calibration_dir}/{run_name}_{timestamp}.parquet')
     
 #####################################
 # Json 5 stuff
 #####################################
 
 def load_json5(filename):
-    with open(f'/home/ma/a/alb25/Project/thesis_code/notebooks/configs/{filename}.json5') as f:
+    with open(f'configsdir/{filename}.json5') as f:
         return json5.load(f)
-    
+
 def dump_json5(dict, filename):
-    with open(f'/home/ma/a/alb25/Project/thesis_code/notebooks/configs/{filename}.json5', 'w') as f:
+    with open(f'configsdir/{filename}.json5', 'w') as f:
         json5.dump(dict, f)
 
 #####################################
