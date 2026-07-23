@@ -60,7 +60,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
 
     # Initialise weeks seen for 
-    weeks_elapsed = config_nt.train_days // 7
+    weeks_elapsed = 0
 
     for week in range(burn_in_first_week, test_last_week + 1):
         weeks_elapsed += 1

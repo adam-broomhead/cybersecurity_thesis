@@ -49,10 +49,10 @@ class Tuner:
         Makes a call to the numba lambert liu runner
         '''
 
-        alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_mu'], config_dict['smooth_k_mu'])
-        alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_sigma2'], config_dict['smooth_k_sigma2'])
+        alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'])
+        alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'])
         n_fine_bins_seen_init = np.full_like(self.n_counts_init, self.bin_metric_nt.train_denom, dtype=np.float64)
-        alpha_p_grid_init = f.init_alpha_grid(n_fine_bins_seen_init, config_dict['linear_smooth'], config_dict['smooth_a_p'], config_dict['smooth_k_p'])
+        alpha_p_grid_init = f.init_alpha_grid(n_fine_bins_seen_init, config_dict['linear_smooth'], config_dict['smooth_a_p'], config_dict['smooth_t_p'])
 
 
         u, v, p, _, _, _ = self.get_ll_param_grids(config_dict)
@@ -108,15 +108,14 @@ class Tuner:
             'smoothed_model_name': model['name'],
             'experiment_name' : experiment_name,
             'sampling_seed' : config_dict['sampling_seed'],
-            'w_decay_rate': config_dict['w_decay_rate'],
             'w_inf': config_dict['w_inf'],
             'cluster_param': model['cluster_param'],
             'smooth_a_mu': config_dict['smooth_a_mu'],
             'smooth_a_sigma2': config_dict['smooth_a_sigma2'],
             'smooth_a_p': config_dict['smooth_a_p'],
-            'smooth_k_mu': config_dict['smooth_k_mu'],
-            'smooth_k_sigma2': config_dict['smooth_k_sigma2'],
-            'smooth_k_p': config_dict['smooth_k_p'],
+            'smooth_t_mu': config_dict['smooth_t_mu'],
+            'smooth_t_sigma2': config_dict['smooth_t_sigma2'],
+            'smooth_t_p': config_dict['smooth_t_p'],
             'linear_smooth': config_dict['linear_smooth'],
             'smoothing_target': config_dict['smoothing_target'],
             'hurdle_model': config_dict['hurdle_model'],
@@ -128,6 +127,7 @@ class Tuner:
             
             # Clustering metrics
             'clustering_matrix_name': model['clustering_matrix_name'],
+            'clustering_transformation' : model['clustering_transformation'],
             'distance_metric' : model['distance_metric'],
             'clustering_seed': model['clustering_seed'],
             'cluster_inertia': model['cluster_inertia']}
@@ -159,18 +159,21 @@ class Tuner:
                 'smoothed_model_name': model['name'],
                 'sampling_seed' : config_dict['sampling_seed'],
                 'experiment_name' : experiment_name,
-                'w_decay_rate': config_dict['w_decay_rate'],
-                'cluster_param': model['cluster_param'],
+                'w_inf': config_dict['w_inf'],
+                'hurdle_model': config_dict['hurdle_model'],
+
                 'smooth_a_mu': config_dict['smooth_a_mu'],
                 'smooth_a_sigma2': config_dict['smooth_a_sigma2'],
                 'smooth_a_p': config_dict['smooth_a_p'],
-                'smooth_k_mu': config_dict['smooth_k_mu'],
-                'smooth_k_sigma2': config_dict['smooth_k_sigma2'],
-                'smooth_k_p': config_dict['smooth_k_p'],
+                'smooth_t_mu': config_dict['smooth_t_mu'],
+                'smooth_t_sigma2': config_dict['smooth_t_sigma2'],
+                'smooth_t_p': config_dict['smooth_t_p'],
                 'linear_smooth': config_dict['linear_smooth'],
                 'smoothing_target': config_dict['smoothing_target'],
-                'hurdle_model': config_dict['hurdle_model'],
+
+                'cluster_param': model['cluster_param'],
                 'clustering_matrix_name': model['clustering_matrix_name'],
+                'clustering_transformation' : model['clustering_transformation'],
                 'distance_metric' : model['distance_metric'],
                 'clustering_seed' : model['clustering_seed'],
                 'test_valid': test_valid,
@@ -217,31 +220,31 @@ class Tuner:
         if experiment_name == 'no_smoothing':
             return [{'w_decay_rate': w_decay_rate, 'w_inf': w_inf, 
                      'cluster_param': 1, 'linear_smooth': True, 'smoothing_target': 0, 'smooth_a_sigma2': 0, 'smooth_a_mu': 0, 
-                     'smooth_k_mu': hyperparams['smoothing_k_mu_vals'][0], 'smooth_a_p': 0, 'smooth_k_p': hyperparams['smoothing_k_p_vals'][0], 
-                     'smooth_k_sigma2': hyperparams['smoothing_k_sigma2_vals'][0], 'distance_metric': 'l2', 'clustering_matrix_name': 'u'}
+                     'smooth_t_mu': hyperparams['smoothing_t_mu_vals'][0], 'smooth_a_p': 0, 'smooth_t_p': hyperparams['smoothing_t_p_vals'][0], 
+                     'smooth_t_sigma2': hyperparams['smoothing_t_sigma2_vals'][0], 'distance_metric': 'l2', 'clustering_matrix_name': 'u'}
                      for w_decay_rate, w_inf in product(hyperparams['w_decay_rate'], hyperparams['w_inf'])]
            
         hypers_list = []
         if hurdle_model:
             smooth_a_p_vals = hyperparams['smoothing_a_p_vals']
-            smooth_k_p_vals = hyperparams['smoothing_k_p_vals']
+            smooth_t_p_vals = hyperparams['smoothing_t_p_vals']
         else:
             smooth_a_p_vals = [0]
-            smooth_k_p_vals = [hyperparams['smoothing_k_p_vals'][0]]
+            smooth_t_p_vals = [hyperparams['smoothing_t_p_vals'][0]]
 
         # Iterate over the smooth a configs
         for w_decay_rate, w_inf, smoothing_target, smooth_a_mu, smooth_a_sigma2, smooth_a_p in product(hyperparams['w_decay_rate'], hyperparams['smoothing_target'], hyperparams['smoothing_a_mu_vals'], 
                                                                                      hyperparams['smoothing_a_sigma2_vals'], smooth_a_p_vals):
             hyper_row = {'w_decay_rate': w_decay_rate, 'smoothing_target': smoothing_target, 'linear_smooth': True, 'smooth_a_mu': smooth_a_mu, 'smooth_a_sigma2': smooth_a_sigma2, 
-                         'smooth_a_p': smooth_a_p, 'smooth_k_mu': hyperparams['smoothing_k_mu_vals'][0], 'smooth_k_sigma2': hyperparams['smoothing_k_sigma2_vals'][0], 
-                         'smooth_k_p': hyperparams['smoothing_k_p_vals'][0]}
+                         'smooth_a_p': smooth_a_p, 'smooth_t_mu': hyperparams['smoothing_t_mu_vals'][0], 'smooth_t_sigma2': hyperparams['smoothing_t_sigma2_vals'][0], 
+                         'smooth_t_p': hyperparams['smoothing_t_p_vals'][0]}
             hypers_list.append(hyper_row)
 
         # Iterate over the smooth k configs
-        for w_decay_rate, w_inf, smoothing_target, smooth_k_mu, smooth_k_sigma2, smooth_k_p in product( hyperparams['w_decay_rate'], hyperparams['w_inf'], hyperparams['smoothing_target'], 
-                                            hyperparams['smoothing_k_mu_vals'], hyperparams['smoothing_k_sigma2_vals'], smooth_k_p_vals):
+        for w_decay_rate, w_inf, smoothing_target, smooth_t_mu, smooth_t_sigma2, smooth_t_p in product( hyperparams['w_decay_rate'], hyperparams['w_inf'], hyperparams['smoothing_target'], 
+                                            hyperparams['smoothing_t_mu_vals'], hyperparams['smoothing_t_sigma2_vals'], smooth_t_p_vals):
             hyper_row = {'w_decay_rate': w, 'smoothing_target': smoothing_target, 'linear_smooth': False, 'smooth_a_mu': hyperparams['smoothing_a_mu_vals'][0], 'smooth_a_sigma2': hyperparams['smoothing_a_sigma2_vals'][0], 
-                         'smooth_a_p': hyperparams['smoothing_a_p_vals'][0], 'smooth_k_mu': smooth_k_mu, 'smooth_k_sigma2': smooth_k_sigma2, 'smooth_k_p': smooth_k_p}
+                         'smooth_a_p': hyperparams['smoothing_a_p_vals'][0], 'smooth_t_mu': smooth_t_mu, 'smooth_t_sigma2': smooth_t_sigma2, 'smooth_t_p': smooth_t_p}
             hypers_list.append(hyper_row)
 
         ## Adding cluster configs to smoothing configs if we are smoothing
@@ -305,8 +308,9 @@ class Tuner:
             # Updating outputs
             results.append(self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid', 
                                                       experiment_name=experiment_name))
-            calibration_results.extend(self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, 
-                                                                         test_valid='valid', config_dict=temp_config, experiment_name=experiment_name))
+            if not temp_config['nll_only']:
+                calibration_results.extend(self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, 
+                                                                            test_valid='valid', config_dict=temp_config, experiment_name=experiment_name))
 
             print(f'finished_config {config_idx}/{len(sampled_configs)} in {perf_counter() - config_start:.1f}s')
 

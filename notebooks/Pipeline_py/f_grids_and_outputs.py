@@ -25,7 +25,7 @@ def get_alpha_val(n_counts, linear_smooth, smooth_a, smooth_t):
     if linear_smooth:
         return smooth_a
     else:
-        return smooth_t / (n_counts_init + smooth_t)
+        return smooth_t / (n_counts + smooth_t)
 
 @njit
 def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, crnt_user_id, usr_updt_n_counts, config_nt):

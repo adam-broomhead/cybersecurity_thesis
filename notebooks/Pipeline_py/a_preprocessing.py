@@ -14,6 +14,7 @@ def get_bin_metrics(static_configs=static_configs):
     assert static_configs['coarse_bin_mins'] % static_configs['fine_bin_mins'] == 0
 
     output_dict = {'fine_bins_per_day' : 24 * 60 // static_configs['fine_bin_mins']}
+    output_dict['fine_bins_per_week'] = output_dict['fine_bins_per_day'] * 7
     output_dict['fine_bins_per_coarse_bin'] = static_configs['coarse_bin_mins'] // static_configs['fine_bin_mins']
     output_dict["coarse_bins_per_day"] = output_dict["fine_bins_per_day"] // output_dict["fine_bins_per_coarse_bin"]
     output_dict['fine_bin_seconds'] = static_configs['fine_bin_mins'] * 60 

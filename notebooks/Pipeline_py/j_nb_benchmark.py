@@ -54,6 +54,41 @@ def get_user_nb_params(user_counts, n_usrs, period_start, period_end, config_dic
 
     return usr_means, usr_variances
 
+def get_user_hurdle_params(user_counts, n_users, period_start, period_end, config_dict):
+    '''
+    Static p, and positive mean and varaice estimator. Estimates parameters between period start to period end
+    '''
+
+    n_fine_bins = period_end - period_start
+
+    # Getting counts and count 2 for the period to calc mean and variacne
+    period_df = user_counts.filter((pl.col('fine_bin_id') >= period_start) & (pl.col('fine_bin_id') < period_end))
+    period_df = period_df.with_columns(count=pl.col('count').cast(pl.Float64), count_2=pl.col('count').cast(pl.Float64) ** 2)
+    period_df = period_df.group_by('user_id').agg(pl.sum('count').alias('sum_cnt'), pl.sum('count_2').alias('sum_cnt_2'), pl.len().alias('n_bins'))
+
+    # Init p, mean and variance vectors
+    usr_means = np.zeros(n_users, dtype='float64')
+    usr_variances = np.zeros(n_users, dtype='float64')
+    usr_p = np.zeros(n_users, dtype='float64')
+
+    # Getting sum of counts -1 which are used to find the hurdle mean and variance
+    usrs = period_df['user_id'].to_numpy()
+    n_bins = period_df['n_bins'].to_numpy()
+    sum_cnt_minus_1 = period_df['sum_cnt'].to_numpy() - n_bins
+    sum_cnt_2_minus_1 = period_df['sum_cnt_2'].to_numpy() - (2 * period_df['sum_cnt'].to_numpy()) + n_bins
+
+    # This gets the sum of the counts 
+    usr_p[usrs] = n_bins / n_fine_bins
+    usr_means[usrs] = sum_cnt_minus_1 / n_bins
+    usr_variances[usrs] = (sum_cnt_2_minus_1- (sum_cnt_minus_1 ** 2 / n_bins)) / (n_bins - 1)
+
+    # Capping values
+    usr_means = np.maximum(usr_means, config_dict['mean_min'])
+    usr_variances = np.maximum(usr_variances, config_dict['var_min'])
+    usr_p = np.minimum(np.maximum(usr_p, config_dict['p_min']), config_dict['p_max'])
+
+    return usr_means, usr_variances, usr_p
+
 #####################################
 # Benchmark runner
 #####################################
@@ -77,17 +112,17 @@ def run_nb_benchmarks(evaluation_counts, user_means, user_variances, user_hour_m
         user_id = evaluation_counts[row_idx, 0]
         fine_bin = evaluation_counts[row_idx, 1]
         count = evaluation_counts[row_idx, 2]
-        coarse_bin = (fine_bin % bin_metric_nt.fine_bins_per_week) // bin_metric_nt.fine_bins_per_coarse_bin
+        coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_week) // bin_metric_nt.fine_bins_per_coarse_bin
 
         # Skipping degen bins
-        if degen_mask[user_id, coarse_bin]:
+        if degen_mask[user_id, coarse_bin_id]:
             continue
 
         # Getting model parameters
         user_mu = user_means[user_id]
         user_sigma2 = user_variances[user_id]
-        user_hour_mu = user_hour_means[user_id, coarse_bin]
-        user_hour_sigma2 = user_hour_variances[user_id, coarse_bin]
+        user_hour_mu = user_hour_means[user_id, coarse_bin_id]
+        user_hour_sigma2 = user_hour_variances[user_id, coarse_bin_id]
 
         # Scoring counts and getting tail values
         user_log_likelihood += d.get_nb_lpmf_val(count, user_mu, user_sigma2, config_nt)
@@ -107,6 +142,37 @@ def run_nb_benchmarks(evaluation_counts, user_means, user_variances, user_hour_m
                 user_hour_calibration[threshold_idx] += 1
 
     return user_log_likelihood, user_hour_log_likelihood, user_calibration, user_hour_calibration, n_scored
+
+@njit
+def run_hurdle_benchmarks(evaluation_counts, user_means, user_variances, user_p, user_hour_means, user_hour_variances, 
+                          user_hour_p, config_nt, bin_metric_nt, degen_mask):
+    '''
+    Runs the user static hurdle benchmark and the user x coarse bin hurdle benchmark
+    '''
+
+    user_log_likelihood = 0
+    user_hour_log_likelihood = 0
+    n_obs = 0
+
+    for row_idx in range(evaluation_counts.shape[0]):
+
+        # Extracting the columns from the eval counts data
+        user_id = evaluation_counts[row_idx, 0]
+        fine_bin = evaluation_counts[row_idx, 1]
+        count = evaluation_counts[row_idx, 2]
+
+        coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_day) // bin_metric_nt.fine_bins_per_coarse_bin
+
+        if degen_mask[user_id, coarse_bin_id]:
+            continue
+
+        user_log_likelihood += d.get_lpmf_val(count, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
+        user_hour_log_likelihood += d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], user_hour_variances[user_id, coarse_bin_id], 
+                                                   user_hour_p[user_id, coarse_bin_id], config_nt)
+
+        n_obs += 1
+
+    return user_log_likelihood, user_hour_log_likelihood, n_obs
 
 #####################################
 # Benchmark output rows
