@@ -107,7 +107,7 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_
     lpmf_smoothed = d.get_lpmf_val(x, mu_t, sigma_2_t, p_t, config_nt)
     lpmf_raw = d.get_lpmf_val(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
 
-    if config_nt['nll_only']:
+    if config_nt.nll_only:
         return lpmf_raw, lpmf_smoothed, 0, 0
 
     # Not currently used but might be used in future diagnostics.

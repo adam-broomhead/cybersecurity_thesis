@@ -3,7 +3,6 @@ import numpy as np
 import c_clustering as c
 import f_grids_and_outputs as f
 import b_run_staging as b
-from itertools import product
 from time import perf_counter
 import gc 
 import utils as ut

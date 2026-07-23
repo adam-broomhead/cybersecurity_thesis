@@ -1,9 +1,31 @@
+#####################################
+# Setting env vars for performance
+#####################################
+import os
+
+def set_threads_env_vars():
+    '''
+    Sets the threads envrionment variables used for optimising local performance
+    '''
+    os.environ['POLARS_MAX_THREADS'] = '4'
+    os.environ['NUMBA_NUM_THREADS'] = '4'
+
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['NUMEXPR_NUM_THREADS'] = '1'
+
+set_threads_env_vars()
+
+#####################################
+# Imports and variables
+#####################################
+
 import polars as pl 
 import json5
 import numpy as np
 from datetime import datetime
 from pathlib import Path
-import os
 
 project_root = Path(__file__).resolve().parent.parent.parent
 data_dir = f'{project_root}/data/processed/intermediate'
@@ -127,18 +149,3 @@ def merge_configs(*configs):
 
     return config_dict
 
-#####################################
-# Setting env vars for performance
-#####################################
-
-def set_threads_env_vars():
-    '''
-    Sets the threads envrionment variables used for optimising local performance
-    '''
-    os.environ['POLARS_MAX_THREADS'] = '4'
-    os.environ['NUMBA_NUM_THREADS'] = '4'
-
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
-    os.environ['NUMEXPR_NUM_THREADS'] = '1'

@@ -49,8 +49,8 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     else:
         log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
 
-    burn_in_first_week = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_week
-    test_last_week = (train_test_nt.test_end-1)// bin_metric_nt.fine_bins_per_week
+    burn_in_first_day = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_day
+    test_last_day = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_day
 
     # Init outputs
     output_metrics = np.zeros((2, len(output_idx_nt)), dtype='float64')
@@ -59,18 +59,18 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     # Init pointer for user interactions
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
 
-    # Initialise weeks seen for 
-    weeks_elapsed = 0
+    # Initialise days passed
+    days_passed = 0
 
-    for week in range(burn_in_first_week, test_last_week + 1):
-        weeks_elapsed += 1
-        w = config_nt.w_inf + (1 - config_nt.w_inf) / (1 + weeks_elapsed)
-            
-        week_start = week * bin_metric_nt.fine_bins_per_week
-        week_end = (week + 1) * bin_metric_nt.fine_bins_per_week
+    for day in range(burn_in_first_day, test_last_day + 1):
+        days_passed += 1
+        w = config_nt.w_inf + (1 - config_nt.w_inf) / (1 + days_passed)
 
-        if week_end > train_test_nt.test_end:
-            week_end = train_test_nt.test_end
+        day_start = day * bin_metric_nt.fine_bins_per_day
+        day_end = (day + 1) * bin_metric_nt.fine_bins_per_day
+
+        if day_end > train_test_nt.test_end:
+            day_end = train_test_nt.test_end
 
         # Getting grid totals for seperating rate from shape
         user_u_totals = e.get_grid_row_sums(u)
@@ -95,7 +95,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             usr_updt_pos_sum = np.zeros(n_coarse_bins, dtype=np.float64)
             usr_updt_cnt_sum = np.zeros(n_coarse_bins, dtype=np.float64)
 
-            for fine_bin in range(week_start, week_end):
+            for fine_bin in range(day_start, day_end):
                 
                 x, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, usr_end_idx, fine_bin)
                 
