@@ -24,25 +24,40 @@ def make_normalised_u_clustering_matrix(u, v, p): return u / u.sum(axis=1)[:, No
 def make_clustering_matrix(u, v, p, runtime_configs): 
     ''' 
     Constructs the matrix used for clustering. 
-    The construction used depends on `clustering_matrix_name` found within `runtime_configs`
+    The construction used depends on `runtime_configs`
     '''
+    # Select the parameter cols
     if runtime_configs['clustering_matrix_name'] == 'u':
-        matrix_to_cluster = make_u_matrix(u, v, p)
-    elif runtime_configs['clustering_matrix_name'] == 'log_u':
-        matrix_to_cluster = make_log_u_matrix(u, v, p)
-    elif runtime_configs['clustering_matrix_name'] == 'v':
-        matrix_to_cluster = make_v_matrix(u, v, p)
-    elif runtime_configs['clustering_matrix_name'] == 'normalised_u':
-        matrix_to_cluster = make_normalised_u_clustering_matrix(u, v, p)
-    else:
-        raise ValueError("runtime_configs['clustering_matrix_name'] invalid")
+        matrix_cols = (u,)
 
-    # Do scaling if we need to use a variance adjusted distance metric
-    if runtime_configs['distance_metric'] == 'standardised_l2':
-        #TODO come back to this and rethink
-        return StandardScaler().fit_transform(matrix_to_cluster)
+    elif runtime_configs['clustering_matrix_name'] == 'u_p':
+        matrix_cols = (u, p)
+
+    elif runtime_configs['clustering_matrix_name'] == 'all':
+        matrix_cols = (u, v, p)
+
     else:
-        return matrix_to_cluster
+        raise ValueError('invalid matrix name')
+
+    # Transform the cols according to the scaling
+    transformed_cols = []
+    for matrix_col in matrix_cols:
+        if runtime_configs['clustering_transformation'] == 'none':
+            transformed_col = matrix_col
+        elif runtime_configs['clustering_transformation'] == 'log':
+            transformed_col = np.log(np.maximum(matrix_col, 1e-12))                 
+        elif (runtime_configs['clustering_transformation'] == 'normalise'):
+            row_totals = matrix_col.sum(axis=1, keepdims=True)
+            transformed_col = np.divide(matrix_col, row_totals, out=np.zeros_like(matrix_col, dtype='float64'))
+        else:
+            raise ValueError('invalid matrix transformation')
+        transformed_cols.append(transformed_col)
+
+    # Sandardise columns for diagonal malhanobis 
+    matrix_to_cluster = np.concatenate(transformed_cols, axis=1)
+    if runtime_configs['distance_metric'] == 'standardised_l2':
+        return StandardScaler().fit_transform(matrix_to_cluster)
+    return matrix_to_cluster
     
 #####################################
 # Functions for getting cluster assignments
@@ -150,7 +165,8 @@ def create_cluster_summary_df(model, user_mapping, runtime_configs):
             'cluster_id' : cluster_id,
             'cluster_param' : model['cluster_param'],
             'clustering_seed' : model['clustering_seed'],
-            'clustering_matrix_name' : model['clustering_matrix_name'],
+            'clustering_matrix_name': model['clustering_matrix_name'],
+            'clustering_transformation': model['clustering_transformation'],
             'distance_metric': model['distance_metric'],
 
             # Cluster content metrics

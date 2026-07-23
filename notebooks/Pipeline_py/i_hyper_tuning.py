@@ -330,18 +330,18 @@ class Tuner:
             output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
 
             # Updating outputs
-            result_row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid', 
-                                                      experiment_name=experiment_name))
+            result_row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid', experiment_name=experiment_name)
             results.append(result_row)
 
+            calibration_rows = []
             if not temp_config['nll_only']:
-                calibration_rows = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, 
-                                                                            test_valid='valid', config_dict=temp_config, experiment_name=experiment_name))
+                calibration_rows = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid='valid', config_dict=temp_config, experiment_name=experiment_name)
                 calibration_results.extend(calibration_rows)
 
             # Storing completed configs
             if run_name is not None:
                 ut.store_run_results(results=[result_row], calibration_results=calibration_rows, dir=run_name, run_name=run_name)
+
             print(f'finished_config {config_idx}/{len(seen_configs)} in {perf_counter() - config_start:.1f}s')
 
             # cleanup
