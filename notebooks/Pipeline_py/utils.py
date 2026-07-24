@@ -1,23 +1,4 @@
 #####################################
-# Setting env vars for performance
-#####################################
-import os
-
-def set_threads_env_vars(polars_threads=4, ):
-    '''
-    Sets the threads envrionment variables used for optimising local performance
-    '''
-    os.environ['POLARS_MAX_THREADS'] = '4'
-    os.environ['NUMBA_NUM_THREADS'] = '4'
-
-    os.environ['OMP_NUM_THREADS'] = '1'
-    os.environ['OPENBLAS_NUM_THREADS'] = '1'
-    os.environ['MKL_NUM_THREADS'] = '1'
-    os.environ['NUMEXPR_NUM_THREADS'] = '1'
-
-set_threads_env_vars()
-
-#####################################
 # Imports and variables
 #####################################
 

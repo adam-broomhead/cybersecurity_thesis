@@ -41,6 +41,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     n_fine_bins_seen = bin_metric_nt.train_denom
 
 
+
     # Calculating needed values
     n_users, n_coarse_bins = u.shape
 
@@ -58,6 +59,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
     # Init thread level outputs for paralellisation
     n_threads = get_num_threads()
+    thread_errors = np.zeros(n_threads, dtype='uint8')
     thread_output_metrics = np.zeros((n_threads, 2, len(output_idx_nt)), dtype='float64')
     thread_calibration_output = np.zeros((n_threads, 2, log_calibration_thresholds.shape[0], len(model_idx_nt)), dtype='float64')
 
@@ -121,7 +123,10 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                     lpmf_raw, lpmf_smoothed, log_upper_tail_raw, log_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, 
                                                                                                                             mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
                     # Updating outputs
-                    f.update_outputs(time_period_int, thread_output_metrics[thread_id], thread_calibration_output[thread_id], output_idx_nt, model_idx_nt, log_calibration_thresholds, log_upper_tail_raw, log_upper_tail_smoothed, lpmf_raw, lpmf_smoothed)
+                    if (not np.isfinite(lpmf_raw) or not np.isfinite(lpmf_smoothed) or not np.isfinite(log_upper_tail_raw) or not np.isfinite(log_upper_tail_smoothed)):
+                            thread_errors[thread_id] = 1
+                    else: 
+                        f.update_outputs(time_period_int, thread_output_metrics[thread_id], thread_calibration_output[thread_id], output_idx_nt, model_idx_nt, log_calibration_thresholds, log_upper_tail_raw, log_upper_tail_smoothed, lpmf_raw, lpmf_smoothed)
 
                 f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
             
@@ -131,6 +136,10 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, config_nt)
 
         n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
+
+        for thread_id in range(n_threads):
+            if thread_errors[thread_id] != 0:
+                raise ValueError('infinite or nan probability identified')
 
         g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt)
         f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
