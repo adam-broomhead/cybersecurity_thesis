@@ -2,7 +2,7 @@
     // These are the hyperparameter configurations experimented with
     "sampling_seed": 6554,
     "n_hypers_sampled": 100,
-    "w_inf_vals": [0.10, 0.15, 0.20, 0.225, 0.25, 0.30],
+    "w_inf_vals": [0.05, 0.10, 0.15, 0.20, 0.25, 0.30],
     "cluster_param_vals": [8, 16, 24, 32, 64],
     "smoothing_target_vals": [0, 1],
     "clustering_matrix_name_vals": ["u", "u_p", "all"],
