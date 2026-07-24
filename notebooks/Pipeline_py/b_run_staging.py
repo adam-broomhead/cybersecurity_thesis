@@ -19,6 +19,10 @@ def get_period_sums(user_counts, period_start, period_end):
 
     period_df = user_counts.filter((pl.col('fine_bin_id') >= period_start) & (pl.col('fine_bin_id') < period_end))
 
+    # Get the coarse bin id
+    period_df = period_df.with_columns(((pl.col('fine_bin_id') % (24 * 60 // static_configs['fine_bin_mins'])) 
+                    // (static_configs['coarse_bin_mins'] // static_configs['fine_bin_mins'])).alias('coarse_bin_id'))
+
     period_df = period_df.with_columns(count=pl.col('count').cast(pl.Float64))
     period_df = period_df.with_columns(count_2 = pl.col('count') ** 2)
     period_df = period_df.group_by(['user_id', 'coarse_bin_id']).agg(pl.sum('count').alias('sum_cnt'), 

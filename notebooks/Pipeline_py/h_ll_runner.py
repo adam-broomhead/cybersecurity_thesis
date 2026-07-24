@@ -1,10 +1,10 @@
-from numba import njit 
+from numba import njit, prange
 import numpy as np 
 import g_ll_runner_utils as g
 import e_smoothing as e
 import f_grids_and_outputs as f
 
-@njit
+@njit(paralell=True)
 def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, n_counts_init, 
                     alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init, degen_mask, user_counts_nt, user_interactions_nt,
                     interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, model_idx_nt):
@@ -56,6 +56,11 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     output_metrics = np.zeros((2, len(output_idx_nt)), dtype='float64')
     calibration_output = np.zeros((2, log_calibration_thresholds.shape[0], len(model_idx_nt)), dtype='float64')
 
+    # Init thread level outputs for paralellisation
+    n_threads = get_num_threads()
+    thread_output_metrics = np.zeros((n_threads, 2, len(output_idx_nt)), dtype='float64')
+    thread_calibration_output = np.zeros((n_threads, 2, log_calibration_thresholds.shape[0], len(model_idx_nt)), dtype='float64')
+
     # Init pointer for user interactions
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
 
@@ -82,7 +87,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         cluster_p_totals = e.get_grid_row_sums(cluster_p)
 
         # For each week iterate over the users and init the pointers
-        for user_id in range(n_users):
+        for user_id in prange(n_users):
 
             cnt_tbl_idx = usr_frst_rw[user_id]
             usr_end_idx = user_interactions_nt.user_last_index[user_id]
@@ -112,7 +117,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                     lpmf_raw, lpmf_smoothed, log_upper_tail_raw, log_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, 
                                                                                                                             mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
                     # Updating outputs
-                    f.update_outputs(time_period_int, output_metrics, calibration_output, output_idx_nt, model_idx_nt, log_calibration_thresholds, log_upper_tail_raw, log_upper_tail_smoothed, lpmf_raw, lpmf_smoothed)
+                    f.update_outputs(time_period_int, thread_output_metrics[thread_id], thread_calibration_output[thread_id], output_idx_nt, model_idx_nt, log_calibration_thresholds, log_upper_tail_raw, log_upper_tail_smoothed, lpmf_raw, lpmf_smoothed)
 
                 f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
             
@@ -121,6 +126,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, config_nt)
 
+        f.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt)
         n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
         f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
