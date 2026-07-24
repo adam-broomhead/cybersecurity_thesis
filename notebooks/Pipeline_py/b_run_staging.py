@@ -25,7 +25,7 @@ def get_period_sums(user_counts, period_start, period_end):
                                                                     pl.sum('count_2').alias('sum_cnt_2'),
                                                                     pl.len().alias('n_bins'))
     
-    return period_df 
+    return period_df.collect(engine='streaming') 
 
 def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict):
     ''' 
