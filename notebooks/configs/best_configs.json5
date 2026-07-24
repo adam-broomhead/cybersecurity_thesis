@@ -1,6 +1,46 @@
 {
     // The best model configs of each type for running on the test set
-    "no_smoothing": null,
+    // No smoothing best config
+    "no_smoothing": {
+        "w_inf": 0.24,
+
+        // defaults
+        "sampling_seed": 6554,
+        "cluster_param": 1,
+        "smoothing_target": 0,
+        "clustering_matrix_name": "u",
+        "clustering_transformation": "none",
+        "distance_metric": "l2",
+        "linear_smooth": true,
+        "smooth_a_mu": 0.0,
+        "smooth_a_sigma2": 0.0,
+        "smooth_a_p": 0.0,
+        "smooth_t_mu": 0,
+        "smooth_t_sigma2": 0,
+        "smooth_t_p": 0},
+
+
+    // Cluster smoothing best configs
+    "cluster_smoothing": {
+        "sampling_seed": 6554,
+        "clustering_seed": 6554,
+        "w_inf": 0.30,
+
+        "smooth_a_mu": 0.0,
+        "smooth_a_sigma2": 0.0,
+        "smooth_a_p": 0.0,
+        "smooth_t_mu": 75,
+        "smooth_t_sigma2": 80,
+        "smooth_t_p": 95,
+        "linear_smooth": false,
+        "smoothing_target": 1,
+
+        "cluster_param": 64,
+        "clustering_matrix_name": "all",
+        "clustering_transformation": "normalise",
+        "distance_metric": "standardised_l2",
+    },
+
+    // Global smoothing best configs
     "global_smoothing": null,
-    "cluster_smoothing": null,
 }

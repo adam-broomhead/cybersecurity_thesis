@@ -72,6 +72,8 @@ def load_data(filename, data_type, results=False, data_dir=data_dir, results_dir
 
     raise TypeError('cant pass this datatype')
 
+################
+
 def store_run_results(results, calibration_results, dir, run_name, results_dir=results_dir):
     '''
     Writes run results to results folder, calibration results ony if present
@@ -92,6 +94,31 @@ def store_run_results(results, calibration_results, dir, run_name, results_dir=r
         calibration_df = calibration_results
     else:
         calibration_df = pl.DataFrame(calibration_results)
+
+    # forcing data types to be consistent
+    result_dtypes = {
+        'linear_smooth': pl.Boolean,
+        'hurdle_model': pl.Boolean,
+        'sampling_seed': pl.Int32,
+        'clustering_seed': pl.Int32,
+        'cluster_param': pl.Int16,
+        'smoothing_target': pl.Int16,
+        'w_inf': pl.Float32,
+        'smooth_a_mu': pl.Float32,
+        'smooth_a_sigma2': pl.Float32,
+        'smooth_a_p': pl.Float32,
+        'smooth_t_mu': pl.UInt16,
+        'smooth_t_sigma2': pl.UInt16,
+        'smooth_t_p': pl.UInt16,
+        'cluster_inertia': pl.Float32,
+        'threshold': pl.Float32,
+        'raw_tail_rate': pl.Float32,
+        'smoothed_tail_rate': pl.Float32,
+        'non_degen_ll': pl.Float32,
+        'non_degen_smoothed_ll': pl.Float32}
+
+    results_df = results_df.with_columns([pl.col(column).cast(dtype) for column, dtype in result_dtypes.items() if column in results_df.columns])
+    calibration_df = calibration_df.with_columns([pl.col(column).cast(dtype) for column, dtype in result_dtypes.items() if column in calibration_df.columns])
 
     #writing results to file
     results_df = results_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))

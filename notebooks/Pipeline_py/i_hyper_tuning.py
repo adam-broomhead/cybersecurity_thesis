@@ -349,3 +349,39 @@ class Tuner:
             gc.collect()
 
         return results, calibration_results
+
+    #####################################
+    # Test set runner
+    #####################################
+
+    def test_run(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
+        '''
+        Runs the best config on the test set depending on the experiment name
+        '''
+        if selected_config is None:
+            raise ValueError(f'Config not found for {experiment_name}')
+
+        if hurdle_nb_model['hurdle_model'] is None:
+            raise ValueError('Should only be run after selecting hurdle or NB model')
+
+        # Create one complete runnable configuration
+        best_config = ut.merge_configs(base_config, hurdle_nb_model, selected_config)
+
+        _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
+
+        _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(best_config)
+
+        test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
+
+        output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask)
+
+        test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, 
+                                                   test_valid='test', experiment_name=experiment_name)]
+
+        test_calibration_results = []
+
+        if not best_config['nll_only']:
+            test_calibration_results = self.make_calibration_output_rows(model=test_model, output_metrics=output_metrics, 
+                calibration_outputs=calibration_outputs, test_valid='test', config_dict=best_config, experiment_name=experiment_name)
+
+        return test_results, test_calibration_results
