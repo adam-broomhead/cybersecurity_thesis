@@ -196,7 +196,7 @@ class Tuner:
         '''
 
         # Fill in w inf and use defaults for the rest
-        if experiment_name == 'no_smoothing':
+        if experiment_name == 'no_smoothing' or experiment_name == 'model_selection':
             return [{'w_inf': w_inf, 
                      'cluster_param': 1, 'smoothing_target': 0, 'clustering_matrix_name': 'u', 'clustering_transformation': 'none', 'distance_metric': 'l2', 'linear_smooth': True, 'smooth_a_mu': 0, 'smooth_a_sigma2': 0, 'smooth_a_p': 0, 'smooth_t_mu': 0, 'smooth_t_sigma2': 0, 'smooth_t_p': 0}
                 for w_inf in hyperparams['w_inf_vals']]

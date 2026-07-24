@@ -33,6 +33,10 @@ results_dir = f'{project_root}/data/processed/results'
 configs_dir = f'{project_root}/notebooks/configs'
 input_data = 'train_df'
 
+# Used only in 100
+raw_data_dir = f'{project_root}/data/raw'
+temp_data_dir = f'{project_root}/data/temp'
+
 #####################################
 # Load and store data functions
 #####################################
