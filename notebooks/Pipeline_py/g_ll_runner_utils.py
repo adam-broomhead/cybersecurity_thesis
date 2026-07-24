@@ -131,6 +131,7 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_
 #####################################
 # End of loop updates
 #####################################
+@njit
 def combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, 
       output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt):
     '''

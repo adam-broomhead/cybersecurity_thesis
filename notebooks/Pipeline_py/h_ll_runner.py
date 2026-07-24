@@ -1,10 +1,10 @@
-from numba import njit, prange
+from numba import njit, prange, get_num_threads, get_thread_id
 import numpy as np 
 import g_ll_runner_utils as g
 import e_smoothing as e
 import f_grids_and_outputs as f
 
-@njit(paralell=True)
+@njit(parallel=True)
 def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, n_counts_init, 
                     alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init, degen_mask, user_counts_nt, user_interactions_nt,
                     interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, model_idx_nt):
@@ -77,6 +77,11 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         if day_end > train_test_nt.test_end:
             day_end = train_test_nt.test_end
 
+        # Getting the train test valid
+        time_period_int = g.get_time_period(day_start, train_test_nt.validation_start, train_test_nt.validation_end, 
+                                                train_test_nt.test_start, train_test_nt.test_end)
+
+
         # Getting grid totals for seperating rate from shape
         user_u_totals = e.get_grid_row_sums(u)
         user_v_totals = e.get_grid_row_sums(v)
@@ -88,6 +93,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
         # For each week iterate over the users and init the pointers
         for user_id in prange(n_users):
+            thread_id = get_thread_id()
 
             cnt_tbl_idx = usr_frst_rw[user_id]
             usr_end_idx = user_interactions_nt.user_last_index[user_id]
@@ -110,8 +116,6 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                                                                                     cluster_groups, user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                                                                     alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
-                time_period_int = g.get_time_period(fine_bin, train_test_nt.validation_start, train_test_nt.validation_end, 
-                                                                train_test_nt.test_start, train_test_nt.test_end)
                 
                 if (time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, crnt_coarse_bin]: 
                     lpmf_raw, lpmf_smoothed, log_upper_tail_raw, log_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, 
@@ -126,8 +130,9 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, config_nt)
 
-        f.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt)
         n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
+
+        g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt)
         f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
