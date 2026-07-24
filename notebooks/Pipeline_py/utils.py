@@ -3,7 +3,7 @@
 #####################################
 import os
 
-def set_threads_env_vars():
+def set_threads_env_vars(polars_threads=4, ):
     '''
     Sets the threads envrionment variables used for optimising local performance
     '''

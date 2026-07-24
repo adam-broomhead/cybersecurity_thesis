@@ -74,24 +74,26 @@ def create_counts_data(df, bin_metric_dict):
     '''
     df = df.with_columns(time = pl.col('time').dt.total_seconds())
     df = df.with_columns(fine_bin_id = pl.col('time') // bin_metric_dict['fine_bin_seconds'])
-    user_x_fine_bin_cnts = df.group_by(['source_user@domain', 'fine_bin_id']).agg(pl.len().alias('count')).collect()
+    user_x_fine_bin_cnts = df.group_by(['source_user@domain', 'fine_bin_id']).agg(pl.len().alias('count'))
+
     return user_x_fine_bin_cnts
 
 def create_user_to_id_mapping(users_df, mapping_file_name):
-        ''' 
-        Creates a table containing the 
-        '''
-        # Creating a user lookup table and storing it
-        user_mapping = users_df.select('source_user@domain').unique().sort(by='source_user@domain').with_row_index('user_id')
-        user_mapping = user_mapping.with_columns(source_user_type = pl.when(pl.col('source_user@domain').str.contains(r"^U\d+@")).then(pl.lit("human")
-                                                ).when(pl.col('source_user@domain').str.contains(r"^C\d+\$@")).then(pl.lit("machine")))
-        ut.store_data(user_mapping, mapping_file_name)
-        
-        # Joining on the lookup table and dropping columns
-        users_df = users_df.join(user_mapping, on='source_user@domain', how='inner')
-        users_df = users_df.select(['user_id', 'fine_bin_id', 'count']).sort(['user_id', 'fine_bin_id'])
+    ''' 
+    Creates a table with user to id mapping
+    '''
+    # Creating a user lookup table and storing it
+    user_mapping = users_df.select('source_user@domain').unique().sort(by='source_user@domain').with_row_index('user_id').collect(engine='streaming')
+    user_mapping = users_df.select('source_user@domain').unique().sort(by='source_user@domain').with_row_index('user_id')
+    user_mapping = user_mapping.with_columns(source_user_type = pl.when(pl.col('source_user@domain').str.contains(r"^U\d+@")).then(pl.lit("human")
+                                            ).when(pl.col('source_user@domain').str.contains(r"^C\d+\$@")).then(pl.lit("machine")))
+    ut.store_data(user_mapping, mapping_file_name)
+    
+    # Joining on the lookup table and dropping columns
+    users_df = users_df.join(user_mapping, on='source_user@domain', how='inner')
+    users_df = users_df.select(['user_id', 'fine_bin_id', 'count']).sort(['user_id', 'fine_bin_id'])
 
-        return users_df, user_mapping
+    return users_df, user_mapping
 
 def create_coarse_bins(users_df, bin_metric_dict):
     ''' 
