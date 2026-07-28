@@ -50,11 +50,10 @@ class Tuner:
         Makes a call to the numba lambert liu runner
         '''
 
-        alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'])
-        alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'])
-        n_fine_bins_seen_init = np.full_like(self.n_counts_init, self.bin_metric_nt.train_denom, dtype=np.float64)
-        alpha_p_grid_init = f.init_alpha_grid(n_fine_bins_seen_init, config_dict['linear_smooth'], config_dict['smooth_a_p'], config_dict['smooth_t_p'])
-
+        alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'], self.bin_metric_nt.fine_bins_per_coarse_bin)
+        alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'], self.bin_metric_nt.fine_bins_per_coarse_bin)
+        n_counts_p = np.full_like(self.n_counts_init, self.bin_metric_nt.fine_bins_per_coarse_bin, dtype='float64')
+        alpha_p_grid_init = f.init_alpha_grid(n_counts_p, config_dict['linear_smooth'], config_dict['smooth_a_p'], config_dict['smooth_t_p'], self.bin_metric_nt.fine_bins_per_coarse_bin)
 
         u, v, p, _, _, _ = self.get_ll_param_grids(config_dict)
         cluster_u_init, cluster_v_init, cluster_p_init = c.get_cluster_centres(cluster_groups=model['cluster_assignments'], u_init=u, v_init=v, p_init=p, distance_metric=config_dict['distance_metric'])

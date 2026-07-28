@@ -37,7 +37,7 @@ def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict):
     '''
     period_length = period_end - period_start
 
-    return ((period_length // bin_metric_dict["fine_bins_per_day"]) * bin_metric_dict["fine_bins_per_coarse_bin"])
+    return ((period_length // bin_metric_dict['fine_bins_per_day']) * bin_metric_dict['fine_bins_per_coarse_bin'])
 
 def init_grid_NB(user_counts, n_users, coarse_bins_per_day, period_start, period_end, bin_metric_dict):
     ''' 
@@ -103,18 +103,16 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_day, period_start, pe
 
     return u_init, v_init, p_init
 
-def init_n_counts_grid(user_counts, n_users, coarse_bins_per_day, period_start, period_end):
+def init_n_counts_grid(user_counts, n_users, coarse_bins_per_day, period_start, period_end, n_days):
     '''
     Counts how many counts were observed in the period needed for the smoothing equation that relies on n counts
     '''
-
     train_df = get_period_sums(user_counts, period_start, period_end)
 
     # Init a grid and get entries to assign and assigning the number of counts
     n_counts = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
-    n_counts[entries_to_assign[:, 0], entries_to_assign[:, 1]] = train_df['n_bins'].to_numpy()
-
+    n_counts[entries_to_assign[:, 0], entries_to_assign[:, 1]] = train_df['n_bins'].to_numpy() / n_days
     return n_counts
 
 #####################################
