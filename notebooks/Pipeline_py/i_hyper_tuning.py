@@ -216,7 +216,7 @@ class Tuner:
                 cluster_param = 1
                 clustering_matrix_name = 'u'
                 clustering_transformation = 'none'
-                distance_metric = 'l2'
+                distance_metric = rng.choice(hyperparams['distance_metric_vals'])
             else:
                 clustering_matrix_name = rng.choice(hyperparams['clustering_matrix_name_vals'])
                 clustering_transformation = rng.choice(hyperparams['clustering_transformation_vals'])

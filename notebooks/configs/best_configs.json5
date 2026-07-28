@@ -22,22 +22,22 @@
 
     // Cluster smoothing best configs
     "cluster_smoothing": {
-        "sampling_seed": 6554,
+        "sampling_seed": 6654,
         "clustering_seed": 6554,
-        "w_inf": 0.30,
+        "w_inf": 0.34,
 
-        "smooth_a_mu": 0.0,
-        "smooth_a_sigma2": 0.0,
-        "smooth_a_p": 0.0,
-        "smooth_t_mu": 75,
-        "smooth_t_sigma2": 80,
-        "smooth_t_p": 95,
-        "linear_smooth": false,
+        "smooth_a_mu": 0.70,
+        "smooth_a_sigma2": 0.45,
+        "smooth_a_p": 0.35,
+        "smooth_t_mu": 0,
+        "smooth_t_sigma2": 0,
+        "smooth_t_p": 0,
+        "linear_smooth": true,
         "smoothing_target": 1,
 
-        "cluster_param": 64,
-        "clustering_matrix_name": "all",
-        "clustering_transformation": "normalise",
+        "cluster_param": 32,
+        "clustering_matrix_name": "u_p",
+        "clustering_transformation": "log",
         "distance_metric": "standardised_l2",
     },
 

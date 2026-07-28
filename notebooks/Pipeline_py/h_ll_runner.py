@@ -133,7 +133,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             # Updating the users first row (for the next week) and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
-            f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, config_nt)
+            f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, w, config_nt)
 
         n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
 

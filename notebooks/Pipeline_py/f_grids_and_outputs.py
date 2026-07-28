@@ -42,12 +42,30 @@ def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, 
         alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_sigma2, config_nt.smooth_t_sigma2)
 
 @njit
-def update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt):
+def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, crnt_user_id, usr_updt_n_counts, w, config_nt):
+    '''
+    Updates the alpha grids and n_eff 
+    '''
+    n_coarse_bins = n_counts.shape[1]
+
+    for coarse_bin in range(n_coarse_bins):
+
+        # n_counts if n_eff for u, v
+        if usr_updt_n_counts[coarse_bin] > 0:
+            n_counts[crnt_user_id, coarse_bin] = (1.0 - w) * n_counts[crnt_user_id, coarse_bin] + usr_updt_n_counts[coarse_bin]
+
+        current_n = n_counts[crnt_user_id, coarse_bin]
+
+        alpha_mu_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_mu, config_nt.smooth_t_mu)
+        alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_sigma2, config_nt.smooth_t_sigma2)
+
+@njit
+def update_p_alpha_grid(alpha_p_grid, p_n_eff, config_nt):
     '''
     updates alpha for p (which is not the positive number of counts only but the number of coarse bins as we have no nulls
     '''
 
-    alpha_p = get_alpha_val(n_fine_bins_seen, config_nt.linear_smooth, config_nt.smooth_a_p, config_nt.smooth_t_p)
+    alpha_p = get_alpha_val(p_n_eff, config_nt.linear_smooth, config_nt.smooth_a_p, config_nt.smooth_t_p)
     n_users, n_coarse_bins = alpha_p_grid.shape
 
     for user_id in range(n_users):
