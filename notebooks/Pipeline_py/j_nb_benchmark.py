@@ -112,7 +112,7 @@ def run_nb_benchmarks(evaluation_counts, user_means, user_variances, user_hour_m
         user_id = evaluation_counts[row_idx, 0]
         fine_bin = evaluation_counts[row_idx, 1]
         count = evaluation_counts[row_idx, 2]
-        coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_week) // bin_metric_nt.fine_bins_per_coarse_bin
+        coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_day) // bin_metric_nt.fine_bins_per_coarse_bin
 
         # Skipping degen bins
         if degen_mask[user_id, coarse_bin_id]:

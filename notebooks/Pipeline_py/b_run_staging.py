@@ -37,7 +37,10 @@ def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict):
     '''
     period_length = period_end - period_start
 
-    return ((period_length // bin_metric_dict['fine_bins_per_day']) * bin_metric_dict['fine_bins_per_coarse_bin'])
+    if period_length % bin_metric_dict['fine_bins_per_day'] != 0:
+        raise ValueError('Parameter init must be whole number of days')
+
+    return (period_length // bin_metric_dict['fine_bins_per_day']) * bin_metric_dict['fine_bins_per_coarse_bin']
 
 def init_grid_NB(user_counts, n_users, coarse_bins_per_day, period_start, period_end, bin_metric_dict):
     ''' 
@@ -103,11 +106,13 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_day, period_start, pe
 
     return u_init, v_init, p_init
 
-def init_n_counts_grid(user_counts, n_users, coarse_bins_per_day, period_start, period_end, n_days):
+def init_n_counts_grid(user_counts, n_users, coarse_bins_per_day, period_start, period_end, bin_metric_dict):
     '''
     Counts how many counts were observed in the period needed for the smoothing equation that relies on n counts
     '''
     train_df = get_period_sums(user_counts, period_start, period_end)
+
+    n_days = (period_end - period_start) // bin_metric_dict['fine_bins_per_day']
 
     # Init a grid and get entries to assign and assigning the number of counts
     n_counts = np.zeros((n_users, coarse_bins_per_day), dtype='float64')

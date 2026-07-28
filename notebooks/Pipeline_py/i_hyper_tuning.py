@@ -222,7 +222,7 @@ class Tuner:
                 distance_metric = rng.choice(hyperparams['distance_metric_vals'])
                 cluster_param = rng.choice(hyperparams['cluster_param_vals'])
 
-            linear_smooth = rng.choice([True, False])
+            linear_smooth = rng.choice(hyperparams["linear_smooth_vals"])
             smoothing_target = rng.choice(hyperparams['smoothing_target_vals'])
 
             if linear_smooth:
