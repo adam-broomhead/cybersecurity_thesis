@@ -47,7 +47,7 @@ def make_clustering_matrix(u, v, p, runtime_configs):
         elif runtime_configs['clustering_transformation'] == 'log':
             transformed_col = np.log(np.maximum(matrix_col, 1e-12))                 
         elif (runtime_configs['clustering_transformation'] == 'normalise'):
-            row_totals = matrix_col.sum(axis=1, keepdims=True)
+            row_totals = matrixuser_type_groups_col.sum(axis=1, keepdims=True)
             transformed_col = np.divide(matrix_col, row_totals, out=np.zeros_like(matrix_col, dtype='float64'), where=row_totals !=0)
         else:
             raise ValueError('invalid matrix transformation')
@@ -140,6 +140,18 @@ def get_centroid_distance(cluster_centres, distance_metric):
             output[i] = {'nearest_centroid_dist' : min(cluster_distances), 'avg_centroid_dist' : sum(cluster_distances)/len(cluster_distances)}
 
     return output
+
+def get_user_cluster_distances(matrix_to_cluster, cluster_assignments, cluster_centres, distance_metric):
+    '''
+    Calculates user distances from cluster centres
+    '''
+    vec_to_centre = matrix_to_cluster - cluster_centres[cluster_assignments]
+
+    if distance_metric == 'l1':
+        return np.abs(vec_to_centre).sum(axis=1)
+
+    if distance_metric in ('l2', 'standardised_l2'):
+        return np.sqrt(np.square(vec_to_centre).sum(axis=1))
 
 def create_cluster_summary_df(model, user_mapping, runtime_configs):
     ''' 
@@ -285,7 +297,7 @@ def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=No
 
     output = {
         # Clustering configs
-        'name' : f"{runtime_configs['clustering_method']}",
+        'name' : f'{runtime_configs['clustering_method']}',
         'distance_metric': runtime_configs['distance_metric'],
         'clustering_matrix_name' : runtime_configs['clustering_matrix_name'],
         'clustering_transformation': runtime_configs['clustering_transformation'],

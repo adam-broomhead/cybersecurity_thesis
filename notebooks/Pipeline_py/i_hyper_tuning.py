@@ -11,7 +11,7 @@ class Tuner:
 
     def __init__(self, u_init, v_init, p_init, u_pos_init, v_pos_init, 
                 u_clustering, v_clustering, u_pos_clustering, v_pos_clustering, p_pos_clustering, n_counts_init, 
-                user_counts_nt, user_interactions_nt, interpolation_weights, bin_metric_nt, output_idx_nt, model_idx_nt, train_test_nt_class):
+                user_counts_nt, user_interactions_nt, interpolation_weights, bin_metric_nt, output_idx_nt, model_idx_nt, train_test_nt_class, user_type_groups):
             
             self.u_init = u_init
             self.v_init = v_init
@@ -31,6 +31,48 @@ class Tuner:
             self.output_idx_nt = output_idx_nt
             self.model_idx_nt = model_idx_nt
             self.train_test_nt_class = train_test_nt_class
+            self.user_type_groups = user_type_groups
+
+    #####################################
+    # Decile Creation
+    #####################################
+
+    def get_activity_deciles(self, user_counts_nt, n_users, period_start, period_end):
+        '''
+        Filter activity to pe in period then groupby user id and get counts
+        '''
+        period_filter = ((user_counts_nt.fine_bin_id >= period_start) & (user_counts_nt.fine_bin_id < period_end))
+
+        return self.make_rank_deciles(np.bincount(user_counts_nt.user_id[period_filter], weights=user_counts_nt.count[period_filter]))
+
+    def make_rank_deciles(self, val_to_rank):
+        '''
+        Assigns users to deciles based on val_to_rank
+        '''
+        # Create and rank assignments 
+        n_users = val_to_rank.shape[0]
+        ranked_groups = (np.arange(n_users, dtype=np.int64) * 10) // n_users
+
+        # Init output and assign users
+        output = np.empty(n_users, dtype='int8')
+        output[np.argsort(val_to_rank, kind='stable')] = np.minimum(ranked_groups, 9)
+        return output
+
+    def get_metric_breakdown(self, model, config_dict, u_clustering, v_clustering, p_clustering, train_test_dict):
+        '''
+        Creates the breakdowns for the run in the tes
+        '''
+        n_users = u_clustering.shape[0]
+
+        # Getting cluster deciles
+        activity_deciles = get_activity_deciles(user_counts_nt=self.user_counts_nt, n_users=n_users, period_start=train_test_dict['train_start'], period_end=train_test_dict['burn_in_end'])
+        distance_deciles = make_user_deciles(cluster_distances)
+        all_user_group = np.zeros(n_users, dtype='float8')
+
+        matrix_to_cluster = c.make_clustering_matrix(u_clustering, v_clustering, p_clustering, config_dict)
+        cluster_distances = c.get_user_cluster_distances(matrix_to_cluster=matrix_to_cluster, cluster_assignments=model['cluster_assignments'], cluster_centres=model['cluster_centres'], distance_metric=model['distance_metric'],)
+
+        return np.vstack((all_user_group, activity_deciles, distance_deciles, self.user_type_groups)).astype('float8')
 
     #####################################
     # ll single iteration runner
@@ -49,6 +91,10 @@ class Tuner:
         ''' 
         Makes a call to the numba lambert liu runner
         '''
+
+        # Init an empty array if we dont have breakdown requirement
+        if breakdown_groups is None:
+            breakdown_groups = np.empty((0, 0), dtype='int8')
 
         alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'], self.bin_metric_nt.fine_bins_per_coarse_bin)
         alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'], self.bin_metric_nt.fine_bins_per_coarse_bin)
@@ -222,7 +268,7 @@ class Tuner:
                 distance_metric = rng.choice(hyperparams['distance_metric_vals'])
                 cluster_param = rng.choice(hyperparams['cluster_param_vals'])
 
-            linear_smooth = rng.choice(hyperparams["linear_smooth_vals"])
+            linear_smooth = rng.choice(hyperparams['linear_smooth_vals'])
             smoothing_target = rng.choice(hyperparams['smoothing_target_vals'])
 
             if linear_smooth:
@@ -353,7 +399,7 @@ class Tuner:
     # Test set runner
     #####################################
 
-    def test_run(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
+    def test_run(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict, nll_only=False):
         '''
         Runs the best config on the test set depending on the experiment name
         '''
