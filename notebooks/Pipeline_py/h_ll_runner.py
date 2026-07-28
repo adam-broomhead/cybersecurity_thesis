@@ -38,9 +38,6 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     alpha_sigma2_grid = alpha_sigma2_grid_init.copy()
     alpha_p_grid = alpha_p_grid_init.copy()
     zero_alpha_grid = np.zeros_like(alpha_mu_grid)
-    n_fine_bins_seen = bin_metric_nt.train_denom
-
-
 
     # Calculating needed values
     n_users, n_coarse_bins = u.shape
@@ -135,14 +132,11 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, w, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             
-        n_fine_bins_seen += bin_metric_nt.fine_bins_per_coarse_bin
-
         for thread_id in range(n_threads):
             if thread_errors[thread_id] != 0:
                 raise ValueError('infinite or nan probability identified')
 
         g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt)
-        f.update_p_alpha_grid(alpha_p_grid, n_fine_bins_seen, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
     return output_metrics, calibration_output
