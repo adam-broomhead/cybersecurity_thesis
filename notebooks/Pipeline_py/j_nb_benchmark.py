@@ -283,49 +283,64 @@ def make_poisson_benchmark_calibration_rows(poisson_output_metrics, poisson_cali
 
     return output
 
-def make_hurdle_benchmark_output_rows(results, full_results, config_dict, test_valid):
+def get_hurdle_benchmark_base_output(model_name, config_dict, test_valid):
     '''
-    Makes output rows for the hurdle benchmark runner
+    Creates feilds shared between both outputs
+    '''
+    return {
+        'smoothed_model_name': model_name,
+        'experiment_name': 'benchmark',
+        'sampling_seed': config_dict['sampling_seed'],
+        'hurdle_model': True,
+        'test_valid': test_valid}
+
+
+def make_hurdle_benchmark_output_rows(results, config_dict, test_valid):
+    '''
+    Makes output rows for hurde benchmakr
     '''
     output = []
 
     for model_idx, model_name in enumerate(hurdle_benchmark_names):
-        output = {
-            'smoothed_model_name': model_name,
-            'experiment_name': 'benchmark',
-            'sampling_seed': config_dict['sampling_seed'],
-            'hurdle_model': True,
-            'test_valid': test_valid}
+        n_bins_scored = results[model_idx, 0]
 
-        if config_dict['nll_only']:
-            n_bins_scored = results[model_idx, 0]
+        output_row = get_hurdle_benchmark_base_output(model_name=model_name, config_dict=config_dict, test_valid=test_valid)
 
-            output_row = output.copy()
+        output_row['non_degen_ll'] = results[model_idx, 1] / n_bins_scored
+        output_row['non_degen_smoothed_ll'] = None
 
-            output_row['non_degen_ll'] = results[model_idx, 1] / n_bins_scored
-            output.append(output_row)
+        output.append(output_row)
 
-        else:
-            for breakdown_type_idx, breakdown_config in enumerate(metric_breakdowns):
-                breakdown_type = breakdown_config['type']
+    return output
 
-                for breakdown_group_idx, breakdown_group in enumerate(breakdown_config['groups']):
-                    group_output = full_results[model_idx, breakdown_type_idx, breakdown_group_idx]
 
-                    if group_output[0] == 0:
-                        continue
+def make_full_hurdle_benchmark_output_rows(full_results, config_dict):
+    '''
+    Makes full test benchmark outputs
+    '''
+    output = []
 
-                    output_row = output.copy()
+    for model_idx, model_name in enumerate(hurdle_benchmark_names):
+        for breakdown_type_idx, breakdown_config in enumerate(metric_breakdowns):
+            breakdown_type = breakdown_config['type']
 
-                    output_row['breakdown_type'] = breakdown_type
-                    output_row['breakdown_group'] = breakdown_group
-                    output_row['n_bins_scored'] = group_output[0]
-                    output_row['non_degen_ll_sum'] = group_output[1]
+            for breakdown_group_idx, breakdown_group in enumerate(breakdown_config['groups']):
+                group_output = full_results[model_idx, breakdown_type_idx, breakdown_group_idx]
 
-                    for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
-                        threshold_name = format(float(threshold), 'f')
-                        output_row[f'calibration_count_{threshold_name}'] = group_output[2 + threshold_idx]
+                if group_output[0] == 0:
+                    continue
 
-                    output.append(output_row)
+                output_row = get_hurdle_benchmark_base_output(model_name=model_name, config_dict=config_dict, test_valid='test')
+
+                output_row['breakdown_type'] = breakdown_type
+                output_row['breakdown_group'] = breakdown_group
+                output_row['n_bins_scored'] = group_output[0]
+                output_row['non_degen_ll_sum'] = group_output[1]
+
+                for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
+                    threshold_name = format(float(threshold), 'f')
+                    output_row[f'calibration_count_{threshold_name}'] = group_output[2 + threshold_idx]
+
+                output.append(output_row)
 
     return output
