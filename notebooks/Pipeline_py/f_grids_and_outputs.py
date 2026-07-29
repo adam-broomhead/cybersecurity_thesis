@@ -144,43 +144,18 @@ def update_outputs(time_period_int, output_metrics, output_idx_nt, lpmf_raw, lpm
         output_metrics[time_period_int, output_idx_nt.non_degen_smoothed_ll_sum] += lpmf_smoothed
 
 @njit
-def update_calibration_outputs(user_id, lpmf_smoothed, log_upper_tail_smoothed, calibration_thresholds, breakdown_groups, calibration_output, seed):
+def update_calibration_outputs(user_id, lpmf_smoothed, log_strict_upper_tail_smoothed, log_calibration_thresholds, 
+                               breakdown_groups, calibration_output):
     '''
-    Updates the raw test statistics needed for calibration analysis
+    Updates calibration + granular outputs at end of look
     '''
+    rdm_upper_tail = d.get_randomised_log_upper_tail(log_strict_upper_tail_smoothed, lpmf_smoothed)
 
-@njit
-def update_calibration_outputs(
-    user_id,
-    lpmf_smoothed,
-    log_upper_tail_smoothed,
-    log_calibration_thresholds,
-    breakdown_groups,
-    calibration_output,
-):
-    '''
-    Updates the raw test statistics needed for calibration analysis
-    '''
+    for breakdown_type_idx in range(breakdown_groups.shape[0]):
+        breakdown_group_idx = int(breakdown_groups[breakdown_type_idx, user_id])
+        calibration_output[breakdown_type_idx, breakdown_group_idx, 0] += 1
+        calibration_output[breakdown_type_idx, breakdown_group_idx, 1] += lpmf_smoothed
 
-    # Sample a random value for using the pit 
-    random_value = np.random.random()
-
-    #TODO check if we sample end of day or once per observation
-    if random_value == 0:
-        pit_comparison_point = (
-            log_upper_tail_smoothed
-        )
-
-    ranom_calib_point
-
-    for breakdown_idx in range(breakdown_groups.shape[0]):
-        group_idx = int(breakdown_groups[breakdown_idx, user_id])
-
-        # lpmf and n counts update
-        calibration_output[breakdown_idx, group_idx, 0] += 1
-        calibration_output[breakdown_idx, group_idx, 1] += lpmf_smoothed
-
-        # Update PIT threshold exceeding
         for threshold_idx in range(log_calibration_thresholds.shape[0]):
-            if random_calib_point < log_calibration_thresholds[threshold_idx]:
-                calibration_output[breakdown_idx, group_idx, 2 + threshold_idx] += 1
+            if rdm_upper_tail < log_calibration_thresholds[threshold_idx]:
+                calibration_output[breakdown_type_idx, breakdown_group_idx, 2 + threshold_idx,] += 1

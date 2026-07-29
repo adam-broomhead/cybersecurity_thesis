@@ -2,6 +2,7 @@ from numba import njit
 import math 
 import numba_scipy.special 
 from scipy.special import betainc, gammainc
+import numpy as np
 
 #####################################
 # Math helper functions
@@ -154,3 +155,15 @@ def get_upper_tail_value(x, mu, sigma2, p, config_nt):
         return hurdle_upper_tail(x, mu, sigma2, p, config_nt)
     else:
         return get_nb_upper_tail_value(x, mu, sigma2, config_nt)
+
+@njit(inline='always')
+def get_randomised_log_upper_tail(strict_log_upper_tail, lpmf):
+    '''
+    Gets the randomised upper tail
+    '''
+    random_value = np.random.random()
+
+    if random_value == 0:
+        return strict_log_upper_tail
+    else:
+        return logsumexp2(strict_log_upper_tail, math.log(random_value) + lpmf)

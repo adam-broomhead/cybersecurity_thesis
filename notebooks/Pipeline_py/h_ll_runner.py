@@ -104,6 +104,8 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         # For each week iterate over the users and init the pointers
         for user_id in prange(n_users):
             thread_id = get_thread_id()
+            if calc_calibration:
+                config_nt.sampling_seed + day * n_users + user_id
 
             cnt_tbl_idx = usr_frst_rw[user_id]
             usr_end_idx = user_interactions_nt.user_last_index[user_id]

@@ -185,54 +185,54 @@ class Tuner:
         return output
 
 
-    def make_calibration_output_rows(self, model, output_metrics, calibration_outputs, test_valid, config_dict, experiment_name):
-        ''' 
-        Creates a table of calibration outputs
+    def make_full_output_rows(self, model, calibration_outputs, config_dict, experiment_name):
         '''
-
-        # Init variables and outputs
-        if test_valid == 'valid':
-            period_idx = 0
-        elif test_valid == 'test':
-            period_idx = 1
-        else:
-            raise ValueError('test_valid must either be `test` or `valid`')
-        
+        Makes outputs rows for full test runs
+        '''
         output = []
-        n_non_degen_bins = output_metrics[period_idx, self.output_idx_nt.n_bins_scored]
 
-        for threshold_idx in range(config_dict['calibration_thresholds'].shape[0]):
+        for breakdown_type_idx, breakdown_type in enumerate(breakdown_type_names):
+            for breakdown_group_idx, breakdown_group in enumerate(breakdown_group_names[breakdown_type_idx]):
+                group_output = calibration_outputs[breakdown_type_idx, breakdown_group_idx]
 
-            ## Appending a row to output
-            output.append({
-                # Row descriptions
-                'smoothed_model_name': model['name'],
-                'sampling_seed' : config_dict['sampling_seed'],
-                'experiment_name' : experiment_name,
-                'w_inf': config_dict['w_inf'],
-                'hurdle_model': config_dict['hurdle_model'],
+                n_bins_scored = group_output[0]
 
-                'smooth_a_mu': config_dict['smooth_a_mu'],
-                'smooth_a_sigma2': config_dict['smooth_a_sigma2'],
-                'smooth_a_p': config_dict['smooth_a_p'],
-                'smooth_t_mu': config_dict['smooth_t_mu'],
-                'smooth_t_sigma2': config_dict['smooth_t_sigma2'],
-                'smooth_t_p': config_dict['smooth_t_p'],
-                'linear_smooth': config_dict['linear_smooth'],
-                'smoothing_target': config_dict['smoothing_target'],
+                if n_bins_scored == 0:
+                    continue
 
-                'cluster_param': model['cluster_param'],
-                'clustering_matrix_name': model['clustering_matrix_name'],
-                'clustering_transformation' : model['clustering_transformation'],
-                'distance_metric' : model['distance_metric'],
-                'clustering_seed' : model['clustering_seed'],
-                'test_valid': test_valid,
+                output_row = {
+                    'smoothed_model_name': model['name'],
+                    'experiment_name': experiment_name,
+                    'sampling_seed': config_dict['sampling_seed'],
+                    'w_inf': config_dict['w_inf'],
+                    'cluster_param': model['cluster_param'],
+                    'smooth_a_mu': config_dict['smooth_a_mu'],
+                    'smooth_a_sigma2': config_dict['smooth_a_sigma2'],
+                    'smooth_a_p': config_dict['smooth_a_p'],
+                    'smooth_t_mu': config_dict['smooth_t_mu'],
+                    'smooth_t_sigma2': config_dict['smooth_t_sigma2'],
+                    'smooth_t_p': config_dict['smooth_t_p'],
+                    'linear_smooth': config_dict['linear_smooth'],
+                    'smoothing_target': config_dict['smoothing_target'],
+                    'hurdle_model': config_dict['hurdle_model'],
+                    'test_valid': 'test',
 
-                # Calibration metrics
-                'threshold': config_dict['calibration_thresholds'][threshold_idx],
-                'raw_tail_rate': calibration_outputs[period_idx, threshold_idx, self.model_idx_nt.raw_model_calib_index] / n_non_degen_bins,
-                'smoothed_tail_rate': calibration_outputs[period_idx, threshold_idx, self.model_idx_nt.smoothed_model_calib_index] / n_non_degen_bins,
-            })
+                    'clustering_matrix_name': model['clustering_matrix_name'],
+                    'clustering_transformation': model['clustering_transformation'],
+                    'distance_metric': model['distance_metric'],
+                    'clustering_seed': model['clustering_seed'],
+                    'cluster_inertia':  model['cluster_inertia'],
+                    'breakdown_type': breakdown_type,
+                    'breakdown_group': breakdown_group,
+
+                    'n_bins_scored': n_bins_scored,
+                    'non_degen_ll_sum': group_output[1],
+                }
+
+                for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
+                    threshold_name = format(float(threshold), 'f')
+                    output_row[f'calibration_count_'f'{threshold_name}'] = group_output[2 + threshold_idx]
+                output.append(output_row)
 
         return output
 
@@ -417,6 +417,7 @@ class Tuner:
 
         # Create one complete runnable configuration
         best_config = ut.merge_configs(base_config, hurdle_nb_model, selected_config)
+        best_config['nll_only'] = nll_only
 
         _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
 
@@ -424,14 +425,13 @@ class Tuner:
         test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
 
         # Getting deciles for breakdown if needed
-        best_config['nll_only'] = nll_only
         if best_config['nll_only']:
             user_groups = None
         else:
             user_groups = self.get_metric_breakdown(model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster, train_test_dict=train_test_dict)
 
         output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
-            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, user_groups=user_groups)
+            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=user_groups)
 
         if best_config['nll_only']:
             test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, test_valid='test', experiment_name=experiment_name)]

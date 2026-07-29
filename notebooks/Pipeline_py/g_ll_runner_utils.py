@@ -99,44 +99,32 @@ def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p
 
     return mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t
 
+
 @njit(inline='always')
-def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, calculate_calibration, config_nt):
-    ''' 
-    Returns log p0, the lpmf, and upper tail values for the smoothed and raw models
+def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, 
+                                    calculate_calibration, config_nt):
     '''
+    Returns log p0, the lpmf, and strict upper tail values for the smoothed and raw models
+    '''
+    # Get LPMF
     lpmf_smoothed = d.get_lpmf_val(x, mu_t, sigma_2_t, p_t, config_nt)
     lpmf_raw = d.get_lpmf_val(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
 
     if not calculate_calibration:
         return lpmf_raw, lpmf_smoothed, 0, 0
-    else: 
-        log_upper_tail_smoothed = d.get_upper_tail_value(x, mu_t, sigma_2_t, p_t, config_nt)
-        return lpmf_raw, lpmf_smoothed, 0, log_upper_tail_smoothed
+    else:
+        log_strict_upper_tail_smoothed = d.get_upper_tail_value(x + 1, mu_t, sigma_2_t, p_t, config_nt)
+        return lpmf_raw, lpmf_smoothed, 0, log_strict_upper_tail_smoothed
 
 #####################################
 # End of loop updates
 #####################################
 @njit
-def combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, 
-      output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt):
+def combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, 
+                    time_period_int, n_threads, config_nt):
     '''
     Runs at the end of the loop to update outputs from the threads we have
     Modifies in place
-    '''
-
-@njit
-def combine_threads(
-    output_metrics,
-    thread_output_metrics,
-    calibration_output,
-    thread_calibration_output,
-    output_idx_nt,
-    time_period_int,
-    n_threads,
-    config_nt,
-):
-    '''
-    Combines thread-level outputs
     '''
 
     if time_period_int >= 0:
