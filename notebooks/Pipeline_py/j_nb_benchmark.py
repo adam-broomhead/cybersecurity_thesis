@@ -159,29 +159,26 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
     Runs the user static hurdle benchmark and the user x coarse bin hurdle benchmark
     '''
     n_users = user_means.shape[0]
-    output_metrics = np.zeros((2, 2), dtype='float64')
+    results = np.zeros((2, 2), dtype='float64')
 
     if config_nt.nll_only:
         log_calibration_thresholds = np.empty(0, dtype='float64')
-        breakdown_outputs = np.empty((0, 0, 0, 0), dtype='float64')
-
+        full_results = np.empty((0, 0, 0, 0), dtype='float64')
     else:
         log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
         n_breakdown_types = breakdown_groups.shape[0]
         n_breakdown_groups = int(breakdown_groups.max()) + 1
 
-        n_breakdown_outputs = 2 + log_calibration_thresholds.shape[0]
-        breakdown_outputs = np.zeros((2, n_breakdown_types, n_breakdown_groups, n_breakdown_outputs), dtype='float64')
+        n_full_results = 2 + log_calibration_thresholds.shape[0]
+        full_results = np.zeros((2, n_breakdown_types, n_breakdown_groups, n_full_results), dtype='float64')
 
     n_threads = get_num_threads()
-
-    thread_output_metrics = np.zeros((n_threads, 2, 2), dtype='float64')
+    thread_results = np.zeros((n_threads, 2, 2), dtype='float64')
 
     if config_nt.nll_only:
-        thread_breakdown_outputs = np.empty((0, 0, 0, 0, 0), dtype='float64')
-
+        thread_full_results = np.empty((0, 0, 0, 0, 0), dtype='float64')
     else:
-        thread_breakdown_outputs = np.zeros(n_threads, 2, n_breakdown_types, n_breakdown_groups, n_breakdown_outputs), dtype='float64')
+        thread_full_results = np.zeros(n_threads, 2, n_breakdown_types, n_breakdown_groups, n_full_results), dtype='float64')
 
     for user_id in prange(n_users):
         thread_id = get_thread_id()
@@ -192,27 +189,25 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
         cnt_tbl_idx = user_interactions_nt.user_first_index[user_id]
         user_end_idx = user_interactions_nt.user_last_index[user_id]
 
-        while cnt_tbl_idx <= user_end_idx and user_counts_nt.fine_bin_id[cnt_tbl_idx] < period_start): 
+        while cnt_tbl_idx <= user_end_idx and user_counts_nt.fine_bin_id[cnt_tbl_idx] < period_start: 
             cnt_tbl_idx += 1
 
         for fine_bin in range(period_start, period_end):
 
             count, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, user_end_idx, fine_bin)
-
             coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_day) // bin_metric_nt.fine_bins_per_coarse_bin
 
             if degen_mask[user_id, coarse_bin_id]:
                 continue
 
             user_lpmf = d.get_lpmf_val(count, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
-
             user_hour_lpmf = d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], 
                         user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
 
-            thread_output_metrics[thread_id, 0, 0] += 1
-            thread_output_metrics[thread_id, 0, 1] += user_lpmf
-            thread_output_metrics[thread_id, 1, 0] += 1
-            thread_output_metrics[thread_id, 1, 1] += user_hour_lpmf
+            thread_results[thread_id, 0, 0] += 1
+            thread_results[thread_id, 0, 1] += user_lpmf
+            thread_results[thread_id, 1, 0] += 1
+            thread_results[thread_id, 1, 1] += user_hour_lpmf
 
             if not config_nt.nll_only:
                 user_strict_upper_tail = d.get_upper_tail_value(count + 1, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
@@ -222,25 +217,25 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
 
                 f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_lpmf, log_strict_upper_tail_smoothed=user_strict_upper_tail, 
                                              log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups,
-                                               calibration_output=thread_breakdown_outputs[thread_id, 0])
+                                               calibration_output=thread_full_results[thread_id, 0])
 
                 f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_hour_lpmf, 
                     log_strict_upper_tail_smoothed=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
-                    breakdown_groups=breakdown_groups, calibration_output=thread_breakdown_outputs[thread_id, 1])
+                    breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1])
 
     for thread_id in range(n_threads):
         for model_idx in range(2):
             for output_idx in range(2):
-                output_metrics[model_idx, output_idx] += thread_output_metrics[thread_id, model_idx, output_idx]
+                results[model_idx, output_idx] += thread_results[thread_id, model_idx, output_idx]
 
         if not config_nt.nll_only:
             for model_idx in range(2):
                 for breakdown_type_idx in range(n_breakdown_types):
                     for breakdown_group_idx in range(n_breakdown_groups):
-                        for output_idx in range(n_breakdown_outputs):
-                            breakdown_outputs[model_idx, breakdown_type_idx, breakdown_group_idx, output_idx] += thread_breakdown_outputs[thread_id, model_idx, breakdown_type_idx, breakdown_group_idx, output_idx]
+                        for output_idx in range(n_full_results):
+                            full_results[model_idx, breakdown_type_idx, breakdown_group_idx, output_idx] += thread_full_results[thread_id, model_idx, breakdown_type_idx, breakdown_group_idx, output_idx]
 
-    return output_metrics, breakdown_outputs,
+    return results, full_results
 
 #####################################
 # Benchmark output rows
