@@ -74,28 +74,23 @@ def load_data(filename, data_type, results=False, data_dir=data_dir, results_dir
 
 ################
 
-def store_run_results(results, calibration_results, dir, run_name, results_dir=results_dir):
+def store_run_results(results, dir, run_name, calibration_results=None, results_dir=results_dir):
     '''
-    Writes run results to results folder, calibration results ony if present
+    Writes run results to results folder
     '''
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
 
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
     summary_dir = Path(f'{results_dir}/{dir}/summary')
     calibration_dir = Path(f'{results_dir}/{dir}/calibration')
-
     summary_dir.mkdir(parents=True, exist_ok=True)
 
-    # converting to polars df if needed
+    # Converting results to polars df if needed
     if isinstance(results, pl.DataFrame):
         results_df = results
     else:
         results_df = pl.DataFrame(results)
-    if isinstance(calibration_results, pl.DataFrame):
-        calibration_df = calibration_results
-    else:
-        calibration_df = pl.DataFrame(calibration_results)
 
-    # forcing data types to be consistent
+    # Forcing data types to be consistent
     result_dtypes = {
         'linear_smooth': pl.Boolean,
         'hurdle_model': pl.Boolean,
@@ -115,20 +110,20 @@ def store_run_results(results, calibration_results, dir, run_name, results_dir=r
         'raw_tail_rate': pl.Float32,
         'smoothed_tail_rate': pl.Float32,
         'non_degen_ll': pl.Float32,
-        'non_degen_smoothed_ll': pl.Float32}
+        'non_degen_smoothed_ll': pl.Float32,
+        'n_bins_scored': pl.Int64,
+        'non_degen_ll_sum': pl.Float64}
 
     results_df = results_df.with_columns([pl.col(column).cast(dtype) for column, dtype in result_dtypes.items() if column in results_df.columns])
-    calibration_df = calibration_df.with_columns([pl.col(column).cast(dtype) for column, dtype in result_dtypes.items() if column in calibration_df.columns])
 
-    #writing results to file
+    calibration_count_columns = [column for column in results_df.columns if column.startswith('calibration_count_')]
+    if calibration_count_columns:
+        results_df = results_df.with_columns([pl.col(column).cast(pl.Int64) for column in calibration_count_columns])
+
+    # Writing results
     results_df = results_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
     results_df.write_parquet(f'{summary_dir}/{run_name}_{timestamp}.parquet')
 
-    if calibration_df.height > 0:
-        calibration_dir.mkdir(parents=True, exist_ok=True)
-        calibration_df = calibration_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
-        calibration_df.write_parquet(f'{calibration_dir}/{run_name}_{timestamp}.parquet')
-    
 #####################################
 # Json 5 stuff
 #####################################
