@@ -5,6 +5,8 @@ import utils as ut
 from numba import njit, prange, get_num_threads, get_thread_id
 import numpy as np 
 import d_math as d
+import polars as pl
+import math
 
 metric_breakdowns = ut.load_json5('metric_breakdowns')['breakdowns']
 hurdle_benchmark_names = ('static_user_hurdle', 'static_user_hour_hurdle')
@@ -178,7 +180,7 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
     if config_nt.nll_only:
         thread_full_results = np.empty((0, 0, 0, 0, 0), dtype='float64')
     else:
-        thread_full_results = np.zeros(n_threads, 2, n_breakdown_types, n_breakdown_groups, n_full_results), dtype='float64')
+        thread_full_results = np.zeros((n_threads, 2, n_breakdown_types, n_breakdown_groups, n_full_results), dtype='float64')
 
     for user_id in prange(n_users):
         thread_id = get_thread_id()
@@ -278,5 +280,52 @@ def make_poisson_benchmark_calibration_rows(poisson_output_metrics, poisson_cali
                            'test_valid': test_valid, 
                            'threshold': config_dict['calibration_thresholds'][threshold_idx], 
                            'model_calibration': poisson_calibration_outputs[period_idx, threshold_idx, model_idx] / n_bins_scored})
+
+    return output
+
+def make_hurdle_benchmark_output_rows(results, full_results, config_dict, test_valid):
+    '''
+    Makes output rows for the hurdle benchmark runner
+    '''
+    output = []
+
+    for model_idx, model_name in enumerate(hurdle_benchmark_names):
+        output = {
+            'smoothed_model_name': model_name,
+            'experiment_name': 'benchmark',
+            'sampling_seed': config_dict['sampling_seed'],
+            'hurdle_model': True,
+            'test_valid': test_valid}
+
+        if config_dict['nll_only']:
+            n_bins_scored = results[model_idx, 0]
+
+            output_row = output.copy()
+
+            output_row['non_degen_ll'] = results[model_idx, 1] / n_bins_scored
+            output.append(output_row)
+
+        else:
+            for breakdown_type_idx, breakdown_config in enumerate(metric_breakdowns):
+                breakdown_type = breakdown_config['type']
+
+                for breakdown_group_idx, breakdown_group in enumerate(breakdown_config['groups']):
+                    group_output = full_results[model_idx, breakdown_type_idx, breakdown_group_idx]
+
+                    if group_output[0] == 0:
+                        continue
+
+                    output_row = output.copy()
+
+                    output_row['breakdown_type'] = breakdown_type
+                    output_row['breakdown_group'] = breakdown_group
+                    output_row['n_bins_scored'] = group_output[0]
+                    output_row['non_degen_ll_sum'] = group_output[1]
+
+                    for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
+                        threshold_name = format(float(threshold), 'f')
+                        output_row[f'calibration_count_{threshold_name}'] = group_output[2 + threshold_idx]
+
+                    output.append(output_row)
 
     return output

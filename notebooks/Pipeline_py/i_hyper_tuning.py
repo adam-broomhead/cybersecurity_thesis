@@ -383,8 +383,9 @@ class Tuner:
         if best_config['nll_only']:
             breakdown_groups = None
         else:
-            breakdown_groups = k.get_metric_breakdown(model=test_model, config_dict=best_config, u_clustering=u_cluster, 
-                v_clustering=v_cluster, p_clustering=p_cluster, train_test_dict=train_test_dict)
+            breakdown_groups = k.get_metric_breakdown(user_counts_nt=self.user_counts_nt, user_type_groups=self.user_type_groups,
+                                    model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
+                                    p_clustering=p_cluster, train_test_dict=train_test_dict)
 
         output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
             train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups)

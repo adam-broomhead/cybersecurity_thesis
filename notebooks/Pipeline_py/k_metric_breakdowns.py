@@ -26,7 +26,7 @@ def make_rank_deciles(val_to_rank):
     output[np.argsort(val_to_rank, kind='stable')] = np.minimum(ranked_groups, 9)
     return output
 
-def get_metric_breakdown(model, config_dict, u_clustering, v_clustering, p_clustering, train_test_dict):
+def get_metric_breakdown(user_counts_nt, user_type_groups, model, config_dict, u_clustering, v_clustering, p_clustering, train_test_dict):
     '''
     Creates the breakdowns for the run in the test set
     '''
@@ -34,7 +34,7 @@ def get_metric_breakdown(model, config_dict, u_clustering, v_clustering, p_clust
     n_users = u_clustering.shape[0]
     all_user_group = np.zeros(n_users, dtype='int8')
 
-    activity_deciles = get_activity_deciles(user_counts_nt=ser_counts_nt, n_users=n_users, 
+    activity_deciles = get_activity_deciles(user_counts_nt=user_counts_nt, n_users=n_users, 
                                 period_start=train_test_dict['train_start'], period_end=train_test_dict['burn_in_end'])
 
     matrix_to_cluster = c.make_clustering_matrix(u_clustering, v_clustering, p_clustering, config_dict)
