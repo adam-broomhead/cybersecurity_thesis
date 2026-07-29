@@ -1,9 +1,13 @@
-from numba import njit
-import math 
-import d_math as d
-import polars as pl
-import numpy as np 
 import g_ll_runner_utils as g
+import f_grids_and_outputs as f
+import c_clustering as c
+import utils as ut
+from numba import njit, prange, get_num_threads, get_thread_id
+import numpy as np 
+import d_math as d
+
+metric_breakdowns = ut.load_json5('metric_breakdowns')['breakdowns']
+hurdle_benchmark_names = ('static_user_hurdle', 'static_user_hour_hurdle')
 
 #####################################
 # Benchmark init
@@ -147,32 +151,96 @@ def run_nb_benchmarks(evaluation_counts, user_means, user_variances, user_hour_m
 def run_hurdle_benchmarks(evaluation_counts, user_means, user_variances, user_p, user_hour_means, user_hour_variances, 
                           user_hour_p, config_nt, bin_metric_nt, degen_mask):
     '''
+    '''
+@njit(parallel=True)
+def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user_variances, user_p, user_hour_means, 
+        user_hour_variances, user_hour_p, period_start, period_end, breakdown_groups, config_nt, bin_metric_nt, degen_mask):
+    '''
     Runs the user static hurdle benchmark and the user x coarse bin hurdle benchmark
     '''
+    n_users = user_means.shape[0]
+    output_metrics = np.zeros((2, 2), dtype='float64')
 
-    user_log_likelihood = 0
-    user_hour_log_likelihood = 0
-    n_scored = 0
+    if config_nt.nll_only:
+        log_calibration_thresholds = np.empty(0, dtype='float64')
+        breakdown_outputs = np.empty((0, 0, 0, 0), dtype='float64')
 
-    for row_idx in range(evaluation_counts.shape[0]):
+    else:
+        log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
+        n_breakdown_types = breakdown_groups.shape[0]
+        n_breakdown_groups = int(breakdown_groups.max()) + 1
 
-        # Extracting the columns from the eval counts data
-        user_id = evaluation_counts[row_idx, 0]
-        fine_bin = evaluation_counts[row_idx, 1]
-        count = evaluation_counts[row_idx, 2]
+        n_breakdown_outputs = 2 + log_calibration_thresholds.shape[0]
+        breakdown_outputs = np.zeros((2, n_breakdown_types, n_breakdown_groups, n_breakdown_outputs), dtype='float64')
 
-        coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_day) // bin_metric_nt.fine_bins_per_coarse_bin
+    n_threads = get_num_threads()
 
-        if degen_mask[user_id, coarse_bin_id]:
-            continue
+    thread_output_metrics = np.zeros((n_threads, 2, 2), dtype='float64')
 
-        user_log_likelihood += d.get_lpmf_val(count, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
-        user_hour_log_likelihood += d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], user_hour_variances[user_id, coarse_bin_id], 
-                                                   user_hour_p[user_id, coarse_bin_id], config_nt)
+    if config_nt.nll_only:
+        thread_breakdown_outputs = np.empty((0, 0, 0, 0, 0), dtype='float64')
 
-        n_scored += 1
+    else:
+        thread_breakdown_outputs = np.zeros(n_threads, 2, n_breakdown_types, n_breakdown_groups, n_breakdown_outputs), dtype='float64')
 
-    return user_log_likelihood, user_hour_log_likelihood, n_scored
+    for user_id in prange(n_users):
+        thread_id = get_thread_id()
+
+        if not config_nt.nll_only:
+            np.random.seed(config_nt.sampling_seed + user_id)
+
+        cnt_tbl_idx = user_interactions_nt.user_first_index[user_id]
+        user_end_idx = user_interactions_nt.user_last_index[user_id]
+
+        while cnt_tbl_idx <= user_end_idx and user_counts_nt.fine_bin_id[cnt_tbl_idx] < period_start): 
+            cnt_tbl_idx += 1
+
+        for fine_bin in range(period_start, period_end):
+
+            count, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, user_end_idx, fine_bin)
+
+            coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_day) // bin_metric_nt.fine_bins_per_coarse_bin
+
+            if degen_mask[user_id, coarse_bin_id]:
+                continue
+
+            user_lpmf = d.get_lpmf_val(count, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
+
+            user_hour_lpmf = d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], 
+                        user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
+
+            thread_output_metrics[thread_id, 0, 0] += 1
+            thread_output_metrics[thread_id, 0, 1] += user_lpmf
+            thread_output_metrics[thread_id, 1, 0] += 1
+            thread_output_metrics[thread_id, 1, 1] += user_hour_lpmf
+
+            if not config_nt.nll_only:
+                user_strict_upper_tail = d.get_upper_tail_value(count + 1, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
+
+                user_hour_strict_upper_tail = d.get_upper_tail_value(count + 1, user_hour_means[user_id, coarse_bin_id], 
+                    user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
+
+                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_lpmf, log_strict_upper_tail_smoothed=user_strict_upper_tail, 
+                                             log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups,
+                                               calibration_output=thread_breakdown_outputs[thread_id, 0])
+
+                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_hour_lpmf, 
+                    log_strict_upper_tail_smoothed=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
+                    breakdown_groups=breakdown_groups, calibration_output=thread_breakdown_outputs[thread_id, 1])
+
+    for thread_id in range(n_threads):
+        for model_idx in range(2):
+            for output_idx in range(2):
+                output_metrics[model_idx, output_idx] += thread_output_metrics[thread_id, model_idx, output_idx]
+
+        if not config_nt.nll_only:
+            for model_idx in range(2):
+                for breakdown_type_idx in range(n_breakdown_types):
+                    for breakdown_group_idx in range(n_breakdown_groups):
+                        for output_idx in range(n_breakdown_outputs):
+                            breakdown_outputs[model_idx, breakdown_type_idx, breakdown_group_idx, output_idx] += thread_breakdown_outputs[thread_id, model_idx, breakdown_type_idx, breakdown_group_idx, output_idx]
+
+    return output_metrics, breakdown_outputs,
 
 #####################################
 # Benchmark output rows
