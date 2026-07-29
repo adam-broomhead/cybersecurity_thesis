@@ -105,7 +105,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         for user_id in prange(n_users):
             thread_id = get_thread_id()
             if calc_calibration:
-                config_nt.sampling_seed + day * n_users + user_id
+                np.random.seed(config_nt.sampling_seed + day * n_users + user_id)
 
             cnt_tbl_idx = usr_frst_rw[user_id]
             usr_end_idx = user_interactions_nt.user_last_index[user_id]
@@ -130,14 +130,21 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
                 
                 if (time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, crnt_coarse_bin]: 
-                    lpmf_raw, lpmf_smoothed, log_upper_tail_raw, log_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, 
-                                                                                                                            mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
-                    # Updating outputs
-                    if (not np.isfinite(lpmf_raw) or not np.isfinite(lpmf_smoothed) or not np.isfinite(log_upper_tail_raw) or not np.isfinite(log_upper_tail_smoothed)):
-                            thread_errors[thread_id] = 1
-                    else: 
-                        f.update_outputs(time_period_int, thread_output_metrics[thread_id], thread_calibration_output[thread_id], output_idx_nt, model_idx_nt, log_calibration_thresholds, log_upper_tail_raw, log_upper_tail_smoothed, lpmf_raw, lpmf_smoothed)
+                    lpmf_raw, lpmf_smoothed, _, log_strict_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, calc_calibration, config_nt)
 
+                    # Updating outputs
+                    if ((not np.isfinite(lpmf_raw) or not np.isfinite(lpmf_smoothed)) 
+                        or (calc_calibration and not np.isfinite(log_strict_upper_tail_smoothed))):
+                        thread_errors[thread_id] = 1
+
+                    else:
+                        f.update_outputs(time_period_int, thread_output_metrics[thread_id], output_idx_nt, lpmf_raw, lpmf_smoothed)
+
+                        if calc_calibration:
+                            f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=lpmf_smoothed, 
+                                log_strict_upper_tail_smoothed=log_strict_upper_tail_smoothed, log_calibration_thresholds=log_calibration_thresholds, 
+                                breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id])
+                            
                 f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
             
             # Updating the users first row (for the next week) and the parameter grid and alpha grid

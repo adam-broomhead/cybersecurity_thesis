@@ -135,12 +135,12 @@ def combine_threads(output_metrics, thread_output_metrics, calibration_output, t
 
     if time_period_int == 1 and not config_nt.nll_only:
         for thread_id in range(n_threads):
-            for breakdown_idx in range(calibration_output.shape[0]):
-                for group_idx in range(calibration_output.shape[1]):
+            for breakdown_type_idx in range(calibration_output.shape[0]):
+                for breakdown_group_idx in range(calibration_output.shape[1]):
                     for output_idx in range(calibration_output.shape[2]):
-                        calibration_output[breakdown_idx, group_idx, output_idx] += thread_calibration_output[thread_id, breakdown_idx, group_idx, output_idx]
-                        thread_calibration_output[thread_id, breakdown_idx, group_idx, output_idx] = 0
-
+                        calibration_output[breakdown_type_idx, breakdown_group_idx, output_idx] += (
+                            thread_calibration_output[thread_id, breakdown_type_idx, breakdown_group_idx, output_idx])
+                        thread_calibration_output[thread_id, breakdown_type_idx, breakdown_group_idx, output_idx] = 0
 
 @njit 
 def get_new_clustering_means(cluster_groups, u, v, p):

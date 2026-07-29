@@ -7,6 +7,8 @@ from time import perf_counter
 import gc 
 import utils as ut
 
+metric_breakdowns = ut.load_json5('metric_breakdowns')['breakdowns']
+
 class Tuner:
 
     def __init__(self, u_init, v_init, p_init, u_pos_init, v_pos_init, 
@@ -191,8 +193,9 @@ class Tuner:
         '''
         output = []
 
-        for breakdown_type_idx, breakdown_type in enumerate(breakdown_type_names):
-            for breakdown_group_idx, breakdown_group in enumerate(breakdown_group_names[breakdown_type_idx]):
+        for breakdown_type_idx, breakdown_config in enumerate(metric_breakdowns):
+            breakdown_type = breakdown_config['type']
+            for breakdown_group_idx, breakdown_group in enumerate(breakdown_config['groups']):
                 group_output = calibration_outputs[breakdown_type_idx, breakdown_group_idx]
 
                 n_bins_scored = group_output[0]
@@ -360,7 +363,6 @@ class Tuner:
 
         # Creating output lists
         results = []
-        calibration_results = []
 
         # Iterate over the sample configs
         for config_idx, sampled_config in enumerate(seen_configs, start=1):
@@ -384,14 +386,10 @@ class Tuner:
             result_row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid', experiment_name=experiment_name)
             results.append(result_row)
 
-            calibration_rows = []
-            if not temp_config['nll_only']:
-                calibration_rows = self.make_calibration_output_rows(model=model, output_metrics=output_metrics, calibration_outputs=calibration_outputs, test_valid='valid', config_dict=temp_config, experiment_name=experiment_name)
-                calibration_results.extend(calibration_rows)
 
             # Storing completed configs
             if run_name is not None:
-                ut.store_run_results(results=[result_row], calibration_results=calibration_rows, dir=run_name, run_name=run_name)
+                ut.store_run_results(results=[result_row], dir=f'{run_name}/nll_only', run_name=run_name)
 
             print(f'finished_config {config_idx}/{len(seen_configs)} in {perf_counter() - config_start:.1f}s')
 
@@ -399,7 +397,7 @@ class Tuner:
             del model, output_metrics, calibration_outputs, temp_config, temp_config_nt, u_cluster, v_cluster, p_cluster
             gc.collect()
 
-        return results, calibration_results
+        return results
 
     #####################################
     # Test set runner
@@ -426,16 +424,16 @@ class Tuner:
 
         # Getting deciles for breakdown if needed
         if best_config['nll_only']:
-            user_groups = None
+            breakdown_groups = None
         else:
-            user_groups = self.get_metric_breakdown(model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster, train_test_dict=train_test_dict)
+            breakdown_groups = self.get_metric_breakdown(model=test_model, config_dict=best_config, u_clustering=u_cluster, 
+                v_clustering=v_cluster, p_clustering=p_cluster, train_test_dict=train_test_dict)
 
         output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
-            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=user_groups)
+            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups)
 
         if best_config['nll_only']:
             test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, test_valid='test', experiment_name=experiment_name)]
-
         else:
             test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
             return test_results
