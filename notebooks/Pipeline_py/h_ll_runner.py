@@ -43,22 +43,29 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     n_users, n_coarse_bins = u.shape
 
     if config_nt.nll_only:
-        log_calibration_thresholds = np.empty(0, dtype='float64')
+        calibration_thresholds = np.empty(0, dtype='float64')
+        calibration_output = np.empty((0, 0, 0), dtype='float64')
+
     else:
-        log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
+        n_groups = int(breakdown_groups.max()) + 1
+        n_breakdowns = breakdown_groups.shape[0]
+        n_calibration_outputs = config_nt.calibration_thresholds.shape[0]
+        calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
 
     burn_in_first_day = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_day
     test_last_day = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_day
 
     # Init outputs
     output_metrics = np.zeros((2, len(output_idx_nt)), dtype='float64')
-    calibration_output = np.zeros((2, log_calibration_thresholds.shape[0], len(model_idx_nt)), dtype='float64')
 
     # Init thread level outputs for paralellisation
     n_threads = get_num_threads()
     thread_errors = np.zeros(n_threads, dtype='uint8')
     thread_output_metrics = np.zeros((n_threads, 2, len(output_idx_nt)), dtype='float64')
-    thread_calibration_output = np.zeros((n_threads, 2, log_calibration_thresholds.shape[0], len(model_idx_nt)), dtype='float64')
+    if config_nt.nll_only:
+        thread_calibration_output = np.empty( (0, 0, 0, 0), dtype='float64')
+    else:
+        thread_calibration_output = np.zeros((n_threads, n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
 
     # Init pointer for user interactions
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
@@ -80,6 +87,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         time_period_int = g.get_time_period(day_start, train_test_nt.validation_start, train_test_nt.validation_end, 
                                                 train_test_nt.test_start, train_test_nt.test_end)
 
+        calc_calibration = time_period_int == 1 and not config_nt.nll_only
 
         # Getting grid totals for seperating rate from shape
         user_u_totals = e.get_grid_row_sums(u)

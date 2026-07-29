@@ -60,19 +60,22 @@ class Tuner:
 
     def get_metric_breakdown(self, model, config_dict, u_clustering, v_clustering, p_clustering, train_test_dict):
         '''
-        Creates the breakdowns for the run in the tes
+        Creates the breakdowns for the run in the test set
         '''
-        n_users = u_clustering.shape[0]
 
-        # Getting cluster deciles
-        activity_deciles = get_activity_deciles(user_counts_nt=self.user_counts_nt, n_users=n_users, period_start=train_test_dict['train_start'], period_end=train_test_dict['burn_in_end'])
-        distance_deciles = make_user_deciles(cluster_distances)
-        all_user_group = np.zeros(n_users, dtype='float8')
+        n_users = u_clustering.shape[0]
+        all_user_group = np.zeros(n_users, dtype='int8')
+
+        activity_deciles = self.get_activity_deciles(user_counts_nt=self.user_counts_nt, n_users=n_users, 
+                                    period_start=train_test_dict['train_start'], period_end=train_test_dict['burn_in_end'])
 
         matrix_to_cluster = c.make_clustering_matrix(u_clustering, v_clustering, p_clustering, config_dict)
-        cluster_distances = c.get_user_cluster_distances(matrix_to_cluster=matrix_to_cluster, cluster_assignments=model['cluster_assignments'], cluster_centres=model['cluster_centres'], distance_metric=model['distance_metric'],)
+        cluster_distances = c.get_user_cluster_distances(matrix_to_cluster=matrix_to_cluster, 
+            cluster_assignments=model['cluster_assignments'], cluster_centres=model['cluster_centres'], distance_metric=model['distance_metric'])
+        distance_deciles = self.make_rank_deciles(cluster_distances)
+        
 
-        return np.vstack((all_user_group, activity_deciles, distance_deciles, self.user_type_groups)).astype('float8')
+        return np.vstack((all_user_group, activity_deciles, distance_deciles, self.user_type_groups)).astype('int8')
 
     #####################################
     # ll single iteration runner
@@ -412,13 +415,21 @@ class Tuner:
         # Create one complete runnable configuration
         best_config = ut.merge_configs(base_config, hurdle_nb_model, selected_config)
 
+        # Getting deciles for breakdown if needed
+        best_config['nll_only'] = nll_only
+        if best_config['nll_only']:
+            user_groups = None
+        else:
+            user_groups = self.get_metric_breakdown(model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster, train_test_dict=train_test_dict)
+
         _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
 
         _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(best_config)
 
         test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
 
-        output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask)
+        output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
+            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, user_groups=user_groups)
 
         test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, 
                                                    test_valid='test', experiment_name=experiment_name)]

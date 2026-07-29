@@ -47,7 +47,7 @@ def make_clustering_matrix(u, v, p, runtime_configs):
         elif runtime_configs['clustering_transformation'] == 'log':
             transformed_col = np.log(np.maximum(matrix_col, 1e-12))                 
         elif (runtime_configs['clustering_transformation'] == 'normalise'):
-            row_totals = matrixuser_type_groups_col.sum(axis=1, keepdims=True)
+            row_totals = matrix_col.sum(axis=1, keepdims=True)
             transformed_col = np.divide(matrix_col, row_totals, out=np.zeros_like(matrix_col, dtype='float64'), where=row_totals !=0)
         else:
             raise ValueError('invalid matrix transformation')

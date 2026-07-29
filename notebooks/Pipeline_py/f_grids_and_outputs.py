@@ -133,39 +133,32 @@ def update_grid(u, v, p, crnt_user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_
 #####################################
 
 @njit
-def update_outputs(time_period_int, output_metrics, calibration_output, output_idx_nt, model_idx_nt,
-                  log_calibration_thresholds, log_upper_tail_raw, log_upper_tail_smoothed, lpmf_raw, lpmf_smoothed):
-    ''' 
-    Function used for updating the output and calibration threshold output
-    Args:
-        x : the count observed
-        time_period_int : number that states whether we are in test train or validation
-        output_metrics : Np array where we will store our outputs
-        calibration_output : output of how many p values fall below each threshold in train and validation for each model
-        output_idx_nt : named tuple that tells us which index of `output_metrics` each metric lives in
-        model_idx_nt :  named tuple that tells us which index of `calibration_output` each model lives in
-
-        log_raw_degen_threshold : threshold that tells us whether we are in a degenerate bin or not (defined by P(X=0))
-        log_calibration_thresholds : calibration thresholds we are monitoring (how many p values fall below each threshold)
-
-        log_p0_raw  + smoothed: the log prob of 0 is compared to the degen threshold in the function
-        log_upper_tail_raw + smooth : the log_probability of observing a value greater that or equal to x. compared to the log calibration thresholds
-
-        lpmf_raw + smoothed : the log likelihood values we observe
+def update_outputs(time_period_int, output_metrics, output_idx_nt, lpmf_raw, lpmf_smoothed):
     '''
-
-    # If we are in train or validation update the metrics
+    Updated outputs at end of day
+    '''
     if time_period_int == 0 or time_period_int == 1:
         output_metrics[time_period_int, output_idx_nt.n_bins_scored] += 1
         output_metrics[time_period_int, output_idx_nt.non_degen_ll_sum] += lpmf_raw
         output_metrics[time_period_int, output_idx_nt.non_degen_smoothed_ll_sum] += lpmf_smoothed
 
-        # Add a point for each calibration threshold we are less than 
-        # 1 row of output for raw model one for smoothed model
-        for calib_threshold_idx in range(log_calibration_thresholds.shape[0]):
+@njit
+def update_calibration_outputs(user_id, lpmf_smoothed, log_upper_tail_smoothed, calibration_thresholds, breakdown_groups, calibration_output, seed):
+    '''
+    Updates the raw test statistics needed for calibration analysis
+    '''
 
-            if log_upper_tail_raw < log_calibration_thresholds[calib_threshold_idx]:
-                calibration_output[time_period_int, calib_threshold_idx, model_idx_nt.raw_model_calib_index] += 1
+    # Seed for repeatability
+    np.random.seed(seed)
+    pit_comparison_point = math.exp(log_upper_tail_smoothed) - np.random.random() * math.exp(lpmf_smoothed)
 
-            if log_upper_tail_smoothed < log_calibration_thresholds[calib_threshold_idx]:
-                calibration_output[time_period_int, calib_threshold_idx, model_idx_nt.smoothed_model_calib_index] += 1
+    for breakdown_idx in range(breakdown_groups.shape[0]):
+        group_idx = int(breakdown_groups[breakdown_idx, user_id])
+
+        # n counts
+        calibration_output[breakdown_idx, group_idx, 0] += 1
+
+        # PIT
+        for threshold_idx in range(calibration_thresholds.shape[0]):
+            if pit_comparison_point < calibration_thresholds[threshold_idx]:
+                calibration_output[breakdown_idx, group_idx, 2 + threshold_idx] += 1
