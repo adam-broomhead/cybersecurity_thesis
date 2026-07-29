@@ -90,7 +90,7 @@ class Tuner:
         else:
             return self.u_init, self.v_init, np.zeros_like(self.u_init), self.u_clustering, self.v_clustering, np.zeros_like(self.u_clustering)
         
-    def run_pipeline_ll(self, model, config_nt, train_test_nt, config_dict, degen_mask):
+    def run_pipeline_ll(self, model, config_nt, train_test_nt, config_dict, degen_mask, breakdown_groups=None):
         ''' 
         Makes a call to the numba lambert liu runner
         '''
@@ -127,7 +127,8 @@ class Tuner:
             bin_metric_nt=self.bin_metric_nt,
             config_nt=config_nt,
             output_idx_nt=self.output_idx_nt,
-            model_idx_nt=self.model_idx_nt)
+            model_idx_nt=self.model_idx_nt,
+            breakdown_groups=breakdown_groups)
 
     #####################################
     # Output row creation
@@ -353,6 +354,7 @@ class Tuner:
         # Using the first config in loop to create a nt class
         first_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=first_sampled_config, 
                                                     sampling_seed=hyperparams['sampling_seed'])
+        first_config['nll_only'] = True
         config_nt_class = (b.dictionary_to_named_tuple_class('config_nt', first_config))
 
 
@@ -368,6 +370,7 @@ class Tuner:
 
             # Making a copy of the config dict with our sampled hyperparameters and turning it into nt
             temp_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=sampled_config, sampling_seed=hyperparams['sampling_seed'])
+            temp_config['nll_only'] = True
             temp_config_nt = config_nt_class(**temp_config)
 
             # Getting the model and the cluster grids
@@ -415,6 +418,11 @@ class Tuner:
         # Create one complete runnable configuration
         best_config = ut.merge_configs(base_config, hurdle_nb_model, selected_config)
 
+        _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
+
+        _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(best_config)
+        test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
+
         # Getting deciles for breakdown if needed
         best_config['nll_only'] = nll_only
         if best_config['nll_only']:
@@ -422,22 +430,12 @@ class Tuner:
         else:
             user_groups = self.get_metric_breakdown(model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster, train_test_dict=train_test_dict)
 
-        _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
-
-        _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(best_config)
-
-        test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
-
         output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
             train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, user_groups=user_groups)
 
-        test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, 
-                                                   test_valid='test', experiment_name=experiment_name)]
+        if best_config['nll_only']:
+            test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, test_valid='test', experiment_name=experiment_name)]
 
-        test_calibration_results = []
-
-        if not best_config['nll_only']:
-            test_calibration_results = self.make_calibration_output_rows(model=test_model, output_metrics=output_metrics, 
-                calibration_outputs=calibration_outputs, test_valid='test', config_dict=best_config, experiment_name=experiment_name)
-
-        return test_results, test_calibration_results
+        else:
+            test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
+            return test_results

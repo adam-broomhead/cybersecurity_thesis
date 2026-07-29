@@ -43,13 +43,16 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     n_users, n_coarse_bins = u.shape
 
     if config_nt.nll_only:
-        calibration_thresholds = np.empty(0, dtype='float64')
+        log_calibration_thresholds = np.empty(0, dtype='float64')
         calibration_output = np.empty((0, 0, 0), dtype='float64')
 
     else:
+        log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
         n_groups = int(breakdown_groups.max()) + 1
         n_breakdowns = breakdown_groups.shape[0]
-        n_calibration_outputs = config_nt.calibration_thresholds.shape[0]
+
+        # n_bins, non_degen_ll and calibration threshold counts
+        n_calibration_outputs = 2 + log_calibration_thresholds.shape[0]
         calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
 
     burn_in_first_day = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_day
@@ -144,7 +147,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             if thread_errors[thread_id] != 0:
                 raise ValueError('infinite or nan probability identified')
 
-        g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, log_calibration_thresholds, model_idx_nt, config_nt)
+        g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
     return output_metrics, calibration_output

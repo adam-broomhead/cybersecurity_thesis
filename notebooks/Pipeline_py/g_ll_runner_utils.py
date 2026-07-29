@@ -107,12 +107,11 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_
     lpmf_smoothed = d.get_lpmf_val(x, mu_t, sigma_2_t, p_t, config_nt)
     lpmf_raw = d.get_lpmf_val(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
 
-    if calculate_calibration:
+    if not calculate_calibration:
         return lpmf_raw, lpmf_smoothed, 0, 0
-
-    log_upper_tail_smoothed = d.get_upper_tail_value(x, mu_t, sigma_2_t, p_t, config_nt)
-
-    return lpmf_raw, lpmf_smoothed, 0, log_upper_tail_smoothed
+    else: 
+        log_upper_tail_smoothed = d.get_upper_tail_value(x, mu_t, sigma_2_t, p_t, config_nt)
+        return lpmf_raw, lpmf_smoothed, 0, log_upper_tail_smoothed
 
 #####################################
 # End of loop updates
@@ -125,20 +124,34 @@ def combine_threads(output_metrics, thread_output_metrics, calibration_output, t
     Modifies in place
     '''
 
+@njit
+def combine_threads(
+    output_metrics,
+    thread_output_metrics,
+    calibration_output,
+    thread_calibration_output,
+    output_idx_nt,
+    time_period_int,
+    n_threads,
+    config_nt,
+):
+    '''
+    Combines thread-level outputs
+    '''
+
     if time_period_int >= 0:
         for thread_id in range(n_threads):
             for output_idx in range(len(output_idx_nt)):
-                # Update output metrics and 
                 output_metrics[time_period_int, output_idx] += thread_output_metrics[thread_id, time_period_int, output_idx]
                 thread_output_metrics[thread_id, time_period_int, output_idx] = 0
 
-            # Update calibration thresholds if needed
-            if not config_nt.nll_only:
-                for threshold_idx in range(log_calibration_thresholds.shape[0]):
-                    for model_idx in range(len(model_idx_nt)):
-                        calibration_output[time_period_int, threshold_idx, model_idx] += thread_calibration_output[thread_id, time_period_int, threshold_idx, model_idx]
-                        thread_calibration_output[thread_id, time_period_int, threshold_idx, model_idx] = 0
-
+    if time_period_int == 1 and not config_nt.nll_only:
+        for thread_id in range(n_threads):
+            for breakdown_idx in range(calibration_output.shape[0]):
+                for group_idx in range(calibration_output.shape[1]):
+                    for output_idx in range(calibration_output.shape[2]):
+                        calibration_output[breakdown_idx, group_idx, output_idx] += thread_calibration_output[thread_id, breakdown_idx, group_idx, output_idx]
+                        thread_calibration_output[thread_id, breakdown_idx, group_idx, output_idx] = 0
 
 
 @njit 

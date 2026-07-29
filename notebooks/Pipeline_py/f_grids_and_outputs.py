@@ -1,6 +1,7 @@
 import numpy as np 
 from numba import njit
 import math 
+import d_math as d
 
 
 #####################################
@@ -148,17 +149,38 @@ def update_calibration_outputs(user_id, lpmf_smoothed, log_upper_tail_smoothed, 
     Updates the raw test statistics needed for calibration analysis
     '''
 
-    # Seed for repeatability
-    np.random.seed(seed)
-    pit_comparison_point = math.exp(log_upper_tail_smoothed) - np.random.random() * math.exp(lpmf_smoothed)
+@njit
+def update_calibration_outputs(
+    user_id,
+    lpmf_smoothed,
+    log_upper_tail_smoothed,
+    log_calibration_thresholds,
+    breakdown_groups,
+    calibration_output,
+):
+    '''
+    Updates the raw test statistics needed for calibration analysis
+    '''
+
+    # Sample a random value for using the pit 
+    random_value = np.random.random()
+
+    #TODO check if we sample end of day or once per observation
+    if random_value == 0:
+        pit_comparison_point = (
+            log_upper_tail_smoothed
+        )
+
+    ranom_calib_point
 
     for breakdown_idx in range(breakdown_groups.shape[0]):
         group_idx = int(breakdown_groups[breakdown_idx, user_id])
 
-        # n counts
+        # lpmf and n counts update
         calibration_output[breakdown_idx, group_idx, 0] += 1
+        calibration_output[breakdown_idx, group_idx, 1] += lpmf_smoothed
 
-        # PIT
-        for threshold_idx in range(calibration_thresholds.shape[0]):
-            if pit_comparison_point < calibration_thresholds[threshold_idx]:
+        # Update PIT threshold exceeding
+        for threshold_idx in range(log_calibration_thresholds.shape[0]):
+            if random_calib_point < log_calibration_thresholds[threshold_idx]:
                 calibration_output[breakdown_idx, group_idx, 2 + threshold_idx] += 1
