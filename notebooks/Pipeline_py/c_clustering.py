@@ -297,7 +297,7 @@ def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=No
 
     output = {
         # Clustering configs
-        'name' : f'{runtime_configs['clustering_method']}',
+        'name' : runtime_configs['clustering_method'],
         'distance_metric': runtime_configs['distance_metric'],
         'clustering_matrix_name' : runtime_configs['clustering_matrix_name'],
         'clustering_transformation': runtime_configs['clustering_transformation'],

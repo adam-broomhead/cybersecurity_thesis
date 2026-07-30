@@ -236,21 +236,21 @@ class Tuner:
             smoothing_target = rng.choice(hyperparams['smoothing_target_vals'])
 
             if linear_smooth:
-                smooth_a_mu = rng.choice(hyperparams['alpha_vals'])
-                smooth_a_sigma2 = rng.choice(hyperparams['alpha_vals'])
+                smooth_a_mu = rng.choice(hyperparams['alpha_mu_vals'])
+                smooth_a_sigma2 = rng.choice(hyperparams['alpha_sigma2_vals'])
                 if hurdle_model:
-                    smooth_a_p = rng.choice(hyperparams['alpha_vals'])
-            # Setting defaults
+                    smooth_a_p = rng.choice(hyperparams['alpha_p_vals'])
+                # Setting defaults
                 else:
                     smooth_a_p = 0
                 smooth_t_mu = 0
                 smooth_t_sigma2 = 0
                 smooth_t_p = 0
             else:
-                smooth_t_mu = rng.choice(hyperparams['tau_vals'])
-                smooth_t_sigma2 = rng.choice(hyperparams['tau_vals'])
+                smooth_t_mu = rng.choice(hyperparams['tau_mu_vals'])
+                smooth_t_sigma2 = rng.choice(hyperparams['tau_sigma2_vals'])
                 if hurdle_model:
-                    smooth_t_p = rng.choice(hyperparams['tau_vals'])
+                    smooth_t_p = rng.choice(hyperparams['tau_p_vals'])
             # Setting defaults
                 else:
                     smooth_t_p = 0

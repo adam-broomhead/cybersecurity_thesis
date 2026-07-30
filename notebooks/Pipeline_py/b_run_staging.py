@@ -130,7 +130,7 @@ def get_degen_mask(user_counts, n_users, n_coarse_bins, static_configs, train_te
     counts in them. These bins are excluded from scoring.
     '''
     # Get the number of counts for each user in the period
-    train_df = get_period_sums(user_counts, train_test_dict['train_start'], train_test_dict['burn_in_end'])
+    train_df = get_period_sums(user_counts.filter(pl.col('count') > 1), train_test_dict['train_start'], train_test_dict['burn_in_end'])
 
     # Init the output mask with all bins as degen
     degen_mask = np.ones((n_users, n_coarse_bins), dtype='bool')

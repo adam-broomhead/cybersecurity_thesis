@@ -1,1 +1,1 @@
-{fine_bins_per_day: 288, fine_bins_per_week: 2016, fine_bins_per_coarse_bin: 12, coarse_bins_per_day: 24, fine_bin_seconds: 300, train_denom: 84}
+{fine_bins_per_day: 288, fine_bins_per_week: 2016, fine_bins_per_coarse_bin: 12, coarse_bins_per_day: 24, fine_bin_seconds: 300, train_denom: 12}

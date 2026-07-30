@@ -149,11 +149,6 @@ def run_nb_benchmarks(evaluation_counts, user_means, user_variances, user_hour_m
 
     return user_log_likelihood, user_hour_log_likelihood, user_calibration, user_hour_calibration, n_scored
 
-@njit
-def run_hurdle_benchmarks(evaluation_counts, user_means, user_variances, user_p, user_hour_means, user_hour_variances, 
-                          user_hour_p, config_nt, bin_metric_nt, degen_mask):
-    '''
-    '''
 @njit(parallel=True)
 def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user_variances, user_p, user_hour_means, 
         user_hour_variances, user_hour_p, period_start, period_end, breakdown_groups, config_nt, bin_metric_nt, degen_mask):
@@ -258,7 +253,7 @@ def make_poisson_benchmark_output_rows(poisson_output_metrics, test_valid, poiss
         # Getting metrics and updating outputs
         n_bins_scored = poisson_output_metrics[period_idx, model_idx, 0]
         ll_sum = poisson_output_metrics[period_idx, model_idx, 1]
-        output.append({'smoothed_model_name': model_name, 'test_valid': test_valid, 'non_degen_ll': ll_sum / n_bins_scored})
+        output.append({'model_name': model_name, 'test_valid': test_valid, 'non_degen_ll': ll_sum / n_bins_scored})
 
     return output
 
@@ -276,7 +271,7 @@ def make_poisson_benchmark_calibration_rows(poisson_output_metrics, poisson_cali
         n_bins_scored = poisson_output_metrics[period_idx, model_idx, 0]
 
         for threshold_idx in range(config_dict['calibration_thresholds'].shape[0]):
-            output.append({'smoothed_model_name': model_name, 
+            output.append({'model_name': model_name, 
                            'test_valid': test_valid, 
                            'threshold': config_dict['calibration_thresholds'][threshold_idx], 
                            'model_calibration': poisson_calibration_outputs[period_idx, threshold_idx, model_idx] / n_bins_scored})
@@ -288,7 +283,7 @@ def get_hurdle_benchmark_base_output(model_name, config_dict, test_valid):
     Creates feilds shared between both outputs
     '''
     return {
-        'smoothed_model_name': model_name,
+        'model_name': model_name,
         'experiment_name': 'benchmark',
         'sampling_seed': config_dict['sampling_seed'],
         'hurdle_model': True,
