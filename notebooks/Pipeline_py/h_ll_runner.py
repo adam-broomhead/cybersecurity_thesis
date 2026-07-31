@@ -60,6 +60,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
     # Init outputs
     output_metrics = np.zeros((2, len(output_idx_nt)), dtype='float64')
+    user_output_metrics = np.zeros((n_users, 2), dtype='float64')
 
     # Init thread level outputs for paralellisation
     n_threads = get_num_threads()
@@ -140,6 +141,9 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                     else:
                         f.update_outputs(time_period_int, thread_output_metrics[thread_id], output_idx_nt, lpmf_raw, lpmf_smoothed)
 
+                        if time_period_int == 1:
+                            f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf_smoothed=lpmf_smoothed)
+        
                         if calc_calibration:
                             f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=lpmf_smoothed, 
                                 log_strict_upper_tail_smoothed=log_strict_upper_tail_smoothed, log_calibration_thresholds=log_calibration_thresholds, 
@@ -159,4 +163,4 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
-    return output_metrics, calibration_output
+    return output_metrics, calibration_output, user_output_metrics

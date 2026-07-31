@@ -80,9 +80,8 @@ def store_run_results(results, dir, run_name, calibration_results=None, results_
     '''
 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-    summary_dir = Path(f'{results_dir}/{dir}/summary')
-    calibration_dir = Path(f'{results_dir}/{dir}/calibration')
-    summary_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(f'{results_dir}/{dir}')
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Converting results to polars df if needed
     if isinstance(results, pl.DataFrame):
@@ -112,7 +111,9 @@ def store_run_results(results, dir, run_name, calibration_results=None, results_
         'non_degen_ll': pl.Float32,
         'non_degen_smoothed_ll': pl.Float32,
         'n_bins_scored': pl.Int64,
-        'non_degen_ll_sum': pl.Float64}
+        'non_degen_ll_sum': pl.Float64,
+        'user_idx': pl.Int32,
+        'cluster_distance': pl.Float64}
 
     results_df = results_df.with_columns([pl.col(column).cast(dtype) for column, dtype in result_dtypes.items() if column in results_df.columns])
 
@@ -122,7 +123,7 @@ def store_run_results(results, dir, run_name, calibration_results=None, results_
 
     # Writing results
     results_df = results_df.with_columns(pl.lit(timestamp).alias('run_timestamp'))
-    results_df.write_parquet(f'{summary_dir}/{run_name}_{timestamp}.parquet')
+    results_df.write_parquet(f'{output_dir}/{run_name}_{timestamp}.parquet')
 
 #####################################
 # Json 5 stuff

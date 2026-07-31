@@ -196,6 +196,25 @@ class Tuner:
 
         return output
 
+    def make_user_output_table(self, model, user_output_metrics, experiment_name, config_dict, u_clustering, v_clustering, p_clustering):
+        '''
+        Creates one row in the user output table needed for bootstrapping
+        '''
+        n_users = user_output_metrics.shape[0]
+
+        output = {'user_idx': np.arange(n_users, dtype=np.int32),
+                  'clustering_seed': np.full(n_users, model['clustering_seed'], dtype=np.int32), 
+                  'non_degen_ll_sum': user_output_metrics[:, 1], 
+                  'n_bins_scored': user_output_metrics[:, 0]}
+
+        if experiment_name == 'cluster_smoothing':
+            matrix_to_cluster = c.make_clustering_matrix(u=u_clustering, v=v_clustering, p=p_clustering, runtime_configs=config_dict)
+
+            output['cluster_distance'] = c.get_user_cluster_distances(matrix_to_cluster=matrix_to_cluster, cluster_assignments=model['cluster_assignments'], 
+                                            cluster_centres=model['cluster_centres'], distance_metric=model['distance_metric'])
+
+        return output
+
     #####################################
     # Config Sampler
     #####################################
@@ -387,11 +406,32 @@ class Tuner:
                                     model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
                                     p_clustering=p_cluster, train_test_dict=train_test_dict)
 
-        output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
+        output_metrics, calibration_outputs, user_output_metrics = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
             train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups)
 
         if best_config['nll_only']:
             test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, test_valid='test', experiment_name=experiment_name)]
         else:
             test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
-        return test_results
+        test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics, experiment_name=experiment_name, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster)
+        return test_results, test_user_results
+
+    def run_test_seeds(self, experiment_name, seeds, hurdle_nb_model, selected_config, train_test_dict, 
+                       base_config, degen_mask, bin_metric_dict):
+        '''
+        Runs test model over multiple seeds
+        '''
+        for seed_number, seed in enumerate(seeds):
+            run_config = selected_config.copy()
+            run_config['sampling_seed'] = seed
+            run_config['clustering_seed'] = seed
+
+            test_results, user_results = self.test_run(experiment_name=experiment_name, hurdle_nb_model=hurdle_nb_model,
+                                    selected_config=run_config, train_test_dict=train_test_dict, base_config=base_config, 
+                                    degen_mask=degen_mask, bin_metric_dict=bin_metric_dict, nll_only=False)
+
+            ut.store_run_results(results=test_results, dir=f'test/{experiment_name}/full', run_name=experiment_name)
+
+            # We only have seed variation in clustering and PIT therefore the log liklihood table only varies for cluster_smoothing
+            if experiment_name == 'cluster_smoothing' or seed_number == 0:
+                ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')

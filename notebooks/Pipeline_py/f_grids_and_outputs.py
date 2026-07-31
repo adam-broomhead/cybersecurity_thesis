@@ -143,6 +143,14 @@ def update_outputs(time_period_int, output_metrics, output_idx_nt, lpmf_raw, lpm
         output_metrics[time_period_int, output_idx_nt.non_degen_ll_sum] += lpmf_raw
         output_metrics[time_period_int, output_idx_nt.non_degen_smoothed_ll_sum] += lpmf_smoothed
 
+@njit(inline='always')
+def update_user_outputs(user_id, user_output_metrics, lpmf_smoothed):
+    '''
+    Updating output for that user used in bootstrap
+    '''
+    user_output_metrics[user_id, 0] += 1
+    user_output_metrics[user_id, 1] += lpmf_smoothed
+
 @njit
 def update_calibration_outputs(user_id, lpmf_smoothed, log_strict_upper_tail_smoothed, log_calibration_thresholds, 
                                breakdown_groups, calibration_output):
