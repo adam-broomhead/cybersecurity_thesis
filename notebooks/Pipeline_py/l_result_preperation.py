@@ -1,19 +1,14 @@
+import glob
 import os
-import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
 
 
-ll_model_names = ('no_smoothing', 'global_smoothing', 'cluster_smoothing')
-
-benchmark_names = ('static_user_hurdle', 'static_user_hour_hurdle')
-
-plot_labels = {'no_smoothing': 'No shrinkage', 
-               'global_smoothing': 'Global shrinkage', 
-               'cluster_smoothing': 'Cluster shrinkage', 
-               'static_user_hurdle': 'User level benchmark', 
-               'static_user_hour_hurdle': 'User hourly level benchmark'}
-
+ll_model_names = (
+    'no_smoothing',
+    'global_smoothing',
+    'cluster_smoothing')
 
 def safe_read(directory, expected_files=None):
     '''
@@ -24,137 +19,196 @@ def safe_read(directory, expected_files=None):
 
     return pd.read_parquet(directory)
 
-
 def load_test_results(results_dir, n_test_seeds):
     '''
-    Created dictionaries with the test results in them
+    Loads the full results and concats them into a big dataframe adds the mean log likelihood column
     '''
-    ll_model_results = {'no_smoothing': {'full': safe_read(directory=(f'{results_dir}/test/no_smoothing/full'), expected_files=n_test_seeds),
-                                         'user': safe_read(directory=(f'{results_dir}/test/no_smoothing/user'), expected_files=1)},
-                        'global_smoothing': {'full': safe_read(directory=(f'{results_dir}/test/global_smoothing/full'), expected_files=n_test_seeds),
-                                             'user': safe_read(directory=(f'{results_dir}/test/global_smoothing/user'), expected_files=1)},
-                        'cluster_smoothing': {'full': safe_read(directory=(f'{results_dir}/test/cluster_smoothing/full'), expected_files=n_test_seeds),
-                                              'user': safe_read(directory=(f'{results_dir}/test/cluster_smoothing/user'), expected_files=n_test_seeds)}}
 
-    # Splitting out the benchmark results to have the same structure as the three models
-    benchmark_results = safe_read(directory=f'{results_dir}/benchmarks/full', expected_files=1)
-    benchmark_results = {benchmark_name: benchmark_results.loc[benchmark_results['model_name'] == benchmark_name].copy() 
-                        for benchmark_name in benchmark_names}
+    # Creating three long dataframes with the reruns in them
+    ll_full_results = pd.concat([safe_read(directory=f'{results_dir}/test/{model}/full', expected_files=n_test_seeds).assign(model=model)
+                                 for model in ll_model_names], ignore_index=True)
 
-    return ll_model_results, benchmark_results
+    ll_user_results = pd.concat([safe_read(directory=f'{results_dir}/test/{model}/user', expected_files=(n_test_seeds if model == 'cluster_smoothing' else 1)).assign(model=model) 
+                                 for model in ll_model_names],ignore_index=True)
 
+    benchmark_results = safe_read(directory=f'{results_dir}/benchmarks/full', expected_files=1).rename(columns={'model_name': 'model'})
 
-def add_mean_ll(results):
+    # Adding in mean log likelihood column
+    ll_full_results['mean_ll'] = ll_full_results['non_degen_ll_sum'] / ll_full_results['n_bins_scored']
+    ll_user_results['mean_ll'] = ll_user_results['non_degen_ll_sum'] / ll_user_results['n_bins_scored']
+
+    benchmark_results['mean_ll'] = benchmark_results['non_degen_ll_sum'] / benchmark_results['n_bins_scored']
+
+    return ll_full_results, ll_user_results, benchmark_results,
+
+def prepare_overall_performance(ll_full_results, benchmark_results):
     '''
-    Adds mean log likelihood to a pandas dataframe
+    Prepares overall mean LL for the three main models and
+    the two benchmarks.
     '''
-    results = results.copy()
-    results['mean_ll'] = results['non_degen_ll_sum'] / results['n_bins_scored']
 
-    return results
+    # Get mean and multi seed sd for the models and benchmarks
+    ll_performance = ll_full_results.loc[ll_full_results['breakdown_type'] == 'overall', ['model', 'seed', 'mean_ll']]
+    ll_performance = ll_performance.groupby('model', as_index=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
+                                                            
+    benchmark_performance = benchmark_results.loc[benchmark_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
+    benchmark_performance = benchmark_performance.groupby('model', as_index=False).agg(mean_ll=('mean_ll', 'mean')).assign(seed_sd=np.nan)
 
+    # Concat together results and setting sd to 0 for non cluster models
+    output = pd.concat([ll_performance, benchmark_performance], ignore_index=True)
+    output.loc[output['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
 
-def get_decile_improvements(run_results, decile):
-    '''
-    Gets the decile improvements and the mean and sd of improvements across seeds
-    '''
-    # Pivoting data to get global and cluster smoothing model side by side
-    results_pvt = run_results.pivot(index=['seed', decile], columns='model', values='mean_ll').reset_index()
-
-    # Create model difference to no smoothing
-    improvements = results_pvt[['seed', decile]].copy()
-    improvements['global_smoothing'] = results_pvt['global_smoothing'] - results_pvt['no_smoothing']
-    improvements['cluster_smoothing'] = results_pvt['cluster_smoothing'] - results_pvt['no_smoothing']
-
-    # Unpivot and get mean and sd of improvements
-    improvements = improvements.melt(id_vars=['seed', decile], var_name='model', value_name='improvement')
-    improvements = improvements.groupby([decile, 'model'], as_index=False,)['improvement'].agg(mean='mean', sd='std')
-
-    return improvements
-
-
-def prepare_overall_performance(ll_models, benchmarks):
-    '''
-    Prepares overall performance for the three LL models and
-    two benchmarks.
-    '''
-    model_order = {
-        'no_smoothing': 0,
-        'global_smoothing': 1,
-        'cluster_smoothing': 2,
-        'static_user_hurdle': 3,
-        'static_user_hour_hurdle': 4}
-
-    # Init the output with the model and benchmark names
-    output = pd.DataFrame({'model': list(ll_models.keys()) + list(benchmarks.keys())})
-    output['label'] = output['model'].map(plot_labels)
-
-    # Concat the benchmark and model results together and compute log likelihood stats
-    log_likelihood_stats = pd.concat([data['full'].loc[data['full']['breakdown_type'] == 'overall'].assign(model=name)
-                            for name, data in {**ll_models, **benchmarks}.items()], ignore_index=True)
-    log_likelihood_stats = log_likelihood_stats.groupby('model')['mean_ll'].agg(mean_ll='mean', seed_sd='std').reset_index()
-
-    # Join stats on to output
-    output = output.merge(log_likelihood_stats, on='model', how='left')
-    output['seed_sd'] = np.where(output['model'] == 'cluster_smoothing', output['seed_sd'], np.nan)
-
-    # Add an order column
-    output['order'] = output['model'].map(model_order)
-    output = output.sort_values('order').drop(columns='order').reset_index(drop=True)
     return output
 
-def get_paried_bootstrap_differences(ll_models, n_bootstrap_replicates, seed):
+
+def summarise_decile_improvements(run_results, decile_column):
     '''
-    Gets the paired bootstrap diffferences of:
-    global - no
-    cluster - no 
-    cluster - global
+    Calculates mean and sd improvement for each model for the two deciles:
+    activity and distance
     '''
-    models = {}
+    # Pivot to have the models on the column
+    results_pvt = run_results.pivot(index=['seed', decile_column], columns='model', values='mean_ll').reset_index()
 
-    for name in ['no_smoothing', 'global_smoothing', 'cluster_smoothing']:
+    # Calculating improvements
+    improvements = results_pvt[['seed', decile_column]].copy().assign(
+            global_smoothing=results_pvt['global_smoothing'] - results_pvt['no_smoothing'],
+            cluster_smoothing=results_pvt['cluster_smoothing'] - results_pvt['no_smoothing'])
 
-        # Iterate over the models and compute the log likelihood and sort by user noting we have multiple seeds for the cluster code
-        user_results = ll_models[name]['user'].copy()
-        user_results['mean_ll'] = user_results['non_degen_ll_sum'] / user_results['n_bins_scored']
-        if name == 'cluster_smoothing':
-            user_results = user_results.groupby('user_idx', as_index=False)[['mean_ll', 'n_bins_scored']].mean()
-        models[name] = user_results.sort_values('user_idx')
+    # Unpivot and cacluate mean and sd
+    improvements = improvements.melt(id_vars=['seed', decile_column], var_name='model', value_name='improvement')
+    improvements = improvements.groupby([decile_column, 'model'], as_index=False).agg(
+        mean_improvement=('improvement', 'mean'), seed_sd=('improvement', 'std'))
+    return improvements
 
-    # Getting the values of user log liklihood and the weights for bootstrapping
-    n_bins = models['no_smoothing']['n_bins_scored'].to_numpy()
-    mean_ll = {name: model['mean_ll'].to_numpy() for name, model in models.items()}
-    n_users = len(n_bins)
+def get_activity_decile_improvement(ll_full_results):
+    '''
+    gets improvement by activity decile
+    '''
+    run_results = ll_full_results.loc[ll_full_results['breakdown_type'] == 'activity_decile', 
+                                      ['seed', 'breakdown_group', 'model', 'mean_ll']]
+    run_results = run_results.rename(columns={'breakdown_group': 'activity_decile'})
 
-    rng = np.random.default_rng(seed)
+    output = summarise_decile_improvements(run_results=run_results, decile_column='activity_decile')
 
-    bootstrap_users = rng.choice(n_users, size=(n_bootstrap_replicates, n_users))
+    # Altering output form
+    output.insert(0, 'breakdown', 'activity')
+    output = output.rename(columns={'activity_decile': 'decile'})
+
+    return output
+
+def get_distance_decile_improvement(ll_user_results):
+    '''
+    Gets the distance improvement over the baseline model by decile for the two models:
+        returns both mean and sd across seeds
+    '''
+    # Get the results for cluster smoothing
+    cluster_smoothing_results = ll_user_results.loc[ll_user_results['model'] == 'cluster_smoothing'].copy()
+
+    # Ranking the users for each seed and getting deciles
+    distance_rank = cluster_smoothing_results.groupby('seed')['cluster_distance'].rank(method='first')
+    users_per_seed = cluster_smoothing_results.groupby('seed')['cluster_distance'].transform('size')
+    cluster_smoothing_results['distance_decile'] = (((distance_rank - 1) * 10 // users_per_seed) + 1).astype('int8')
+
+    # For the no cluster models creating one row per seed for each user with the distance decile they are assigned to
+    distance_groups = cluster_smoothing_results[['seed', 'user_idx', 'distance_decile']]
+    global_and_static_results = ll_user_results.loc[ll_user_results['model'] != 'cluster_smoothing'].drop(columns=['seed', 'cluster_distance', 'mean_ll'])
+    global_and_static_results = global_and_static_results.merge(distance_groups, on='user_idx', how='inner')
+
+    # Concat together two results
+    cluster_smoothing_results = cluster_smoothing_results[['model', 'seed', 'user_idx', 'distance_decile', 'non_degen_ll_sum', 'n_bins_scored']]
+    all_results = pd.concat([global_and_static_results, cluster_smoothing_results], ignore_index=True)
+
+    # Calculate the totals for each decile and get mean and sd
+    all_results = all_results.groupby(['seed', 'distance_decile', 'model'], as_index=False).agg(
+        non_degen_ll_sum=('non_degen_ll_sum', 'sum'), n_bins_scored=('n_bins_scored', 'sum'))
+    all_results = all_results.assign(mean_ll=lambda data: data['non_degen_ll_sum'] / data['n_bins_scored'])
+    output = summarise_decile_improvements(run_results=run_results, decile_column='distance_decile')
+
+    # Altering output form
+    output.insert(0, 'breakdown', 'distance')
+    output = output.rename(columns={'distance_decile': 'decile'})
+
+    return output
+
+def get_calibration_summary(ll_full_results):
+    '''
+    Gets average and sd of calibraiton results across different seeds
+    '''
+
+    # Getting overall results
+    overall_results = ll_full_results.loc[ll_full_results['breakdown_type'] == 'overall'].copy()
+
+    # Unpivoting the calibration count columns and getting threshold and great
+    calibration_columns = [column for column in overall_results.columns if column.startswith('calibration_count_')]
+    calibration_output = overall_results.melt(id_vars=['model', 'seed', 'n_bins_scored'], value_vars=calibration_columns, var_name='calibration_column', value_name='calibration_count')
+    calibration_output = calibration_output.assign(threshold=lambda data: (data['calibration_column'].str.replace('calibration_count_', '', regex=False).astype(float)),
+            observed_rate=lambda data: (data['calibration_count'] / data['n_bins_scored']))
+
+    # Getting mean and sd of calibration exceed
+    calibration_output = calibration_output.groupby(['model', 'threshold'], as_index=False).agg(
+            observed_rate_mean=('observed_rate', 'mean'), seed_sd=('observed_rate', 'std'))
     
-    weights = np.vstack([
-        np.ones(n_users, dtype='int64'),
-        weights,
-    ])
+    return calibration_output
 
-    weighted_bins = weights * n_bins
-    denom = weighted_bins.sum(axis=1)
+def get_user_type_summary(ll_full_results):
+    '''
+    Gets mean and seed sd of user log likelihood by model
+    '''
+    output = ll_full_results.loc[ll_full_results['breakdown_type'] == 'user_type', ['model', 'seed', 'breakdown_group', 'mean_ll']]
+    output = output.rename(columns={'breakdown_group': 'user_type'})
+    output = output.groupby(['user_type', 'model'], as_index=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
+    output.loc[output['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
 
-    ll = {
-        name: (weighted_bins @ values) / denom
-        for name, values in mean_ll.items()
-    }
+    return output
 
-    diffs = pd.DataFrame({
-        'Global - no shrinkage':
-            ll['global_smoothing'] - ll['no_smoothing'],
-        'Cluster - no shrinkage':
-            ll['cluster_smoothing'] - ll['no_smoothing'],
-        'Cluster - global shrinkage':
-            ll['cluster_smoothing'] - ll['global_smoothing'],
-    })
+def get_all_model_performance_table(ll_full_results, benchmark_results):
+    '''
+    Table of mean log likelihood for 3 models and benchmarks
+    '''
+    ll_performance = ll_full_results.loc[ll_full_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
+    ll_performance = ll_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
 
-    return pd.DataFrame({
-        'comparison': diffs.columns,
-        'estimate': diffs.iloc[0].to_numpy(),
-        'ci_lower': diffs.iloc[1:].quantile(0.025).to_numpy(),
-        'ci_upper': diffs.iloc[1:].quantile(0.975).to_numpy(),
-    })
+    benchmark_performance = benchmark_results.loc[benchmark_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
+    benchmark_performance = benchmark_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean')
+    benchmark_performance = benchmark_performance.assign(seed_sd=np.nan)
+
+    overall_performance = pd.concat([ll_performance, benchmark_performance], ignore_index=True)
+    overall_performance.loc[overall_performance['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
+
+    return overall_performance
+
+def prepare_model_comparisons(ll_user_results,overall_performance):
+    '''
+    Looks at log likelihood improvement by model and how that is distributed across the users
+    '''
+
+    # Getting model pairs for comparison
+    model_pairs = pd.DataFrame({'m1': ['global_smoothing', 'cluster_smoothing', 'cluster_smoothing'],
+                                'm2': ['no_smoothing', 'no_smoothing', 'global_smoothing']})
+
+    # Getting mean log likelihood an number of bins scored by model
+    user_model_results = ll_user_results.groupby(['user_idx', 'model'], as_index=False, sort=False).agg(
+                            mean_log_likelihood=('mean_ll', 'mean'), n_bins_scored=('n_bins_scored', 'first'))
+
+    # Getting two copies of the model table ad joining onto model pairs
+    m1_scores = user_model_results.rename(columns={'model' : 'm1', 'mean_log_likelihood': 'm1_mean_log_likelihood'})
+    m2_scores = user_model_results.rename(columns={'model': 'm2', 'mean_log_likelihood': 'm2_mean_log_likelihood'})
+    model_pairs = model_pairs.merge(m1_scores[['user_idx', 'm1', 'm1_mean_log_likelihood', 'n_bins_scored']], on='m1', how='left')
+    model_pairs = model_pairs.merge(m2_scores[['user_idx', 'm2', 'm2_mean_log_likelihood']], on=['user_idx', 'm2'], how='left')
+
+    # Getting the pct of bins that imporve
+    model_pairs = model_pairs.assign(user_ll_difference=lambda data: data['m1_mean_log_likelihood'] - data['m2_mean_log_likelihood'],
+                                     user_improved=lambda data: data['user_ll_difference'] > 0)
+    model_pairs = model_pairs.groupby(['m1', 'm2'], as_index=False, sort=False).agg(
+                                                    users_improved_pct=('user_improved', 'mean'))
+    model_pairs = model_pairs.assign(users_improved_pct=lambda data: 100 * data['users_improved_pct'])
+
+    # Getting the log likelihood difference on a model level
+    m1_ll = overall_performance[['model', 'mean_log_likelihood']].rename(columns={'mean_log_likelihood': 'm1_mean_log_likelihood'})
+    m2_ll = overall_performance[['model', 'mean_log_likelihood']].rename(columns={'model': 'm2', 'mean_log_likelihood': 'm2_mean_log_likelihood'})
+
+    model_pairs = model_pairs.merge(m1_ll, on='model', how='left').merge(m2_ll, on='m2', how='left')
+    model_pairs = model_pairs.assign(mean_log_likelihood_difference=lambda data: data['m1_mean_log_likelihood'] - data['m2_mean_log_likelihood'])
+    model_pairs = model_pairs[['m1', 'm2', 'mean_log_likelihood_difference', 'users_improved_pct']]
+
+    return model_pairs
