@@ -67,46 +67,46 @@
     // "tau_p_vals": [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45]
 
     // Final sweep for cluster based smoothing
-    "sampling_seed": 6654,
-    "n_hypers_sampled": 100,
-
-    "w_inf_vals": [0.31, 0.32, 0.33, 0.34],
-
-    "cluster_param_vals": [24, 26, 28, 30, 32],
-    "smoothing_target_vals": [1],
-    "linear_smooth_vals": [true],
-
-    "clustering_matrix_name_vals": ["all", "u_p"],
-    "clustering_transformation_vals": ["none"],
-    "distance_metric_vals": ["l2", "standardised_l2"],
-
-    "alpha_mu_vals": [0.40, 0.50, 0.60, 0.70, 0.80],
-    "alpha_sigma2_vals": [0.35, 0.40, 0.45, 0.50, 0.55, 0.60],
-    "alpha_p_vals": [0.20, 0.25, 0.30, 0.40, 0.50, 0.60],
-
-    "tau_mu_vals": [0],
-    "tau_sigma2_vals": [0],
-    "tau_p_vals": [0],
-
-    // // Final sweep for global smoothing
     // "sampling_seed": 6654,
     // "n_hypers_sampled": 100,
 
-    // "w_inf_vals": [0.30, 0.31, 0.32, 0.33, 0.34],
+    // "w_inf_vals": [0.31, 0.32, 0.33, 0.34],
 
-    // "cluster_param_vals": [1],
+    // "cluster_param_vals": [24, 26, 28, 30, 32],
     // "smoothing_target_vals": [1],
     // "linear_smooth_vals": [true],
 
-    // "clustering_matrix_name_vals": ["u"],
+    // "clustering_matrix_name_vals": ["all", "u_p"],
     // "clustering_transformation_vals": ["none"],
-    // "distance_metric_vals": ["l2"],
+    // "distance_metric_vals": ["l2", "standardised_l2"],
 
-    // "alpha_mu_vals": [0.40, 0.45, 0.50, 0.55, 0.60, 0.65],
-    // "alpha_sigma2_vals": [0.45, 0.50, 0.55, 0.60, 0.65, 0.70],
-    // "alpha_p_vals": [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50],
+    // "alpha_mu_vals": [0.40, 0.50, 0.60, 0.70, 0.80],
+    // "alpha_sigma2_vals": [0.35, 0.40, 0.45, 0.50, 0.55, 0.60],
+    // "alpha_p_vals": [0.20, 0.25, 0.30, 0.40, 0.50, 0.60],
 
     // "tau_mu_vals": [0],
     // "tau_sigma2_vals": [0],
     // "tau_p_vals": [0],
+
+    // Final sweep for global smoothing
+    "sampling_seed": 6654,
+    "n_hypers_sampled": 100,
+
+    "w_inf_vals": [0.30, 0.31, 0.32, 0.33, 0.34],
+
+    "cluster_param_vals": [1],
+    "smoothing_target_vals": [1],
+    "linear_smooth_vals": [true],
+
+    "clustering_matrix_name_vals": ["u"],
+    "clustering_transformation_vals": ["none"],
+    "distance_metric_vals": ["l2"],
+
+    "alpha_mu_vals": [0.40, 0.45, 0.50, 0.55, 0.60, 0.65],
+    "alpha_sigma2_vals": [0.45, 0.50, 0.55, 0.60, 0.65, 0.70],
+    "alpha_p_vals": [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50],
+
+    "tau_mu_vals": [0],
+    "tau_sigma2_vals": [0],
+    "tau_p_vals": [0],
 }
