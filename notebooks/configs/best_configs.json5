@@ -3,9 +3,6 @@
     // No smoothing best config
     "no_smoothing": {
         "w_inf": 0.24,
-
-        // defaults
-        "sampling_seed": 6554,
         "cluster_param": 1,
         "smoothing_target": 0,
         "clustering_matrix_name": "u",
@@ -22,8 +19,6 @@
 
     // Cluster smoothing best configs
     "cluster_smoothing": {
-        "sampling_seed": 6654,
-        "clustering_seed": 6554,
         "w_inf": 0.33,
 
         "smooth_a_mu": 0.70,
@@ -44,8 +39,6 @@
 
     // Global smoothing best configs
     "global_smoothing": {
-    "sampling_seed": 6654,
-    "clustering_seed": 6554,
     "w_inf": 0.33,
 
     "smooth_a_mu": 0.55,

@@ -93,8 +93,7 @@ def store_run_results(results, dir, run_name, calibration_results=None, results_
     result_dtypes = {
         'linear_smooth': pl.Boolean,
         'hurdle_model': pl.Boolean,
-        'sampling_seed': pl.Int32,
-        'clustering_seed': pl.Int32,
+        'seed': pl.Int32,
         'cluster_param': pl.Int16,
         'smoothing_target': pl.Int16,
         'w_inf': pl.Float32,

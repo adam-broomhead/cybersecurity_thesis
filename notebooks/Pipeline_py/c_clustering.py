@@ -103,10 +103,10 @@ def get_cluster_assignments(cluster_param, matrix_to_cluster, runtime_configs : 
     '''
     if runtime_configs['clustering_method'] == 'k_clusters':
         if runtime_configs['distance_metric'] in ('l2', 'standardised_l2'):
-            return get_k_means_assignments(k=cluster_param, random_state=runtime_configs['clustering_seed'], matrix_to_cluster=matrix_to_cluster)
+            return get_k_means_assignments(k=cluster_param, random_state=runtime_configs['seed'], matrix_to_cluster=matrix_to_cluster)
 
         elif runtime_configs['distance_metric'] == 'l1':
-            return get_k_medians_assignments(k=cluster_param, random_state=runtime_configs['clustering_seed'], matrix_to_cluster=matrix_to_cluster)
+            return get_k_medians_assignments(k=cluster_param, random_state=runtime_configs['seed'], matrix_to_cluster=matrix_to_cluster)
 
     
 #####################################
@@ -176,7 +176,7 @@ def create_cluster_summary_df(model, user_mapping, runtime_configs):
         output.append({
             'cluster_id' : cluster_id,
             'cluster_param' : model['cluster_param'],
-            'clustering_seed' : model['clustering_seed'],
+            'seed' : model['seed'],
             'clustering_matrix_name': model['clustering_matrix_name'],
             'clustering_transformation': model['clustering_transformation'],
             'distance_metric': model['distance_metric'],
@@ -301,14 +301,13 @@ def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=No
         'distance_metric': runtime_configs['distance_metric'],
         'clustering_matrix_name' : runtime_configs['clustering_matrix_name'],
         'clustering_transformation': runtime_configs['clustering_transformation'],
-        'clustering_seed' : runtime_configs['clustering_seed'],
+        'seed' : runtime_configs['seed'],
         'cluster_param' : cluster_param,
 
         # Identified values
         'cluster_centre_u' : cluster_centre_u,
         'cluster_centre_v' : cluster_centre_v,
         'cluster_centre_p' : cluster_centre_p,
-        'distance_metric': runtime_configs['distance_metric'],
         'cluster_assignments' : cluster_assignments,
         
         # Cluster quality metrics

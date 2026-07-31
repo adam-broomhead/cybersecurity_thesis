@@ -116,7 +116,7 @@ class Tuner:
             # Row descriptions
             'smoothed_model_name': model['name'],
             'experiment_name' : experiment_name,
-            'sampling_seed' : config_dict['sampling_seed'],
+            'seed' : config_dict['seed'],
             'w_inf': config_dict['w_inf'],
             'cluster_param': model['cluster_param'],
             'smooth_a_mu': config_dict['smooth_a_mu'],
@@ -138,7 +138,6 @@ class Tuner:
             'clustering_matrix_name': model['clustering_matrix_name'],
             'clustering_transformation' : model['clustering_transformation'],
             'distance_metric' : model['distance_metric'],
-            'clustering_seed': model['clustering_seed'],
             'cluster_inertia': model['cluster_inertia']}
 
         return output
@@ -163,7 +162,7 @@ class Tuner:
                 output_row = {
                     'smoothed_model_name': model['name'],
                     'experiment_name': experiment_name,
-                    'sampling_seed': config_dict['sampling_seed'],
+                    'seed': config_dict['seed'],
                     'w_inf': config_dict['w_inf'],
                     'cluster_param': model['cluster_param'],
                     'smooth_a_mu': config_dict['smooth_a_mu'],
@@ -180,7 +179,6 @@ class Tuner:
                     'clustering_matrix_name': model['clustering_matrix_name'],
                     'clustering_transformation': model['clustering_transformation'],
                     'distance_metric': model['distance_metric'],
-                    'clustering_seed': model['clustering_seed'],
                     'cluster_inertia':  model['cluster_inertia'],
                     'breakdown_type': breakdown_type,
                     'breakdown_group': breakdown_group,
@@ -203,7 +201,7 @@ class Tuner:
         n_users = user_output_metrics.shape[0]
 
         output = {'user_idx': np.arange(n_users, dtype=np.int32),
-                  'clustering_seed': np.full(n_users, model['clustering_seed'], dtype=np.int32), 
+                  'seed': np.full(n_users, model['seed'], dtype=np.int32), 
                   'non_degen_ll_sum': user_output_metrics[:, 1], 
                   'n_bins_scored': user_output_metrics[:, 0]}
 
@@ -218,7 +216,7 @@ class Tuner:
     #####################################
     # Config Sampler
     #####################################
-    def sample_configs(self, experiment_name, hyperparams, hurdle_model):
+    def sample_configs(self, experiment_name, hyperparams, hurdle_model, seed):
         '''
         Samples a random set of hyperparameters for the given experiment
         '''
@@ -230,7 +228,7 @@ class Tuner:
                 for w_inf in hyperparams['w_inf_vals']]
 
         # Init rng and seen configs
-        rng = np.random.default_rng(hyperparams['sampling_seed'])
+        rng = np.random.default_rng(seed)
         output_list = []
         seen_configs = set()
 
@@ -293,16 +291,13 @@ class Tuner:
     #####################################
     # Tuning loop
     #####################################
-
-    def join_configs_and_hypers(self, config_dict, hurdle_model, sampled_config, sampling_seed):
+    def join_configs_and_hypers(self, config_dict, hurdle_model, sampled_config):
         '''
         Adds a set of hyperparameters to a temporary copy of the config dict
         '''
         temp_config = config_dict.copy()
         temp_config.update(sampled_config)
-
         temp_config['hurdle_model'] = hurdle_model
-        temp_config['sampling_seed'] = sampling_seed
 
         return temp_config
 
@@ -327,12 +322,11 @@ class Tuner:
         validation_only_nt = self.train_test_nt_class(**validation_only_dict)
 
 
-        seen_configs = self.sample_configs(experiment_name, hyperparams, hurdle_model)
+        seen_configs = self.sample_configs(experiment_name, hyperparams, hurdle_model, seed=config_dict['seed'])
         first_sampled_config = seen_configs[0]
 
         # Using the first config in loop to create a nt class
-        first_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=first_sampled_config, 
-                                                    sampling_seed=hyperparams['sampling_seed'])
+        first_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=first_sampled_config)
         first_config['nll_only'] = True
         config_nt_class = (b.dictionary_to_named_tuple_class('config_nt', first_config))
 
@@ -347,7 +341,7 @@ class Tuner:
             config_start = perf_counter()
 
             # Making a copy of the config dict with our sampled hyperparameters and turning it into nt
-            temp_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=sampled_config, sampling_seed=hyperparams['sampling_seed'])
+            temp_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=sampled_config)
             temp_config['nll_only'] = True
             temp_config_nt = config_nt_class(**temp_config)
 
@@ -416,15 +410,15 @@ class Tuner:
         test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics, experiment_name=experiment_name, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster)
         return test_results, test_user_results
 
-    def run_test_seeds(self, experiment_name, seeds, hurdle_nb_model, selected_config, train_test_dict, 
-                       base_config, degen_mask, bin_metric_dict):
+    def run_test_seeds(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
         '''
         Runs test model over multiple seeds
         '''
-        for seed_number, seed in enumerate(seeds):
+        test_seeds = np.random.default_rng(base_config['seed']).choice(10_000, size=base_config['n_test_seeds'], replace=False)
+        
+        for seed_number, seed in enumerate(test_seeds):
             run_config = selected_config.copy()
-            run_config['sampling_seed'] = seed
-            run_config['clustering_seed'] = seed
+            run_config['seed'] = seed
 
             test_results, user_results = self.test_run(experiment_name=experiment_name, hurdle_nb_model=hurdle_nb_model,
                                     selected_config=run_config, train_test_dict=train_test_dict, base_config=base_config, 

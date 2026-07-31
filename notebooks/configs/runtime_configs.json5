@@ -1,7 +1,8 @@
 {
     // Contains configs for runtime step of pipeline
     // These will likely remain unchanged
-    "clustering_seed": 6554,
+    "seed": 6654,
+    "n_test_seeds": 10,
     "clustering_method": "k_clusters",
     
 

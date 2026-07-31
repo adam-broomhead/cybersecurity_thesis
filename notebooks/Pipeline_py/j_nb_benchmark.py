@@ -181,7 +181,7 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
         thread_id = get_thread_id()
 
         if not config_nt.nll_only:
-            np.random.seed(config_nt.sampling_seed + user_id)
+            np.random.seed(config_nt.seed + user_id)
 
         cnt_tbl_idx = user_interactions_nt.user_first_index[user_id]
         user_end_idx = user_interactions_nt.user_last_index[user_id]
@@ -285,7 +285,7 @@ def get_hurdle_benchmark_base_output(model_name, config_dict, test_valid):
     return {
         'model_name': model_name,
         'experiment_name': 'benchmark',
-        'sampling_seed': config_dict['sampling_seed'],
+        'seed': config_dict['seed'],
         'hurdle_model': True,
         'test_valid': test_valid}
 

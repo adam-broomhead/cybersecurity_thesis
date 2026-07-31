@@ -2,7 +2,6 @@
     // These are the hyperparameter configurations experimented with
 
     // Initial hyperparameters for the smoothed model
-    // "sampling_seed": 6554,
     // "n_hypers_sampled": 100,
     // "w_inf_vals": [0.05, 0.10, 0.15, 0.20, 0.25, 0.30],    
     // "cluster_param_vals": [8, 16, 24, 32, 64],
@@ -25,8 +24,7 @@
     // "w_inf_vals" : [0.205, 0.21, 0.215, 0.22, 0.225, 0.23, 0.235, 0.24, 0.245],
 
 
-    // Second round hypers for cluster based smoothing
-    // "sampling_seed": 6654,
+    // Second round hypers for cluster based smoothing,
     // "n_hypers_sampled": 100,
     // "w_inf_vals": [0.20, 0.22, 0.24, 0.25, 0.26, 0.28, 0.30, 0.32, 0.34],
     // "cluster_param_vals": [8, 16, 24, 32, 64],
@@ -44,8 +42,7 @@
     // "tau_p_vals": [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
 
 
-    // Second round hypers for global smoothing
-    // "sampling_seed": 6654,
+    // Second round hypers for global smoothing,
     // "n_hypers_sampled": 100,
 
     // "w_inf_vals": [0.20, 0.22, 0.24, 0.25, 0.26, 0.28, 0.30, 0.32, 0.34],
@@ -66,8 +63,7 @@
     // "tau_sigma2_vals": [0.05, 0.15, 0.25, 0.35, 0.40, 0.45, 0.50, 0.55, 0.65, 0.75, 0.85],
     // "tau_p_vals": [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45]
 
-    // Final sweep for cluster based smoothing
-    // "sampling_seed": 6654,
+    // Final sweep for cluster based smoothing,
     // "n_hypers_sampled": 100,
 
     // "w_inf_vals": [0.31, 0.32, 0.33, 0.34],
@@ -89,7 +85,6 @@
     // "tau_p_vals": [0],
 
     // Final sweep for global smoothing
-    "sampling_seed": 6654,
     "n_hypers_sampled": 100,
 
     "w_inf_vals": [0.30, 0.31, 0.32, 0.33, 0.34],
