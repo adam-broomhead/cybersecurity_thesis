@@ -124,13 +124,13 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                 x, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, usr_end_idx, fine_bin)
                 
                 crnt_coarse_bin, crnt_fine_bin_within_coarse_pos = g._bin_computations(bin_metric_nt, fine_bin)
+                degen_coarse_bin = (fine_bin // bin_metric_nt.fine_bins_per_coarse_bin) % degen_mask.shape[1]
 
                 mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = g._get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, 
                                                                                     cluster_groups, user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                                                                     alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
-                
-                if (time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, crnt_coarse_bin]: 
+                if ((time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, degen_coarse_bin]):
                     lpmf_raw, lpmf_smoothed, _, log_strict_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, calc_calibration, config_nt)
 
                     # Updating outputs
