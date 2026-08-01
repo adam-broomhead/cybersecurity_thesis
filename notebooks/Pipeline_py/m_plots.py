@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from l_result_preperation import model_labels
 
 
 def declile_log_likelihood_plot(decile_results, x_label):
