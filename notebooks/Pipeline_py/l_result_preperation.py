@@ -193,7 +193,7 @@ def prepare_model_comparisons(ll_user_results,overall_performance):
     # Getting two copies of the model table ad joining onto model pairs
     m1_scores = user_model_results.rename(columns={'model' : 'm1', 'mean_log_likelihood': 'm1_mean_log_likelihood'})
     m2_scores = user_model_results.rename(columns={'model': 'm2', 'mean_log_likelihood': 'm2_mean_log_likelihood'})
-    model_pairs = model_pairs.merge(m1_scores[['user_idx', 'm1', 'm1_mean_log_likelihood', 'n_bins_scored']], on='m1', how='left')
+    model_pairs = model_pairs.merge(m1_scores[['user_idx', 'm1', 'm1_mean_log_likelihood']], on='m1', how='left')
     model_pairs = model_pairs.merge(m2_scores[['user_idx', 'm2', 'm2_mean_log_likelihood']], on=['user_idx', 'm2'], how='left')
 
     # Getting the users of bins that imporve
