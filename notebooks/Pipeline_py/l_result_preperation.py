@@ -10,6 +10,13 @@ ll_model_names = (
     'global_smoothing',
     'cluster_smoothing')
 
+model_labels = {
+        'no_smoothing': 'No shrinkage',
+        'global_smoothing': 'Global shrinkage',
+        'cluster_smoothing': 'Cluster shrinkage',
+        'static_user_hurdle': 'User level benchmark',
+        'static_user_hour_hurdle': 'Hourly user benchmark'}
+
 def safe_read(directory, expected_files=None):
     '''
     Reads parquet files in a directory
@@ -214,6 +221,32 @@ def prepare_model_comparisons(ll_user_results,overall_performance):
 
     return model_pairs
 
+
+#####################################
+# Final output prep
+#####################################
+
+def get_extreme_calibration_output(calibration):
+    '''
+    Gets the extreme calibration output table
+    '''
+
+    extreme_calibration = calibration.loc[calibration['threshold'].isin([1e-4, 1e-3, 1e-2])].sort_values('threshold')
+    calibration_means = extreme_calibration.pivot_table(index='threshold', columns='model', values='observed_rate_mean', sort=False).add_suffix('_mean')
+    calibration_sds = extreme_calibration.pivot_table(index='threshold', columns='model', values='seed_sd', sort=False).add_suffix('_sd')
+
+    return pd.concat([calibration_means, calibration_sds], axis=1).reset_index()
+
+def get_user_type_output(user_type_summary):
+    '''
+    Pivots the user type table ready for output
+    '''
+    mean_log_likelihood = user_type_summary.pivot_table(index='user_type', columns='model', values='mean_ll', sort=False)
+    cluster_seed_sd = user_type_summary.loc[user_type_summary['model'] == 'cluster_smoothing'].set_index('user_type')['seed_sd'].rename('cluster_smoothing_seed_sd')
+    output = pd.concat([mean_log_likelihood, cluster_seed_sd], axis=1)
+    output['user_type'] = output['user_type'].str.title()
+
+    return output
 
 #####################################
 # Storage and loading

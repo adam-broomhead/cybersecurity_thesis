@@ -1,21 +1,6 @@
 import matplotlib.pyplot as plt
 
 
-model_labels = {
-        'no_smoothing': 'No shrinkage',
-        'global_smoothing': 'Global shrinkage',
-        'cluster_smoothing': 'Cluster shrinkage',
-        'static_user_hurdle': 'User level benchmark',
-        'static_user_hour_hurdle': 'Hourly user benchmark'}
-
-model_order = (
-    'no_smoothing',
-    'global_smoothing',
-    'cluster_smoothing',
-    'static_user_hurdle',
-    'static_user_hour_hurdle')
-
-
 def declile_log_likelihood_plot(decile_results, x_label):
     '''
     Log likelihood decile plot used for both activity
