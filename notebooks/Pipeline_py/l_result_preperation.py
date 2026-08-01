@@ -1,4 +1,3 @@
-import glob
 import os
 
 import numpy as np
@@ -46,26 +45,7 @@ def load_test_results(results_dir, n_test_seeds):
 
     benchmark_results['mean_ll'] = benchmark_results['non_degen_ll_sum'] / benchmark_results['n_bins_scored']
 
-    return ll_full_results, ll_user_results, benchmark_results,
-
-def prepare_overall_performance(ll_full_results, benchmark_results):
-    '''
-    Prepares overall mean LL for the three main models and
-    the two benchmarks.
-    '''
-
-    # Get mean and multi seed sd for the models and benchmarks
-    ll_performance = ll_full_results.loc[ll_full_results['breakdown_type'] == 'overall', ['model', 'seed', 'mean_ll']]
-    ll_performance = ll_performance.groupby('model', as_index=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
-                                                            
-    benchmark_performance = benchmark_results.loc[benchmark_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
-    benchmark_performance = benchmark_performance.groupby('model', as_index=False).agg(mean_ll=('mean_ll', 'mean')).assign(seed_sd=np.nan)
-
-    # Concat together results and setting sd to 0 for non cluster models
-    output = pd.concat([ll_performance, benchmark_performance], ignore_index=True)
-    output.loc[output['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
-
-    return output
+    return ll_full_results, ll_user_results, benchmark_results
 
 
 def summarise_decile_improvements(run_results, decile_column):
@@ -152,7 +132,7 @@ def get_calibration_summary(ll_full_results):
             observed_rate=lambda data: (data['calibration_count'] / data['n_bins_scored']))
 
     # Getting mean and sd of calibration exceed
-    calibration_output = calibration_output.groupby(['model', 'threshold'], as_index=False).agg(
+    calibration_output = calibration_output.groupby(['model', 'threshold'], as_index=False, sort=False).agg(
             observed_rate_mean=('observed_rate', 'mean'), seed_sd=('observed_rate', 'std'))
     
     return calibration_output
@@ -163,7 +143,7 @@ def get_user_type_summary(ll_full_results):
     '''
     output = ll_full_results.loc[ll_full_results['breakdown_type'] == 'user_type', ['model', 'seed', 'breakdown_group', 'mean_ll']]
     output = output.rename(columns={'breakdown_group': 'user_type'})
-    output = output.groupby(['user_type', 'model'], as_index=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
+    output = output.groupby(['user_type', 'model'], as_index=False, sort=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
     output.loc[output['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
 
     return output
@@ -234,8 +214,10 @@ def get_extreme_calibration_output(calibration):
     extreme_calibration = calibration.loc[calibration['threshold'].isin([1e-4, 1e-3, 1e-2])].sort_values('threshold')
     calibration_means = extreme_calibration.pivot_table(index='threshold', columns='model', values='observed_rate_mean', sort=False).add_suffix('_mean')
     calibration_sds = extreme_calibration.pivot_table(index='threshold', columns='model', values='seed_sd', sort=False).add_suffix('_sd')
+    output = pd.concat([calibration_means, calibration_sds],axis=1).reset_index()
+    output.columns.name = None
 
-    return pd.concat([calibration_means, calibration_sds], axis=1).reset_index()
+    return output
 
 def get_user_type_output(user_type_summary):
     '''
@@ -243,10 +225,28 @@ def get_user_type_output(user_type_summary):
     '''
     mean_log_likelihood = user_type_summary.pivot_table(index='user_type', columns='model', values='mean_ll', sort=False)
     cluster_seed_sd = user_type_summary.loc[user_type_summary['model'] == 'cluster_smoothing'].set_index('user_type')['seed_sd'].rename('cluster_smoothing_seed_sd')
-    output = pd.concat([mean_log_likelihood, cluster_seed_sd], axis=1)
+    output = pd.concat([mean_log_likelihood, cluster_seed_sd], axis=1).reset_index()
+    output.columns.name = None
     output['user_type'] = output['user_type'].str.title()
 
     return output
+
+def get_overall_performance_output(overall_performance):
+    '''
+    Maps the label onto the performance table
+    '''
+    output = overall_performance.copy()
+    output['model'] = output['model'].map(model_labels)
+    return output
+
+def get_model_comparison_output(model_comparisons):
+    '''
+    Gets the final model comparison table ready for output by adding model names
+    '''
+    output = model_comparisons.copy()
+    output.insert(0, 'model_comparison', (output['m1'].map(model_labels) + ' - ' + output['m2'].map(model_labels)))
+
+    return output.drop(columns=['m1', 'm2'])
 
 #####################################
 # Storage and loading
