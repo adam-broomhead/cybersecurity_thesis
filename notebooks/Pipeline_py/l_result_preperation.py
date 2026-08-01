@@ -122,7 +122,7 @@ def get_distance_decile_improvement(ll_user_results):
     all_results = all_results.groupby(['seed', 'distance_decile', 'model'], as_index=False).agg(
         non_degen_ll_sum=('non_degen_ll_sum', 'sum'), n_bins_scored=('n_bins_scored', 'sum'))
     all_results = all_results.assign(mean_ll=lambda data: data['non_degen_ll_sum'] / data['n_bins_scored'])
-    output = summarise_decile_improvements(run_results=run_results, decile_column='distance_decile')
+    output = summarise_decile_improvements(run_results=all_results, decile_column='distance_decile')
 
     # Altering output form
     output.insert(0, 'breakdown', 'distance')
@@ -169,7 +169,7 @@ def get_all_model_performance_table(ll_full_results, benchmark_results):
     ll_performance = ll_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
 
     benchmark_performance = benchmark_results.loc[benchmark_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
-    benchmark_performance = benchmark_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean')
+    benchmark_performance = benchmark_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'))
     benchmark_performance = benchmark_performance.assign(seed_sd=np.nan)
 
     overall_performance = pd.concat([ll_performance, benchmark_performance], ignore_index=True)
@@ -188,7 +188,7 @@ def prepare_model_comparisons(ll_user_results,overall_performance):
 
     # Getting mean log likelihood an number of bins scored by model
     user_model_results = ll_user_results.groupby(['user_idx', 'model'], as_index=False, sort=False).agg(
-                            mean_log_likelihood=('mean_ll', 'mean'), n_bins_scored=('n_bins_scored', 'first'))
+                                                    mean_log_likelihood=('mean_ll', 'mean'))
 
     # Getting two copies of the model table ad joining onto model pairs
     m1_scores = user_model_results.rename(columns={'model' : 'm1', 'mean_log_likelihood': 'm1_mean_log_likelihood'})
@@ -196,19 +196,34 @@ def prepare_model_comparisons(ll_user_results,overall_performance):
     model_pairs = model_pairs.merge(m1_scores[['user_idx', 'm1', 'm1_mean_log_likelihood', 'n_bins_scored']], on='m1', how='left')
     model_pairs = model_pairs.merge(m2_scores[['user_idx', 'm2', 'm2_mean_log_likelihood']], on=['user_idx', 'm2'], how='left')
 
-    # Getting the pct of bins that imporve
+    # Getting the users of bins that imporve
     model_pairs = model_pairs.assign(user_ll_difference=lambda data: data['m1_mean_log_likelihood'] - data['m2_mean_log_likelihood'],
                                      user_improved=lambda data: data['user_ll_difference'] > 0)
     model_pairs = model_pairs.groupby(['m1', 'm2'], as_index=False, sort=False).agg(
-                                                    users_improved_pct=('user_improved', 'mean'))
+                                                    users_improved_pct=('user_improved', 'mean'),
+                                                    median_user_ll_difference=('user_ll_difference', 'median'))
     model_pairs = model_pairs.assign(users_improved_pct=lambda data: 100 * data['users_improved_pct'])
 
     # Getting the log likelihood difference on a model level
-    m1_ll = overall_performance[['model', 'mean_log_likelihood']].rename(columns={'mean_log_likelihood': 'm1_mean_log_likelihood'})
+    m1_ll = overall_performance[['model', 'mean_log_likelihood']].rename(columns={'model': 'm1', 'mean_log_likelihood': 'm1_mean_log_likelihood'})
     m2_ll = overall_performance[['model', 'mean_log_likelihood']].rename(columns={'model': 'm2', 'mean_log_likelihood': 'm2_mean_log_likelihood'})
 
-    model_pairs = model_pairs.merge(m1_ll, on='model', how='left').merge(m2_ll, on='m2', how='left')
+    model_pairs = model_pairs.merge(m1_ll, on='m1', how='left').merge(m2_ll, on='m2', how='left')
     model_pairs = model_pairs.assign(mean_log_likelihood_difference=lambda data: data['m1_mean_log_likelihood'] - data['m2_mean_log_likelihood'])
-    model_pairs = model_pairs[['m1', 'm2', 'mean_log_likelihood_difference', 'users_improved_pct']]
+    model_pairs = model_pairs[['m1', 'm2', 'mean_log_likelihood_difference', 'median_user_ll_difference', 'users_improved_pct']]
 
     return model_pairs
+
+
+#####################################
+# Storage and loading
+#####################################
+
+def store_results(results, results_dir, filename):
+    processed_dir = f'{results_dir}/processed'
+    os.makedirs(processed_dir, exist_ok=True)
+    results.to_parquet(f'{processed_dir}/{filename}.parquet',index=False)
+
+
+def load_results(results_dir, filename):
+    return pd.read_parquet(f'{results_dir}/processed/{filename}.parquet')
