@@ -57,7 +57,7 @@ def summarise_decile_improvements(run_results, decile_column):
     results_pvt = run_results.pivot(index=['seed', decile_column], columns='model', values='mean_ll').reset_index()
 
     # Calculating improvements
-    improvements = results_pvt[['seed', decile_column, 'no_smoothing']].copy().assign(
+    improvements = results_pvt[['seed', decile_column, 'no_smoothing']].assign(
         global_smoothing=results_pvt['global_smoothing'] - results_pvt['no_smoothing'], 
         cluster_smoothing=results_pvt['cluster_smoothing'] - results_pvt['no_smoothing'])
 
@@ -246,7 +246,7 @@ def get_model_comparison_output(model_comparisons):
     Gets the final model comparison table ready for output by adding model names
     '''
     output = model_comparisons.copy()
-    output.insert(0, 'model_comparison', (output['m1'].map(model_labels) + ' - ' + output['m2'].map(model_labels)))
+    output.insert(0, 'model_comparison', (output['m1'].map(model_labels).str.replace('shrinkage ', '') + ' vs ' + output['m2'].map(model_labels)))
 
     return output.drop(columns=['m1', 'm2'])
 

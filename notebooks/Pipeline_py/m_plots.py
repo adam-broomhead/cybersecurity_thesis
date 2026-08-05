@@ -6,7 +6,7 @@ def declile_log_likelihood_plot(decile_results, x_label, relative):
     '''
     Log likelihood decile plot used for both activity and distance
     '''
-    fig, ax = plt.subplots(figsize=(3.4, 2.6))
+    fig, ax = plt.subplots(figsize=(6, 4.9))
 
     # Setting config and label
     if relative:
@@ -47,14 +47,14 @@ def plot_calibration(calibration_df, extreme):
     else:
         relevant_thresholds = calibration_df.loc[calibration_df['threshold'] >= 0.1]
 
-    fig, ax = plt.subplots(figsize=(3.4, 2.6))
+    fig, ax = plt.subplots(figsize=(6, 4.9))
 
     for model in ('no_smoothing', 'global_smoothing', 'cluster_smoothing'):
         model_results = relevant_thresholds.loc[relevant_thresholds['model'] == model].sort_values('threshold')
 
         # Adds in error bars for uniform randomness
         ax.errorbar(model_results['threshold'], model_results['observed_rate_mean'], 
-                    yerr=model_results['seed_sd'], marker='o', capsize=2, label=model_labels[model])
+                    yerr=model_results['seed_sd'], marker='o', markersize=2, capsize=4, label=model_labels[model])
 
     # Perfect calibration line
     if extreme:

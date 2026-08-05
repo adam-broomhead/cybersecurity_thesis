@@ -1,0 +1,4 @@
+Model Comparison,Mean Log-Likelihood $\Delta$,Users Improved (\%),Median Improvement
+Global shrinkage vs No shrinkage,0.00470,61.36599,0.00191
+Cluster shrinkage vs No shrinkage,0.00597,65.48641,0.00300
+Cluster shrinkage vs Global shrinkage,0.00126,69.72366,0.00082

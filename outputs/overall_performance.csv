@@ -1,0 +1,6 @@
+Model,Log likelihood
+Cluster shrinkage,-1.37041 $\pm$ 0.00012
+Global shrinkage,-1.37168
+No shrinkage,-1.37638
+Hourly user benchmark,-1.45226
+User level benchmark,-1.46085
