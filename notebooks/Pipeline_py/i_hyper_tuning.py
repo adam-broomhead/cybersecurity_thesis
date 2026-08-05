@@ -417,6 +417,7 @@ class Tuner:
         test_seeds = np.random.default_rng(base_config['seed']).choice(10_000, size=base_config['n_test_seeds'], replace=False)
         
         for seed_number, seed in enumerate(test_seeds):
+            seed_start_time = perf_counter()
             run_config = selected_config.copy()
             run_config['seed'] = seed
 
@@ -429,3 +430,5 @@ class Tuner:
             # We only have seed variation in clustering and PIT therefore the log liklihood table only varies for cluster_smoothing
             if experiment_name == 'cluster_smoothing' or seed_number == 0:
                 ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')
+
+            print(f'finished_seed {seed_number + 1}/{len(test_seeds)} in {perf_counter() - seed_start_time:.1f}s')
