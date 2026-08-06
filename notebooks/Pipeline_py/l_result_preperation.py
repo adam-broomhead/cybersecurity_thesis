@@ -139,11 +139,12 @@ def get_calibration_summary(ll_full_results):
     
     return calibration_output
 
-def get_user_type_summary(ll_full_results):
+def get_user_type_summary(ll_full_results, benchmark_results):
     '''
     Gets mean and seed sd of user log likelihood by model
     '''
-    output = ll_full_results.loc[ll_full_results['breakdown_type'] == 'user_type', ['model', 'seed', 'breakdown_group', 'mean_ll']]
+    all_results = pd.concat([ll_full_results, benchmark_results], ignore_index=True)
+    output = all_results.loc[all_results['breakdown_type'] == 'user_type', ['model', 'seed', 'breakdown_group', 'mean_ll']]
     output = output.rename(columns={'breakdown_group': 'user_type'})
     output = output.groupby(['user_type', 'model'], as_index=False, sort=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
     output.loc[output['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
@@ -249,6 +250,47 @@ def get_model_comparison_output(model_comparisons):
     output.insert(0, 'model_comparison', (output['m1'].map(model_labels).str.replace('shrinkage ', '') + ' vs ' + output['m2'].map(model_labels)))
 
     return output.drop(columns=['m1', 'm2'])
+
+
+def format_numeric_cols(table, columns):
+    '''
+    Makes cols 5dp without
+    '''
+    table = table
+
+    for column in columns:
+        table[column] = table[column].apply(lambda value: f'{value:.5f}')
+    return table
+
+
+def format_mean_and_sd(mean, sd):
+    '''
+    Combines a mean with \pm sd if aplicable
+    '''
+    mean = f'{mean:.5f}'
+
+    if pd.notna(sd):
+        return f'{mean} $\pm$ {sd:.5f}'
+    else: 
+        return mean
+
+def get_overall_performance_output(overall_performance, user_type_summary):
+    '''
+    Gets the initial summary table
+    '''
+    usr_typ_means = user_type_summary.pivot(index='model', columns='user_type', values='mean_ll').rename(columns={
+        'human': 'human_mean_log_likelihood',
+        'machine': 'machine_mean_log_likelihood'})
+
+    usr_typ_sds = user_type_summary.pivot(index='model', columns='user_type', values='seed_sd').rename(columns={
+        'human': 'human_seed_sd',
+        'machine': 'machine_seed_sd'})
+
+    output = pd.concat([overall_performance.set_index('model'), usr_typ_means, usr_typ_sds], axis=1).reset_index()
+    output.columns.name = None
+    output['model'] = output['model'].map(model_labels)
+
+    return output
 
 #####################################
 # Storage and loading
