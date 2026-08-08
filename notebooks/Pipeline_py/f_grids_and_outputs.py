@@ -127,22 +127,21 @@ def update_grid(u, v, p, crnt_user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_
 #####################################
 
 @njit
-def update_outputs(time_period_int, output_metrics, output_idx_nt, lpmf_raw, lpmf_smoothed):
+def update_outputs(time_period_int, output_metrics, output_idx_nt, lpmf):
     '''
     Updated outputs at end of day
     '''
     if time_period_int == 0 or time_period_int == 1:
         output_metrics[time_period_int, output_idx_nt.n_bins_scored] += 1
-        output_metrics[time_period_int, output_idx_nt.non_degen_ll_sum] += lpmf_raw
-        output_metrics[time_period_int, output_idx_nt.non_degen_smoothed_ll_sum] += lpmf_smoothed
+        output_metrics[time_period_int, output_idx_nt.non_degen_ll_sum] += lpmf
 
 @njit(inline='always')
-def update_user_outputs(user_id, user_output_metrics, lpmf_smoothed):
+def update_user_outputs(user_id, user_output_metrics, lpmf):
     '''
     Updating output for that user used in bootstrap
     '''
     user_output_metrics[user_id, 0] += 1
-    user_output_metrics[user_id, 1] += lpmf_smoothed
+    user_output_metrics[user_id, 1] += lpmf
 
 @njit
 def update_calibration_outputs(user_id, lpmf_smoothed, log_strict_upper_tail_smoothed, log_calibration_thresholds, 

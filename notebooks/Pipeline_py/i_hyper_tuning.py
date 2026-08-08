@@ -132,7 +132,6 @@ class Tuner:
 
             # Log likelihood for non degenerate bins
             'non_degen_ll': output_metrics[period_idx, self.output_idx_nt.non_degen_ll_sum] / n_non_degen_bins,
-            'non_degen_smoothed_ll': output_metrics[period_idx, self.output_idx_nt.non_degen_smoothed_ll_sum] / n_non_degen_bins,
             
             # Clustering metrics
             'clustering_matrix_name': model['clustering_matrix_name'],

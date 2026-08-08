@@ -108,7 +108,6 @@ def store_run_results(results, dir, run_name, calibration_results=None, results_
         'raw_tail_rate': pl.Float32,
         'smoothed_tail_rate': pl.Float32,
         'non_degen_ll': pl.Float32,
-        'non_degen_smoothed_ll': pl.Float32,
         'n_bins_scored': pl.Int64,
         'non_degen_ll_sum': pl.Float64,
         'user_idx': pl.Int32,

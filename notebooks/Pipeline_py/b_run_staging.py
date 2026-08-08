@@ -207,7 +207,7 @@ def df_to_nt(name, df):
 
 def get_model_and_output_idx_nt():
     # Creating dictionaries of names of outputs and oder they appear in
-    output_names = ['n_bins_scored', 'non_degen_ll_sum','non_degen_smoothed_ll_sum']
+    output_names = ['n_bins_scored', 'non_degen_ll_sum']
     model_names = ['raw_model_calib_index', 'smoothed_model_calib_index']
 
     output_idx_dict = {name : idx for idx, name in enumerate(output_names)}

@@ -10,11 +10,8 @@ import numpy as np
 @njit(inline='always')
 def safe_log(prob, config_nt):
     if not math.isfinite(prob) or prob < 0 or prob > 1:
-        raise ValueError('Invalid prob')
-    elif prob == 0:
-        return math.log(config_nt.min_prob)
-    else:
-        return math.log(max(prob, config_nt.min_prob))
+        return np.nan
+    return prob
 
 ### Helper functions to stop overflow
 @njit(inline='always')
@@ -60,14 +57,7 @@ def neg_bin_lpmf(x, mu, sigma2):
     return math.lgamma(x+r) - math.lgamma(r) - math.lgamma(x+1) + r*math.log(p) + x*math.log(1-p)
 
 @njit 
-def get_nb_lpmf_val(x, mu, sigma2, config_nt):
-    if mu <= 0:
-        raise ValueError('Mu < 0')
-    if sigma2 <= 0:
-        raise ValueError('Sigma^2 < 0')
-    
-    mu = max(mu, config_nt.mean_min)
-    sigma2 = max(sigma2, config_nt.var_min)
+def get_nb_lpmf_val(x, mu, sigma2, config_nt):    
     if sigma2 / mu <= config_nt.min_mean_var_ratio:
         return poisson_lpmf(x, mu)
     else: 
@@ -130,8 +120,6 @@ def get_nb_upper_tail_value(x, mu, sigma2, config_nt):
     Note:
     We dont need edge case checks here as the other function is called with the same mu and sigma
     '''
-    mu = max(mu, config_nt.mean_min)
-    sigma2 = max(sigma2, config_nt.var_min)
     if sigma2/mu <= config_nt.min_mean_var_ratio:
         return poisson_log_upper_tail(x, mu, config_nt)
     else: 

@@ -93,22 +93,21 @@ def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p
 
 
 @njit(inline='always')
-def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, 
-                                    calculate_calibration, config_nt):
-    '''
-    Returns log p0, the lpmf, and strict upper tail values for the smoothed and raw models
-    '''
+def _get_log_p0_lpmf_and_upper_tail(x, mu, sigma2, p, calc_calibration, config_nt):
+
     # Get LPMF
-    lpmf_smoothed = d.get_lpmf_val(x, mu_t, sigma_2_t, p_t, config_nt)
-    lpmf_raw = d.get_lpmf_val(x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt)
+    lpmf = d.get_lpmf_val(x, mu, sigma2, p, config_nt)
 
-    if not calculate_calibration:
-        return lpmf_raw, lpmf_smoothed, 0, 0
-    else:
-        log_strict_upper_tail_smoothed = d.get_upper_tail_value(x + 1, mu_t, sigma_2_t, p_t, config_nt)
-        return lpmf_raw, lpmf_smoothed, 0, log_strict_upper_tail_smoothed
+    # Get upper tail value if needed
+    log_strict_upper_tail = 0
+    if calc_calibration:
+        log_strict_upper_tail = d.get_upper_tail_value(x + 1, mu, sigma2, p, config_nt)
 
+    return lpmf, log_strict_upper_tail
 
+#####################################
+# Error handling
+#####################################
 @njit(inline='always')
 def get_parameter_errors(mu, sigma2, p, hurdle_model, scoring):
     '''
