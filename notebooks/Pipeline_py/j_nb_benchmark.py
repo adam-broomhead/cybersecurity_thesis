@@ -214,7 +214,7 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
 
                 f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_hour_lpmf, 
                     log_strict_upper_tail_smoothed=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
-                    breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1])
+                    breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1], log_min_p_value=log_min_p_value)
 
     for thread_id in range(n_threads):
         for model_idx in range(2):
