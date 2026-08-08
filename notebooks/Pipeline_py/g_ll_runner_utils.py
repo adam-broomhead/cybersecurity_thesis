@@ -78,7 +78,7 @@ def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p
     ''' 
     Getting the smoothed and unsmoothed params mu, sigma and p
     '''
-    # Getting the smoothed params and capping them at the minimal value
+    # Getting the smoothed params
     mu_t, sigma_2_t, p_t = e.get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
                                             user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                             alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
@@ -93,7 +93,7 @@ def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p
 
 
 @njit(inline='always')
-def _get_log_p0_lpmf_and_upper_tail(x, mu, sigma2, p, calc_calibration, config_nt):
+def _get_lpmf_and_upper_tail(x, mu, sigma2, p, calc_calibration, config_nt):
 
     # Get LPMF
     lpmf = d.get_lpmf_val(x, mu, sigma2, p, config_nt)

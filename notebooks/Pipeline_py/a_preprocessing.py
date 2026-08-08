@@ -50,9 +50,6 @@ def get_train_test_split(static_configs=static_configs):
     return output_dict
     
 def add_training_denom(bin_metric_dict, static_configs=static_configs):
-    ''' 
-    Returns the number of fine bins per coarse bin in the training parameter estimate
-    '''
     bin_metric_dict["train_denom"] = bin_metric_dict["fine_bins_per_coarse_bin"] * static_configs["train_days"]
     return bin_metric_dict
 

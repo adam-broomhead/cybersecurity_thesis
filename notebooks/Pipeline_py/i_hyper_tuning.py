@@ -203,7 +203,7 @@ class Tuner:
 
     def make_user_output_table(self, model, user_output_metrics, experiment_name, config_dict, u_clustering, v_clustering, p_clustering):
         '''
-        Creates one row in the user-level output table
+        Creates the user-level output table
         '''
         n_users = user_output_metrics.shape[0]
 
@@ -434,7 +434,7 @@ class Tuner:
 
             ut.store_run_results(results=test_results, dir=f'test/{experiment_name}/full', run_name=experiment_name)
 
-            # We only have seed variation in clustering and PIT therefore the log liklihood table only varies for cluster_smoothing
+            # We only have seed variation in clustering and calibration therefore the log liklihood table only varies for cluster_smoothing
             if experiment_name == 'cluster_smoothing' or seed_number == 0:
                 ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')
 

@@ -15,7 +15,6 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         u_init + v_init : inital parameter grids
         cluster_u_init + cluster_v_init : inital cluster parameters
         cluster groups : inital cluster assignments 1 row per user id
-        smooth_a : smoothing strenght alpha
         user_counts_nt: is a named tuple version of user_counts has columns user_id, fine_bin_id, count
         user_interactions_nt: is a named tuple verion of user_interactions has columns user id and first and last interaction index in user_counts
         interpolation_weights : precalculated weights for parameter interpolation
@@ -121,15 +120,14 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             usr_updt_v_sum = np.zeros(n_coarse_bins, dtype=np.float64)
             usr_updt_p_sum = np.zeros(n_coarse_bins, dtype=np.float64)
             
-            usr_updt_pos_sum = np.zeros(n_coarse_bins, dtype=np.float64)
-            usr_updt_cnt_sum = np.zeros(n_coarse_bins, dtype=np.float64)
+            usr_updt_n_cnts = np.zeros(n_coarse_bins, dtype=np.float64)
 
             for fine_bin in range(day_start, day_end):
                 
                 x, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, usr_end_idx, fine_bin)
                 
                 crnt_coarse_bin, crnt_fine_bin_within_coarse_pos = g._bin_computations(bin_metric_nt, fine_bin)
-                degen_coarse_bin = (fine_bin // bin_metric_nt.fine_bins_per_coarse_bin) % degen_mask.shape[1]
+                degen_mask_bin_idx = (fine_bin // bin_metric_nt.fine_bins_per_coarse_bin) % degen_mask.shape[1]
 
                 mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = g._get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, 
                                                                                     cluster_groups, user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
@@ -144,12 +142,12 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                 thread_errors[thread_id] |= update_error
 
                 # Working out scored bins
-                if ((time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, degen_coarse_bin]):
+                if ((time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, degen_mask_bin_idx]):
                     scoring_error = g.get_parameter_errors(mu_t, sigma_2_t, p_t, config_nt.hurdle_model, True)
                     thread_errors[thread_id] |= scoring_error
 
                     if scoring_error == 0:
-                        lpmf, log_strict_upper_tail = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration, config_nt)
+                        lpmf, log_strict_upper_tail = g._get_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration, config_nt)
 
                         if  np.isnan(lpmf) or lpmf > 0 or (calc_calibration and (np.isnan(log_strict_upper_tail) or log_strict_upper_tail > 0)):
                             thread_errors[thread_id] |= 1
@@ -163,14 +161,14 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                                 f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=lpmf)
 
                             if calc_calibration:
-                                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=lpmf, log_strict_upper_tail_smoothed=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
+                                f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
                 if update_error == 0:
-                    f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
+                    f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_n_cnts, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
 
             # Updating the users first row and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
-            f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
-            f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, w, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
+            f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
+            f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_n_cnts, w, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             
         g.raise_parameter_errors(n_threads, thread_errors)
 

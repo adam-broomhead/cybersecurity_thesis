@@ -114,7 +114,7 @@ def get_cluster_assignments(cluster_param, matrix_to_cluster, runtime_configs : 
 #####################################
 
 def get_centroid_distance(cluster_centres, distance_metric):
-    ''' def get_centroid_distance(cluster_centres):
+    '''
     For each cluster computes distances and returns:
         - Average distance to other clusters
         - Min distance to other clusters
@@ -304,15 +304,13 @@ def make_cluster_model(cluster_param, runtime_configs, u_init, v_init, p_init=No
         'seed' : runtime_configs['seed'],
         'cluster_param' : cluster_param,
 
-        # Identified values
+        # Cluster centres and assignments
         'cluster_centre_u' : cluster_centre_u,
         'cluster_centre_v' : cluster_centre_v,
         'cluster_centre_p' : cluster_centre_p,
         'cluster_assignments' : cluster_assignments,
         
-        # Cluster quality metrics
+        # Cluster quality outputs
         'cluster_inertia' : cluster_inertia, 
-        'cluster_centres' : cluster_centres,
-        }
-
+        'cluster_centres' : cluster_centres}
     return output 

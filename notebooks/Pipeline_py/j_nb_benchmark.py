@@ -212,12 +212,12 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
                 user_hour_strict_upper_tail = d.get_upper_tail_value(count + 1, user_hour_means[user_id, coarse_bin_id], 
                     user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
 
-                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_lpmf, log_strict_upper_tail_smoothed=user_strict_upper_tail, 
+                f.update_calibration_outputs(user_id=user_id, lpmf=user_lpmf, log_strict_upper_tail=user_strict_upper_tail, 
                                              log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups,
                                                calibration_output=thread_full_results[thread_id, 0], log_min_p_value=log_min_p_value)
 
-                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_hour_lpmf, 
-                    log_strict_upper_tail_smoothed=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
+                f.update_calibration_outputs(user_id=user_id, lpmf=user_hour_lpmf, 
+                    log_strict_upper_tail=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
                     breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1], log_min_p_value=log_min_p_value)
 
     # Combiging thread outputs together
@@ -315,27 +315,32 @@ def make_full_hurdle_benchmark_output_rows(full_results, config_dict):
     '''
     output = []
 
+    # Iterates over models and breakdown types and groups
     for model_idx, model_name in enumerate(hurdle_benchmark_names):
         for breakdown_type_idx, breakdown_config in enumerate(metric_breakdowns):
             breakdown_type = breakdown_config['type']
 
             for breakdown_group_idx, breakdown_group in enumerate(breakdown_config['groups']):
+
+                # Retrieves the relevant metric from the results table
                 group_output = full_results[model_idx, breakdown_type_idx, breakdown_group_idx]
 
+                # Ignore default outputs
                 if group_output[0] == 0:
                     continue
 
                 output_row = get_hurdle_benchmark_base_output(model_name=model_name, config_dict=config_dict, test_valid='test')
 
+                # Adding to the output table
                 output_row['breakdown_type'] = breakdown_type
                 output_row['breakdown_group'] = breakdown_group
                 output_row['n_bins_scored'] = group_output[0]
                 output_row['non_degen_ll_sum'] = group_output[1]
 
+                # Adding calubrtion results to the output table
                 for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
                     threshold_name = format(float(threshold), 'f')
                     output_row[f'calibration_count_{threshold_name}'] = group_output[2 + threshold_idx]
 
                 output.append(output_row)
-
     return output

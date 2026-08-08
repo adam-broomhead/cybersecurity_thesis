@@ -246,7 +246,7 @@ def get_model_comparison_output(model_comparisons):
 
 def format_numeric_cols(table, columns):
     '''
-    Makes cols 5dp without
+    Rounds selected cols to 5pd keeping trailing zeros
     '''
     table = table
 

@@ -42,32 +42,19 @@ def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, 
         alpha_mu_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_mu, config_nt.smooth_t_mu, fb_per_cb)
         alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_sigma2, config_nt.smooth_t_sigma2, fb_per_cb)
 
-# @njit
-# def update_p_alpha_grid(alpha_p_grid, p_n_eff, config_nt):
-#     '''
-#     updates alpha for p (which is not the positive number of counts only but the number of coarse bins as we have no nulls
-#     '''
-
-#     alpha_p = get_alpha_val(p_n_eff, config_nt.linear_smooth, config_nt.smooth_a_p, config_nt.smooth_t_p)
-#     n_users, n_coarse_bins = alpha_p_grid.shape
-
-#     for user_id in range(n_users):
-#         for coarse_bin in range(n_coarse_bins):
-#             alpha_p_grid[user_id, coarse_bin] = alpha_p
-
 #####################################
 # Collecting and updating u, v, p grids
 #####################################
 
 @njit
-def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_t, sigma_2_t, p_t, w, config_nt):
+def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_n_cnts, crnt_coarse_bin, x, mu_t, sigma_2_t, p_t, w, config_nt):
     '''
     As data comes in we update the interpolated mu values by combining with incoming data as per lambert and liu formula
     returns nothing as we modify in place. Also has an update version for hurdle model using ll formula + new formula for p
     '''
     # updating the count sum
     if x > 0:
-        usr_updt_cnt_sum[crnt_coarse_bin] += 1
+        usr_updt_n_cnts[crnt_coarse_bin] += 1
     
     # Update logic for the hurdle model
     if config_nt.hurdle_model:
@@ -88,7 +75,6 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
 
             usr_updt_u_sum[crnt_coarse_bin] += mu_new
             usr_updt_v_sum[crnt_coarse_bin] += sigma2_new
-            usr_updt_pos_sum[crnt_coarse_bin] += 1
 
     # Update logic for the NB model
     else: 
@@ -99,7 +85,7 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
         usr_updt_v_sum[crnt_coarse_bin] += sigma2_new
 
 @njit
-def update_grid(u, v, p, crnt_user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, fine_bins_per_coarse_bin, config_nt):
+def update_grid(u, v, p, crnt_user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_n_cnts, fine_bins_per_coarse_bin, config_nt):
     ''' 
     Replaces the grid values using the temporary grid as data comes in
     '''
@@ -112,9 +98,9 @@ def update_grid(u, v, p, crnt_user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_
             p[crnt_user_id, coarse_bin] = p_new
 
             # Only update grid if we have a positive count in that coaraes bin
-            if usr_updt_pos_sum[coarse_bin] > 0:
-                u[crnt_user_id, coarse_bin] = usr_updt_u_sum[coarse_bin] / usr_updt_pos_sum[coarse_bin]
-                v[crnt_user_id, coarse_bin] = usr_updt_v_sum[coarse_bin] / usr_updt_pos_sum[coarse_bin]
+            if usr_updt_n_cnts[coarse_bin] > 0:
+                u[crnt_user_id, coarse_bin] = usr_updt_u_sum[coarse_bin] / usr_updt_n_cnts[coarse_bin]
+                v[crnt_user_id, coarse_bin] = usr_updt_v_sum[coarse_bin] / usr_updt_n_cnts[coarse_bin]
                 
     # Update the grid for the NB model 
     else:
@@ -144,19 +130,19 @@ def update_user_outputs(user_id, user_output_metrics, lpmf):
     user_output_metrics[user_id, 1] += lpmf
 
 @njit
-def update_calibration_outputs(user_id, lpmf_smoothed, log_strict_upper_tail_smoothed, log_calibration_thresholds, 
+def update_calibration_outputs(user_id, lpmf, log_strict_upper_tail, log_calibration_thresholds, 
                                breakdown_groups, calibration_output, log_min_p_value):
     '''
     Updates calibration outputs with one observation
     Uses randomisation to smooth discrete calibration cutoffs
     '''
-    rdm_upper_tail = d.get_randomised_log_upper_tail(log_strict_upper_tail_smoothed, lpmf_smoothed)
+    rdm_upper_tail = d.get_randomised_log_upper_tail(log_strict_upper_tail, lpmf)
     rdm_upper_tail = max(rdm_upper_tail, log_min_p_value)
 
     for breakdown_type_idx in range(breakdown_groups.shape[0]):
         breakdown_group_idx = int(breakdown_groups[breakdown_type_idx, user_id])
         calibration_output[breakdown_type_idx, breakdown_group_idx, 0] += 1
-        calibration_output[breakdown_type_idx, breakdown_group_idx, 1] += lpmf_smoothed
+        calibration_output[breakdown_type_idx, breakdown_group_idx, 1] += lpmf
 
         for threshold_idx in range(log_calibration_thresholds.shape[0]):
             if rdm_upper_tail < log_calibration_thresholds[threshold_idx]:
