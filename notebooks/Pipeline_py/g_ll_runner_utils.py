@@ -137,6 +137,7 @@ def get_parameter_errors(mu, sigma2, p, hurdle_model, scoring):
             error |= 16
     return error
 
+@njit(inline='always')
 def raise_parameter_errors(n_threads, thread_errors):
     '''
     Raising errors giving by that function

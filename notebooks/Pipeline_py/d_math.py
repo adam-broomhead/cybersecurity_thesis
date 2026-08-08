@@ -11,7 +11,7 @@ import numpy as np
 def safe_log(prob, config_nt):
     if not math.isfinite(prob) or prob < 0 or prob > 1:
         return np.nan
-    return prob
+    return math.log(prob)
 
 ### Helper functions to stop overflow
 @njit(inline='always')

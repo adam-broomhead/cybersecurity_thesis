@@ -130,43 +130,39 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                                                                                     cluster_groups, user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                                                                     alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
+                # Getting
                 update_error = g.get_parameter_errors(mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt.hurdle_model, False)
                 thread_errors[thread_id] |= update_error
 
-                scoring_error = g.get_parameter_errors(mu_t, sigma_2_t, p_t, config_nt.hurdle_model, True)
-                scoring_error |= g.get_parameter_errors(mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt.hurdle_model, True)
+                # Working out scored bins
+                if ((time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, degen_coarse_bin]):
+                    scoring_error = g.get_parameter_errors(mu_t, sigma_2_t, p_t, config_nt.hurdle_model, True)
+                    thread_errors[thread_id] |= scoring_error
 
-                thread_errors[thread_id] |= scoring_error
+                    if scoring_error == 0:
+                        lpmf, log_strict_upper_tail = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration, config_nt)
 
-                if scoring_error == 0:
-                    lpmf_raw, lpmf_smoothed, _, log_strict_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, calc_calibration, config_nt)
+                        if (not np.isfinite(lpmf) or (calc_calibration and not np.isfinite(log_strict_upper_tail))):
+                            thread_errors[thread_id] |= 1
 
-                    # Updating outputs
-                    if ((not np.isfinite(lpmf_raw) or not np.isfinite(lpmf_smoothed)) 
-                        or (calc_calibration and not np.isfinite(log_strict_upper_tail_smoothed))):
-                        thread_errors[thread_id] = 1
+                        # Updating outputs and test outputs
+                        else:
+                            f.update_outputs(time_period_int, thread_output_metrics[thread_id], output_idx_nt, lpmf)
 
-                    else:
-                        f.update_outputs(time_period_int, thread_output_metrics[thread_id], output_idx_nt, lpmf_raw, lpmf_smoothed)
+                            if time_period_int == 1:
+                                f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=lpmf)
 
-                        if time_period_int == 1:
-                            f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf_smoothed=lpmf_smoothed)
-        
-                        if calc_calibration:
-                            f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=lpmf_smoothed, 
-                                log_strict_upper_tail_smoothed=log_strict_upper_tail_smoothed, log_calibration_thresholds=log_calibration_thresholds, 
-                                breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id])
-                            
-                f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
-            
+                            if calc_calibration:
+                                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=lpmf, log_strict_upper_tail_smoothed=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id])
+                if update_error == 0:
+                    f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
+
             # Updating the users first row (for the next week) and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, w, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             
-        for thread_id in range(n_threads):
-            if thread_errors[thread_id] != 0:
-                raise ValueError('infinite or nan probability identified')
+            g.raise_parameter_errors(n_threads, thread_errors)
 
         g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)

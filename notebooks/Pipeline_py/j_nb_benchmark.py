@@ -27,7 +27,6 @@ def get_user_poisson_rates(user_counts, n_users, train_test_dict, config_dict):
     # Assinging the mean counts to the users
     users_to_assign = period_df['user_id'].to_numpy()
     poisson_rates[users_to_assign] = period_df['sum_cnt'].to_numpy() / (train_test_dict['burn_in_end'] - train_test_dict['train_start'])
-    poisson_rates = np.maximum(poisson_rates, config_dict['mean_min'])
 
     return poisson_rates
 
@@ -53,10 +52,6 @@ def get_user_nb_params(user_counts, n_usrs, period_start, period_end, config_dic
     usrs = period_df['user_id'].to_numpy()
     usr_means[usrs] = means_to_assign
     usr_variances[usrs] = vars_to_assign
-
-    # Capping mean and variance values
-    usr_means = np.maximum(usr_means, config_dict['mean_min'])
-    usr_variances = np.maximum(usr_variances, config_dict['var_min'])
 
     return usr_means, usr_variances
 
@@ -87,11 +82,6 @@ def get_user_hurdle_params(user_counts, n_users, period_start, period_end, confi
     usr_p[usrs] = n_bins / n_fine_bins
     usr_means[usrs] = sum_cnt_minus_1 / n_bins
     usr_variances[usrs] = (sum_cnt_2_minus_1- (sum_cnt_minus_1 ** 2 / n_bins)) / (n_bins - 1)
-
-    # Capping values
-    usr_means = np.maximum(usr_means, config_dict['mean_min'])
-    usr_variances = np.maximum(usr_variances, config_dict['var_min'])
-    usr_p = np.minimum(np.maximum(usr_p, config_dict['p_min']), config_dict['p_max'])
 
     return usr_means, usr_variances, usr_p
 
