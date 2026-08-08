@@ -44,7 +44,7 @@ class Tuner:
 
     def get_ll_param_grids(self, config_dict):
         '''
-        If hurdle model creates a grid of 0s for p else just returns grids
+        If not a hurdle model creates a grid of 0s, else just returns grids from the config dict
         '''
         if config_dict['hurdle_model']:
             return self.u_pos_init, self.v_pos_init, self.p_init, self.u_pos_clustering, self.v_pos_clustering, self.p_pos_clustering
@@ -198,7 +198,7 @@ class Tuner:
 
     def make_user_output_table(self, model, user_output_metrics, experiment_name, config_dict, u_clustering, v_clustering, p_clustering):
         '''
-        Creates one row in the user output table needed for bootstrapping
+        Creates one row in the user-level output table
         '''
         n_users = user_output_metrics.shape[0]
 

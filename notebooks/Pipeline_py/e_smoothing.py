@@ -14,7 +14,7 @@ def smoothing_function(alpha, user_parameter, target_parameter):
 @njit 
 def interpolate_values(v_neg_1, v_0, v_1, fine_bin_within_coarse_pos, interpolation_weights):
     '''
-        Applies the quadratic interpolation between the left middle and right bin values
+    Applies the interpolation between the left middle and right bin values
     '''
     # Extract the weights we will use for the interpolation
     w_neg_1, w_0, w_1 = interpolation_weights[fine_bin_within_coarse_pos]
@@ -78,8 +78,8 @@ def get_cluster_target(user_grid, cluster_grid, cluster_assignments, user_totals
 def smooth_params(user_param_grid, cluster_param_grid, cluster_assignments, user_totals, cluster_totals, 
                   alpha_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
     ''' 
-    Takes a parameter mu or sigma2 and smooths it towards the cluster parameter using `smoothing_function`
-    Then interpolates with interpolate values
+    Interpolated params with the interpolation weights
+    Smooths params if applicable
     '''
 
     # Get the 3 values to interpolate
@@ -120,7 +120,7 @@ def get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_assign
                         alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, crnt_user, crnt_coarse_bin, 
                         crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
     '''
-    Smooths my sigma2 and p if applicable
+    Smooths mu sigma2 and p
     '''
     
     mu = smooth_params(u, cluster_u, cluster_assignments, user_u_totals, cluster_u_totals, 

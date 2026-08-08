@@ -129,7 +129,7 @@ def update_grid(u, v, p, crnt_user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_
 @njit
 def update_outputs(time_period_int, output_metrics, output_idx_nt, lpmf):
     '''
-    Updated outputs at end of day
+    Accumulates likelihood sum and number of scored bins overall
     '''
     if time_period_int == 0 or time_period_int == 1:
         output_metrics[time_period_int, output_idx_nt.n_bins_scored] += 1
@@ -138,7 +138,7 @@ def update_outputs(time_period_int, output_metrics, output_idx_nt, lpmf):
 @njit(inline='always')
 def update_user_outputs(user_id, user_output_metrics, lpmf):
     '''
-    Updating output for that user used in bootstrap
+    Accumulates likelihood sum and number of scored bins for a single user
     '''
     user_output_metrics[user_id, 0] += 1
     user_output_metrics[user_id, 1] += lpmf
@@ -147,7 +147,8 @@ def update_user_outputs(user_id, user_output_metrics, lpmf):
 def update_calibration_outputs(user_id, lpmf_smoothed, log_strict_upper_tail_smoothed, log_calibration_thresholds, 
                                breakdown_groups, calibration_output, log_min_p_value):
     '''
-    Updates calibration + granular outputs at end of look
+    Updates calibration outputs with one scored coarse bins outputs
+    Uses randomisation to smooth discrete calibration cutoffs
     '''
     rdm_upper_tail = d.get_randomised_log_upper_tail(log_strict_upper_tail_smoothed, lpmf_smoothed)
     rdm_upper_tail = max(rdm_upper_tail, log_min_p_value)

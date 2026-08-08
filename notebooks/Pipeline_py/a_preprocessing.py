@@ -52,13 +52,7 @@ def get_train_test_split(static_configs=static_configs):
 # Adding the fine_bins_per_coarse_bin to the train_test_split_dict
 def add_training_denom(bin_metric_dict, static_configs=static_configs):
     ''' 
-    Finds how many fine bins are used for the estimate of the iniatial parameter.
-    This is the denominator on the mean estimate as it is counts/bins and is similarly used in the variance estimate.
-
-    This fucntion assumes train days is a multiple of 7 to work
-
-    Returns:
-        An updated bin metric dict with a new column train denom and cluster denom
+    Returns the number of fine bins per coarse bin in the training parameter estimate
     '''
     bin_metric_dict["train_denom"] = bin_metric_dict["fine_bins_per_coarse_bin"] * static_configs["train_days"]
     return bin_metric_dict
@@ -97,8 +91,8 @@ def create_user_to_id_mapping(users_df, mapping_file_name):
 def create_coarse_bins(users_df, bin_metric_dict):
     ''' 
     takes a DF and creates two new columns:
+        fine_bin_pos_in_day
         coarse_bin_id
-        fine_bin_within_coarse_pos
     '''
     # Creating columns needed fr
     users_df = users_df.with_columns(fine_bin_pos_in_day=(pl.col("fine_bin_id") % bin_metric_dict["fine_bins_per_day"]))

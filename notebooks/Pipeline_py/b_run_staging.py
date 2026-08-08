@@ -117,8 +117,7 @@ def init_n_counts_grid(user_counts, n_users, coarse_bins_per_day, period_start, 
 
 def get_degen_mask(user_counts, n_users, n_coarse_bins, static_configs, train_test_dict):
     ''' 
-    Creates a grid of user x coarse bin combinations that have less than `static_configs.degen_threshold` 
-    counts in them. These bins are excluded from scoring.
+    Creates a grid of user x coarse bin combinations that are not used for scoring
     '''
     # Get the number of counts for each user in the period
     train_df = get_period_sums(user_counts.filter(pl.col('count') > 1), train_test_dict['train_start'], train_test_dict['burn_in_end'])
@@ -136,11 +135,7 @@ def get_degen_mask(user_counts, n_users, n_coarse_bins, static_configs, train_te
 
 def get_quadratic_interpolation_weights(bin_metric_dict):
     '''
-    A function that returns the weights we apply when interpolating.
-    To understand the computation steps see pages 11 and 12 of lambert liu
-    returns:
-        weights a numpy array which will be applied as w-1 U-1 + w0 U0 + w1 U1
-        the weights array has a row for every fine bin in the coarse bin and 3 columns where each column is the weight being applies to Uis
+    Get the quadratic interpolation weights for each position within the coarse bin
     '''
 
     # Getting the m (fine bin number, q and r (defined in lambert liu))
@@ -165,7 +160,7 @@ def get_quadratic_interpolation_weights(bin_metric_dict):
 
 def get_linear_interpolation_weights(bin_metric_dict):
     '''
-    Gets the interpolate weights for the linear interpolation correction
+    Get the linear interpolation weights for each position within the coarse bin
     '''
 
     # getting M and the fraction through the coarse bin

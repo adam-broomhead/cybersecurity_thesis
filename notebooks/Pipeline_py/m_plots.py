@@ -40,7 +40,7 @@ def declile_log_likelihood_plot(decile_results, x_label, relative):
 
 def plot_calibration(calibration_df, extreme):
     '''
-    Plots the calibration at deciles 0.1-0.9
+    Creates calibration and extreme calibration plots
     '''
     if extreme:
         relevant_thresholds = calibration_df.loc[calibration_df['threshold'].isin([1e-4, 1e-3, 1e-2])]
@@ -52,7 +52,6 @@ def plot_calibration(calibration_df, extreme):
     for model in ('no_smoothing', 'global_smoothing', 'cluster_smoothing'):
         model_results = relevant_thresholds.loc[relevant_thresholds['model'] == model].sort_values('threshold')
 
-        # Adds in error bars for uniform randomness
         ax.errorbar(model_results['threshold'], model_results['observed_rate_mean'], 
                     yerr=model_results['seed_sd'], marker='o', markersize=2, capsize=4, label=model_labels[model])
 

@@ -2,7 +2,7 @@
     // The best model configs of each type for running on the test set
     // No smoothing best config
     "no_smoothing": {
-        "w_inf": 0.24,
+        "w_inf": 0.25,
         "cluster_param": 1,
         "smoothing_target": 0,
         "clustering_matrix_name": "u",
