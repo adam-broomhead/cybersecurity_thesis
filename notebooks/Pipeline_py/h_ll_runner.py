@@ -15,7 +15,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         u_init + v_init : inital parameter grids
         cluster_u_init + cluster_v_init : inital cluster parameters
         cluster groups : inital cluster assignments 1 row per user id
-        smooth_a : parameter (experiment to vary)
+        smooth_a : smoothing strenght alpha
         user_counts_nt: is a named tuple version of user_counts has columns user_id, fine_bin_id, count
         user_interactions_nt: is a named tuple verion of user_interactions has columns user id and first and last interaction index in user_counts
         interpolation_weights : precalculated weights for parameter interpolation
@@ -107,7 +107,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         cluster_v_totals = e.get_grid_row_sums(cluster_v)
         cluster_p_totals = e.get_grid_row_sums(cluster_p)
 
-        # For each week iterate over the users and init the pointers
+        # (terate over the users and init the pointers to that users row
         for user_id in prange(n_users):
             thread_id = get_thread_id()
             if calc_calibration:
@@ -167,7 +167,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                 if update_error == 0:
                     f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
 
-            # Updating the users first row (for the next week) and the parameter grid and alpha grid
+            # Updating the users first row and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
             f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_cnt_sum, w, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)

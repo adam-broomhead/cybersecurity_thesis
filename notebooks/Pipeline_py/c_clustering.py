@@ -115,7 +115,7 @@ def get_cluster_assignments(cluster_param, matrix_to_cluster, runtime_configs : 
 
 def get_centroid_distance(cluster_centres, distance_metric):
     ''' def get_centroid_distance(cluster_centres):
-    For each cluster computes l2 distances and returns:
+    For each cluster computes distances and returns:
         - Average distance to other clusters
         - Min distance to other clusters
     '''
@@ -258,7 +258,7 @@ def get_cluster_means(cluster_groups, u_init, v_init, p_init):
         cluster_groups a n_users length vector of cluster assignments
         u_init : the calculated vector of parameter means (or non zero mean if a hurdle model)
         v_init : the calculated vector of initial parameter variances (or non zero variances if hurdle model)
-        v_init : the calculated vector of initial parameter activation probs (if a hurdle model)
+        p_init : the calculated vector of initial parameter activation probs (if a hurdle model)
     '''
     return get_param_cluster_mean(cluster_groups, u_init), get_param_cluster_mean(cluster_groups, v_init), get_param_cluster_mean(cluster_groups, p_init)
 

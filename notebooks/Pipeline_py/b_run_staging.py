@@ -167,7 +167,6 @@ def get_linear_interpolation_weights(bin_metric_dict):
     M = bin_metric_dict['fine_bins_per_coarse_bin']
     position_fraction = (np.arange(M, dtype='float64') + 0.5) / M
 
-    # Init the weights and array that tells us if we interpolate with the left or right value
     weights = np.zeros((M, 3), dtype='float64')
 
     # Obtain linear interpolation weights

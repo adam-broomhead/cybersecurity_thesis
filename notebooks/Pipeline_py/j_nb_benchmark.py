@@ -184,19 +184,23 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
 
         for fine_bin in range(period_start, period_end):
 
+            # Getting the count and updating the count table index
             count, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, user_end_idx, fine_bin)
             coarse_bin_id = (fine_bin % bin_metric_nt.fine_bins_per_day) // bin_metric_nt.fine_bins_per_coarse_bin
 
             if degen_mask[user_id, coarse_bin_id]:
                 continue
 
+            # Getting the lmpf values for the two counts
             user_lpmf = d.get_lpmf_val(count, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
             user_hour_lpmf = d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], 
                         user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
 
+            # Capping LPMF values
             user_lpmf = max(user_lpmf, log_min_likelihood)
             user_hour_lpmf = max(user_hour_lpmf, log_min_likelihood)
 
+            # Updating the outputs for the two models
             thread_results[thread_id, 0, 0] += 1
             thread_results[thread_id, 0, 1] += user_lpmf
             thread_results[thread_id, 1, 0] += 1
@@ -216,6 +220,7 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
                     log_strict_upper_tail_smoothed=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
                     breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1], log_min_p_value=log_min_p_value)
 
+    # Combiging thread outputs together
     for thread_id in range(n_threads):
         for model_idx in range(2):
             for output_idx in range(2):

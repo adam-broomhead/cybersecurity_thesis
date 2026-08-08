@@ -147,7 +147,7 @@ def update_user_outputs(user_id, user_output_metrics, lpmf):
 def update_calibration_outputs(user_id, lpmf_smoothed, log_strict_upper_tail_smoothed, log_calibration_thresholds, 
                                breakdown_groups, calibration_output, log_min_p_value):
     '''
-    Updates calibration outputs with one scored coarse bins outputs
+    Updates calibration outputs with one observation
     Uses randomisation to smooth discrete calibration cutoffs
     '''
     rdm_upper_tail = d.get_randomised_log_upper_tail(log_strict_upper_tail_smoothed, lpmf_smoothed)

@@ -47,7 +47,7 @@ def get_time_period(fine_bin_id, validation_start, validation_end, test_start, t
 @njit(inline='always')
 def _bin_computations(bin_metric_nt, fine_bin_idx):
     ''' 
-    Computes coarse bin and fine bin within the week and coarse bin
+    Computes bin computations needed within the lambert liu runner
     '''
     fine_bin_pos_in_day = fine_bin_idx % bin_metric_nt.fine_bins_per_day
     crnt_coarse_bin = fine_bin_pos_in_day // bin_metric_nt.fine_bins_per_coarse_bin
@@ -76,7 +76,7 @@ def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p
                                         user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                         alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, alpha_zero_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
     ''' 
-    Getting the values of mu and sigma for both the raw and smoothed model
+    Getting the smoothed and unsmoothed params mu, sigma and p
     '''
     # Getting the smoothed params and capping them at the minimal value
     mu_t, sigma_2_t, p_t = e.get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
@@ -111,7 +111,8 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu, sigma2, p, calc_calibration, config_n
 @njit(inline='always')
 def get_parameter_errors(mu, sigma2, p, hurdle_model, scoring):
     '''
-    Takes the parameters we use for scoring a count and raises an error based on certain conditions
+    Takes the parameters we use for scoring a count
+    Uses these parameter to a bitmask used for rasing errors
     '''
     # Init the error
     error = 0
@@ -200,11 +201,8 @@ def combine_threads(output_metrics, thread_output_metrics, calibration_output, t
 @njit 
 def get_new_clustering_means(cluster_groups, u, v, p):
     ''' 
-    Calculates mean u and v values for each cluster group and each time bin
-    Args:
-        cluster_groups a n_users length vector of cluster assignments
-        u : the calculated vector of u parameter means
-        v : the calculated vector of v parameter variances
+    Calculates cluster centres u, v and p values for each cluster group and each time bin
+    Used when using l2 or malhanobis metric
     '''
 
     n_users, n_coarse_bins = u.shape 

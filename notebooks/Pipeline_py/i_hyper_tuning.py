@@ -162,6 +162,7 @@ class Tuner:
                     continue
 
                 output_row = {
+                    # Row descriptions
                     'smoothed_model_name': model['name'],
                     'experiment_name': experiment_name,
                     'seed': config_dict['seed'],
@@ -178,13 +179,17 @@ class Tuner:
                     'hurdle_model': config_dict['hurdle_model'],
                     'test_valid': 'test',
 
+                    # Clustering hypers
                     'clustering_matrix_name': model['clustering_matrix_name'],
                     'clustering_transformation': model['clustering_transformation'],
                     'distance_metric': model['distance_metric'],
                     'cluster_inertia':  model['cluster_inertia'],
+
+                    # Breakdown groups
                     'breakdown_type': breakdown_type,
                     'breakdown_group': breakdown_group,
 
+                    # Output metrics
                     'n_bins_scored': n_bins_scored,
                     'non_degen_ll_sum': group_output[1],
                 }
