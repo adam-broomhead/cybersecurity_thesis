@@ -14,7 +14,8 @@ class Tuner:
 
     def __init__(self, u_init, v_init, p_init, u_pos_init, v_pos_init, 
                 u_clustering, v_clustering, u_pos_clustering, v_pos_clustering, p_pos_clustering, n_counts_init, 
-                user_counts_nt, user_interactions_nt, interpolation_weights, bin_metric_nt, output_idx_nt, model_idx_nt, train_test_nt_class, user_type_groups):
+                user_counts_nt, user_interactions_nt, interpolation_weights, bin_metric_nt, output_idx_nt, model_idx_nt, 
+                train_test_nt_class, user_type_groups, quadratic_interpolation=False):
             
             self.u_init = u_init
             self.v_init = v_init
@@ -35,6 +36,7 @@ class Tuner:
             self.model_idx_nt = model_idx_nt
             self.train_test_nt_class = train_test_nt_class
             self.user_type_groups = user_type_groups
+            self.quadratic_interpolation = quadratic_interpolation
     
     #####################################
     # ll single iteration runner
@@ -87,7 +89,8 @@ class Tuner:
             config_nt=config_nt,
             output_idx_nt=self.output_idx_nt,
             model_idx_nt=self.model_idx_nt,
-            breakdown_groups=breakdown_groups)
+            breakdown_groups=breakdown_groups,
+            quadratic_interpolation=self.quadratic_interpolation)
 
     #####################################
     # Output row creation

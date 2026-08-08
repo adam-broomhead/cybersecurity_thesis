@@ -145,11 +145,12 @@ def update_user_outputs(user_id, user_output_metrics, lpmf):
 
 @njit
 def update_calibration_outputs(user_id, lpmf_smoothed, log_strict_upper_tail_smoothed, log_calibration_thresholds, 
-                               breakdown_groups, calibration_output):
+                               breakdown_groups, calibration_output, log_min_p_value):
     '''
     Updates calibration + granular outputs at end of look
     '''
     rdm_upper_tail = d.get_randomised_log_upper_tail(log_strict_upper_tail_smoothed, lpmf_smoothed)
+    rdm_upper_tail = max(rdm_upper_tail, log_min_p_value)
 
     for breakdown_type_idx in range(breakdown_groups.shape[0]):
         breakdown_group_idx = int(breakdown_groups[breakdown_type_idx, user_id])

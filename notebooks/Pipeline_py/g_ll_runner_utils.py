@@ -160,7 +160,17 @@ def raise_parameter_errors(n_threads, thread_errors):
 
     if combined_error & 1:
         raise ValueError('prob is infinite or nan')
-    
+
+@njit(inline='always')
+def cap_quadratic_params(mu, sigma2, p, hurdle_model):
+    mu = max(mu, 2e-16)
+    sigma2 = max(sigma2, 0)
+
+    if hurdle_model:
+        p = min(max(p, 0), 1)
+
+    return mu, sigma2, p
+
 #####################################
 # End of loop updates
 #####################################
@@ -264,4 +274,5 @@ def get_new_cluster_centres(cluster_groups, u, v, p, distance_metric):
         return get_param_cluster_medians(cluster_groups, u), get_param_cluster_medians(cluster_groups, v), get_param_cluster_medians(cluster_groups, p)
     else:
         return get_new_clustering_means(cluster_groups, u, v, p)
+
 

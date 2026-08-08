@@ -15,8 +15,9 @@
     "degen_threshold" : 3, 
 
 
-    // P value cap
+    // P value cap and likelihood cap
     "min_p_value" : 1e-30,
+    "min_likelihood": 1e-30,
 
     // Ratio for using the poisson fallback
     "min_mean_var_ratio" : 1.000001

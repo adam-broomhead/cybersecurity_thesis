@@ -292,7 +292,6 @@ def make_hurdle_benchmark_output_rows(results, config_dict, test_valid):
         output_row = get_hurdle_benchmark_base_output(model_name=model_name, config_dict=config_dict, test_valid=test_valid)
 
         output_row['non_degen_ll'] = results[model_idx, 1] / n_bins_scored
-        output_row['non_degen_smoothed_ll'] = None
 
         output.append(output_row)
 

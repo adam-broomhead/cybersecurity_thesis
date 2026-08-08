@@ -9,8 +9,10 @@ import numpy as np
 #####################################
 @njit(inline='always')
 def safe_log(prob, config_nt):
-    if not math.isfinite(prob) or prob < 0 or prob > 1:
+    if np.isnan(prob) or prob < 0 or prob > 1:
         return np.nan
+    if prob == 0:
+        return -np.inf
     return math.log(prob)
 
 ### Helper functions to stop overflow
