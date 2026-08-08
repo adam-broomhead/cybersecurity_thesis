@@ -119,26 +119,48 @@ def get_parameter_errors(mu, sigma2, p, hurdle_model, scoring):
 
     # Invalid mean error
     if not np.isfinite(mu) or mu < 0:
-        error += 2
+        error |= 2
 
     # Invalid var error
     if not np.isfinite(sigma2) or sigma2 < 0:
-        error += 4
+        error |= 4
 
     # Invalid p error
     if hurdle_model and (not np.isfinite(p) or p < 0 or p > 1):
-        error +=8
+        error |=8
 
     # Test and validation only errors
     if scoring:
         if mu == 0:
-            error += 2
+            error |= 2
         # Infinite mean var ario
-        if not np.isfinite(sigma2 / mu):
-            error += 16
-
+        elif not np.isfinite(sigma2 / mu):
+            error |= 16
     return error
 
+def raise_parameter_errors(n_threads, thread_errors):
+    '''
+    Raising errors giving by that function
+    '''
+    combined_error = 0
+    for thread_id in range(n_threads):
+        combined_error |= thread_errors[thread_id]
+
+    if combined_error & 2:
+        raise ValueError('Invalid mu')
+
+    if combined_error & 4:
+        raise ValueError('Invalid var')
+
+    if combined_error & 8:
+        raise ValueError('Invalid p')
+
+    if combined_error & 16:
+        raise ValueError('Invalid mean or var ratio')
+
+    if combined_error & 1:
+        raise ValueError('prob is infinite or nan')
+    
 #####################################
 # End of loop updates
 #####################################

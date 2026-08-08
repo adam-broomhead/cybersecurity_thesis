@@ -19,5 +19,5 @@
     "min_p_value" : 1e-30,
 
     // Ratio for using the poisson fallback
-    "min_mean_var_ratio" : 1.00000001
+    "min_mean_var_ratio" : 1.000001
 }

@@ -130,7 +130,15 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                                                                                     cluster_groups, user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                                                                     alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
-                if ((time_period_int == 0 or time_period_int == 1) and not degen_mask[user_id, degen_coarse_bin]):
+                update_error = g.get_parameter_errors(mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt.hurdle_model, False)
+                thread_errors[thread_id] += update_error
+
+                scoring_error = g.get_parameter_errors(mu_t, sigma_2_t, p_t, config_nt.hurdle_model, True)
+                scoring_error |= g.get_parameter_errors(mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt.hurdle_model, True)
+
+                thread_errors[thread_id] += scoring_error
+
+                if scoring_error == 0:
                     lpmf_raw, lpmf_smoothed, _, log_strict_upper_tail_smoothed = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, calc_calibration, config_nt)
 
                     # Updating outputs
