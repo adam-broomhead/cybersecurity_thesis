@@ -137,6 +137,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
                 if quadratic_interpolation:
                     mu_t, sigma_2_t, p_t = g.cap_quadratic_params(mu_t, sigma_2_t, p_t, config_nt.hurdle_model)
+                    mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = g.cap_quadratic_params(mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt.hurdle_model)
 
                 # Getting errors
                 update_error = g.get_parameter_errors(mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, config_nt.hurdle_model, False)
@@ -148,9 +149,9 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                     thread_errors[thread_id] |= scoring_error
 
                     if scoring_error == 0:
-                        lpmf, log_strict_upper_tail = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration, config_nt)
+                        raw_lpmf, log_strict_upper_tail = g._get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration, config_nt)
 
-                        if  np.isnan(lpmf) or lpmf > 0 or (calc_calibration and (np.isnan(log_strict_upper_tail) or log_strict_upper_tail > 0)):
+                        if  np.isnan(raw_lpmf) or raw_lpmf > 0 or (calc_calibration and (np.isnan(log_strict_upper_tail) or log_strict_upper_tail > 0)):
                             thread_errors[thread_id] |= 1
 
                         # Updating outputs and test outputs
@@ -162,7 +163,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                                 f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=lpmf)
 
                             if calc_calibration:
-                                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=lpmf, log_strict_upper_tail_smoothed=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
+                                f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=raw_lpmf, log_strict_upper_tail_smoothed=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
                 if update_error == 0:
                     f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_pos_sum, usr_updt_cnt_sum, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
 

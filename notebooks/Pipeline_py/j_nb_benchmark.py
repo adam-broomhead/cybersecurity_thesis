@@ -145,6 +145,9 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
     '''
     Runs the user static hurdle benchmark and the user x coarse bin hurdle benchmark
     '''
+    log_min_p_value = np.log(config_nt.min_p_value)
+    log_min_likelihood = np.log(config_nt.min_likelihood)
+
     n_users = user_means.shape[0]
     results = np.zeros((2, 2), dtype='float64')
 
@@ -191,6 +194,9 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
             user_hour_lpmf = d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], 
                         user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
 
+            user_lpmf = max(user_lpmf, log_min_likelihood)
+            user_hour_lpmf = max(user_hour_lpmf, log_min_likelihood)
+
             thread_results[thread_id, 0, 0] += 1
             thread_results[thread_id, 0, 1] += user_lpmf
             thread_results[thread_id, 1, 0] += 1
@@ -204,7 +210,7 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
 
                 f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_lpmf, log_strict_upper_tail_smoothed=user_strict_upper_tail, 
                                              log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups,
-                                               calibration_output=thread_full_results[thread_id, 0])
+                                               calibration_output=thread_full_results[thread_id, 0], log_min_p_value=log_min_p_value)
 
                 f.update_calibration_outputs(user_id=user_id, lpmf_smoothed=user_hour_lpmf, 
                     log_strict_upper_tail_smoothed=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
