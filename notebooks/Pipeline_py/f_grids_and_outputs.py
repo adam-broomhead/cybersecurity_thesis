@@ -79,16 +79,12 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
 
         # Updating p value and sum of p vals in the bin   
         p_new = (1 - w) * p_t + w * z
-        p_new = min(max(p_new, config_nt.p_min), config_nt.p_max)
         usr_updt_p_sum[crnt_coarse_bin] += p_new
 
         # Update other values if x > 0
         if x > 0:
             mu_new = (1 - w) * mu_t + w * (x - 1)
             sigma2_new = (1 - w) * sigma_2_t + w * (x - 1 - mu_t) * (x - 1 - mu_new)
-
-            mu_new = max(mu_new, config_nt.mean_min)
-            sigma2_new = max(sigma2_new, config_nt.var_min)
 
             usr_updt_u_sum[crnt_coarse_bin] += mu_new
             usr_updt_v_sum[crnt_coarse_bin] += sigma2_new
@@ -98,9 +94,6 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_p
     else: 
         mu_new = (1-w)*mu_t + w*x
         sigma2_new = (1-w)*sigma_2_t + w*(x-mu_t)*(x-mu_new)
-
-        mu_new = max(mu_new, config_nt.mean_min)
-        sigma2_new = max(sigma2_new, config_nt.var_min)
 
         usr_updt_u_sum[crnt_coarse_bin] += mu_new
         usr_updt_v_sum[crnt_coarse_bin] += sigma2_new
@@ -116,13 +109,13 @@ def update_grid(u, v, p, crnt_user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_
 
         for coarse_bin in range(n_coarse_bins):
             p_new = usr_updt_p_sum[coarse_bin] / fine_bins_per_coarse_bin
-            p[crnt_user_id, coarse_bin] = min(max(p_new, config_nt.p_min), config_nt.p_max)
+            p[crnt_user_id, coarse_bin] = p_new
 
             # Only update grid if we have a positive count in that coaraes bin
             if usr_updt_pos_sum[coarse_bin] > 0:
-                u[crnt_user_id, coarse_bin] = max(usr_updt_u_sum[coarse_bin] / usr_updt_pos_sum[coarse_bin], config_nt.mean_min)
-                v[crnt_user_id, coarse_bin] = max(usr_updt_v_sum[coarse_bin] / usr_updt_pos_sum[coarse_bin], config_nt.var_min)
-
+                u[crnt_user_id, coarse_bin] = usr_updt_u_sum[coarse_bin] / usr_updt_pos_sum[coarse_bin]
+                v[crnt_user_id, coarse_bin] = usr_updt_v_sum[coarse_bin] / usr_updt_pos_sum[coarse_bin]
+                
     # Update the grid for the NB model 
     else:
         u[crnt_user_id, : ] = usr_updt_u_sum/fine_bins_per_coarse_bin

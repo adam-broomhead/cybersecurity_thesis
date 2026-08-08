@@ -88,14 +88,6 @@ def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p
     mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = e.get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
                                             user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
                                             alpha_zero_grid, alpha_zero_grid, alpha_zero_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
-    
-    # Capping values
-    mu_t = max(mu_t, config_nt.mean_min)
-    sigma_2_t = max(sigma_2_t, config_nt.var_min)
-    mu_unsmth_t = max(mu_unsmth_t, config_nt.mean_min)
-    sigma_unsmth_2_t = max(sigma_unsmth_2_t, config_nt.var_min)
-    p_t = min(max(p_t, config_nt.p_min), config_nt.p_max)
-    p_unsmth_t = min(max(p_unsmth_t, config_nt.p_min), config_nt.p_max)
 
     return mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t
 
@@ -115,6 +107,37 @@ def _get_log_p0_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_
     else:
         log_strict_upper_tail_smoothed = d.get_upper_tail_value(x + 1, mu_t, sigma_2_t, p_t, config_nt)
         return lpmf_raw, lpmf_smoothed, 0, log_strict_upper_tail_smoothed
+
+
+@njit(inline='always')
+def get_parameter_errors(mu, sigma2, p, hurdle_model, scoring):
+    '''
+    Takes the parameters we use for scoring a count and raises an error based on certain conditions
+    '''
+    # Init the error
+    error = 0
+
+    # Invalid mean error
+    if not np.isfinite(mu) or mu < 0:
+        error += 2
+
+    # Invalid var error
+    if not np.isfinite(sigma2) or sigma2 < 0:
+        error += 4
+
+    # Invalid p error
+    if hurdle_model and (not np.isfinite(p) or p < 0 or p > 1):
+        error +=8
+
+    # Test and validation only errors
+    if scoring:
+        if mu == 0:
+            error += 2
+        # Infinite mean var ario
+        if not np.isfinite(sigma2 / mu):
+            error += 16
+
+    return error
 
 #####################################
 # End of loop updates

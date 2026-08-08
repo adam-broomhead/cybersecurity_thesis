@@ -234,14 +234,6 @@ def get_user_type_output(user_type_summary):
 
     return output
 
-def get_overall_performance_output(overall_performance):
-    '''
-    Maps the label onto the performance table
-    '''
-    output = overall_performance.copy()
-    output['model'] = output['model'].map(model_labels)
-    return output
-
 def get_model_comparison_output(model_comparisons):
     '''
     Gets the final model comparison table ready for output by adding model names
@@ -278,6 +270,7 @@ def get_overall_performance_output(overall_performance, user_type_summary):
     '''
     Gets the initial summary table
     '''
+
     usr_typ_means = user_type_summary.pivot(index='model', columns='user_type', values='mean_ll').rename(columns={
         'human': 'human_mean_log_likelihood',
         'machine': 'machine_mean_log_likelihood'})
@@ -287,9 +280,15 @@ def get_overall_performance_output(overall_performance, user_type_summary):
         'machine': 'machine_seed_sd'})
 
     output = pd.concat([overall_performance.set_index('model'), usr_typ_means, usr_typ_sds], axis=1).reset_index()
+    output = output.sort_values(by='mean_log_likelihood', ascending=False).reset_index(drop=True)
     output.columns.name = None
     output['model'] = output['model'].map(model_labels)
 
+    output['Overall'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
+    output['Human'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
+    output['Machine'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
+
+    output = output[['model', 'Overall', 'Human', 'Machine']].rename(columns={'model': 'Model'})
     return output
 
 #####################################

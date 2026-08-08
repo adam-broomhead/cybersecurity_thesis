@@ -14,13 +14,10 @@
     // degen threshold
     "degen_threshold" : 3, 
 
-    // Min Params
-    // Note p cant be 0 or 1 else we get infinite log likelihood
-    "mean_min" : 1e-12,
-    "var_min" : 1e-12,
-    "p_min" : 1e-12,
-    "p_max" : 0.99999999,
 
-    "min_prob" : 1e-12,
+    // P value cap
+    "min_p_value" : 1e-30,
+
+    // Ratio for using the poisson fallback
     "min_mean_var_ratio" : 1.00000001
 }

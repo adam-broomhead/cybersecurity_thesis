@@ -21,9 +21,9 @@
     "cluster_smoothing": {
         "w_inf": 0.33,
 
+        "smooth_a_p": 0.40,
         "smooth_a_mu": 0.70,
         "smooth_a_sigma2": 0.55,
-        "smooth_a_p": 0.40,
         "smooth_t_mu": 0.0,
         "smooth_t_sigma2": 0.0,
         "smooth_t_p": 0.0,
@@ -41,9 +41,9 @@
     "global_smoothing": {
     "w_inf": 0.33,
 
+    "smooth_a_p": 0.25,
     "smooth_a_mu": 0.55,
     "smooth_a_sigma2": 0.55,
-    "smooth_a_p": 0.25,
     "smooth_t_mu": 0.0,
     "smooth_t_sigma2": 0.0,
     "smooth_t_p": 0.0,

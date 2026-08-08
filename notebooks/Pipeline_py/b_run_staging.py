@@ -61,10 +61,6 @@ def init_grid_NB(user_counts, n_users, coarse_bins_per_day, period_start, period
     v_init[entries_to_assign[:,0], entries_to_assign[:,1]] = (train_df['sum_cnt_2'].to_numpy() - 
                                                             ((train_df['sum_cnt'] **2) / fb_per_cb))/(fb_per_cb - 1)
 
-    # Capping the min values of u_init and v_init
-    u_init = np.maximum(u_init, static_configs['mean_min'])
-    v_init = np.maximum(v_init, static_configs['var_min'])
-
     return u_init, v_init
 
 def init_grid_hurdle(user_counts, n_users, coarse_bins_per_day, period_start, period_end, bin_metric_dict):
@@ -98,11 +94,6 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_day, period_start, pe
     u_init[entries_to_assign[mean_mask, 0], entries_to_assign[mean_mask, 1]] = sum_cnt_shifted[mean_mask]/ n_bins[mean_mask]
     v_init[entries_to_assign[var_mask, 0], entries_to_assign[var_mask, 1]] = (sum_cnt_2_shifted[var_mask] - (sum_cnt_shifted[var_mask] ** 2 / n_bins[var_mask])
                                                                               ) / (n_bins[var_mask] - 1)
-
-    # Capping the min values of u_init and v_init
-    u_init = np.maximum(u_init, static_configs['mean_min'])
-    v_init = np.maximum(v_init, static_configs['var_min'])
-    p_init = np.minimum(np.maximum(p_init, static_configs['p_min']), static_configs['p_max'])
 
     return u_init, v_init, p_init
 
