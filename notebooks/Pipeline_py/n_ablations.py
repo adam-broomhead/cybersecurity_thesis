@@ -41,7 +41,7 @@ def init_weekly_grids(weekly_user_counts, n_users, train_test_dict, bin_metric_d
 
 def get_weekly_degen_mask(weekly_user_counts, n_users, train_test_dict, bin_metric_dict, static_configs):
     '''
-    Gets the degen mask for the weekly model using over 3 counts per coarse bin
+    Gets the degen mask for the weekly model
     '''
 
     # Getting the number of rows with over 1 count in each coarse bin in train + burn in
@@ -79,7 +79,7 @@ def get_weekly_configs(bin_metric_dict, train_test_dict):
 
 def run_weekly_ablation(t, user_counts, user_mapping, train_test_dict, bin_metric_dict, static_configs, base_config, hyperparams):
     '''
-    Runs the quadratic ablation experiment
+    Runs the weekly cycle ablation experiment
     '''
     experiment_name = 'ablation_weekly'
     hurdle_model = True

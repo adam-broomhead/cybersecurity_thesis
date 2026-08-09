@@ -55,8 +55,8 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         n_calibration_outputs = 2 + log_calibration_thresholds.shape[0]
         calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
 
-    burn_in_first_cycle = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_day
-    test_last_cycle = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_day
+    burn_in_first_cycle = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_cycle
+    test_last_cycle = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_cycle
 
     # Init outputs
     output_metrics = np.zeros((2, len(output_idx_nt)), dtype='float64')
@@ -78,15 +78,15 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     # Init pointer for user interactions
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
 
-    # Initialise days passed
+    # Initialise cycles passed
     cycles_passed = 0
 
     for cycle in range(burn_in_first_cycle, test_last_cycle + 1):
         cycles_passed += 1
         w = config_nt.w_inf + (1 - config_nt.w_inf) / (1 + cycles_passed)
 
-        cycle_start = cycle * bin_metric_nt.fine_bins_per_day
-        cycle_end = (cycle + 1) * bin_metric_nt.fine_bins_per_day
+        cycle_start = cycle * bin_metric_nt.fine_bins_per_cycle
+        cycle_end = (cycle + 1) * bin_metric_nt.fine_bins_per_cycle
 
         if cycle_end > train_test_nt.test_end:
             cycle_end = train_test_nt.test_end

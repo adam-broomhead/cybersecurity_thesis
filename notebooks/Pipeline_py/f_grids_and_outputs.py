@@ -52,7 +52,7 @@ def collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_n
     As data comes in we update the interpolated mu values by combining with incoming data as per lambert and liu formula
     returns nothing as we modify in place. Also has an update version for hurdle model using ll formula + new formula for p
     '''
-    # updating the count sum
+    # updating the number of pos observations
     if x > 0:
         usr_updt_n_cnts[crnt_coarse_bin] += 1
     

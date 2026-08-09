@@ -49,7 +49,7 @@ def _bin_computations(bin_metric_nt, fine_bin_idx):
     ''' 
     Computes bin computations needed within the lambert liu runner
     '''
-    fine_bin_pos_in_cycle = fine_bin_idx % bin_metric_nt.fine_bins_per_day
+    fine_bin_pos_in_cycle = fine_bin_idx % bin_metric_nt.fine_bins_per_cycle
     crnt_coarse_bin = fine_bin_pos_in_cycle // bin_metric_nt.fine_bins_per_coarse_bin
     crnt_fine_bin_within_coarse_pos = fine_bin_pos_in_cycle % bin_metric_nt.fine_bins_per_coarse_bin
 
