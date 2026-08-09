@@ -478,8 +478,6 @@ def make_detection_setup(degen_mask, train_test_nt, bin_metric_nt, seed):
             attack_hour * bin_metric_nt.fine_bins_per_coarse_bin)
     return attack_user, attack_start_fb
 
-
-
 @njit(parallel=True)
 def get_ewma_scores(z_scores, alert_w, initial_scores):
     '''
@@ -507,17 +505,15 @@ def get_z_scores(p):
     z[mask] = ndtri(1 - p[mask])
     return z
 
-def get_attack_max_scores(attack_z, observed_ewma, attack_start_fb, alert_w, train_test_nt, bin_metric_nt):
-
-    # Getting the users which had an attack
+def get_attack_max_scores(attack_z, observed_ewma, attack_start_fb, alert_w, train_test_nt):
     valid_attack = attack_start_fb >= 0
     n_users, n_attack_sizes, n_day_fbs = attack_z.shape
 
-    attack_day_start_fb = (attack_start_fb // bin_metric_nt.fine_bins_per_cycle * bin_metric_nt.fine_bins_per_cycle)
+    attack_offset = attack_start_fb - train_test_nt.test_start
 
-    attack_day_start_idx = (attack_day_start_fb - train_test_nt.test_start)
+    attack_day_start_idx = attack_offset // n_day_fbs * n_day_fbs
 
-    attack_fb_within_day = (attack_start_fb - attack_day_start_fb)
+    attack_fb_within_day = attack_offset % n_day_fbs
 
     initial_scores = np.zeros(n_users, dtype=observed_ewma.dtype)
 
@@ -527,10 +523,10 @@ def get_attack_max_scores(attack_z, observed_ewma, attack_start_fb, alert_w, tra
 
     attack_ewma = get_ewma_scores(attack_z.reshape(n_users * n_attack_sizes, n_day_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes)).reshape(n_users, n_attack_sizes, n_day_fbs)
 
-    attack_max = np.full((n_users, n_attack_sizes), np.nan)
+    attack_max = np.full((n_users, n_attack_sizes), np.nan,)
 
-    for user_id in np.flatnonzero(valid_attack):
-        attack_max[user_id] = np.max(attack_ewma[user_id, :, attack_fb_within_day[user_id]:,], axis=1)
+    for user_id in user_idx:
+        attack_max[user_id] = np.max(attack_ewma[user_id, :, attack_fb_within_day[user_id]:,], axis=1,)
 
     return attack_max, valid_attack
 
@@ -569,5 +565,24 @@ def get_split_detection_results(observed_ewma, observed_mask, attack_max, attack
                 'n_false_positives': int(n_false_positives),
                 'n_attacks': int(attack_scores.size),
                 'n_detected': int(np.count_nonzero(attack_scores > threshold)),})
+
+    return results
+
+def get_detection_results(observed_p, attack_p, attack_user, attack_start_fb, attack_sizes, alert_w_vals, fpr_rates, train_test_nt, seed, experiment_name):
+    observed_mask = ~np.isnan(observed_p)
+
+    observed_z = get_z_scores(observed_p)
+    attack_z = get_z_scores(attack_p)
+
+    n_users = observed_p.shape[0]
+    results = []
+
+    for alert_w in alert_w_vals:
+        observed_ewma = get_ewma_scores(observed_z, alert_w, np.zeros(n_users))
+
+        attack_max, valid_attack = get_attack_max_scores(attack_z, observed_ewma, attack_start_fb, alert_w, train_test_nt)
+
+        for attack_user_value in (True, False):
+            results.extend(get_split_detection_results(observed_ewma, observed_mask, attack_max, attack_user, attack_user_value, valid_attack, attack_sizes, fpr_rates, alert_w, seed, experiment_name))
 
     return results

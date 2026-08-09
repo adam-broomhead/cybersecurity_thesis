@@ -273,4 +273,59 @@ def get_new_cluster_centres(cluster_groups, u, v, p, distance_metric):
     else:
         return get_new_clustering_means(cluster_groups, u, v, p)
 
+#####################################
+# Detection
+#####################################
 
+@njit
+def init_detection_outputs(n_users, n_test_fbs, n_attack_sizes, n_day_fbs, n_attack_fbs):
+    '''
+    Inits arrays needed for the attack experiment
+    '''
+
+    observed_p = np.full((n_users, n_test_fbs), np.nan, dtype='float64')
+    attack_p = np.full((n_users, n_attack_sizes, n_day_fbs), np.nan, dtype='float64')
+
+    # inputs are x, mu sigma2, and p for the attack bin
+    attack_bin_inputs = np.full((n_users, n_attack_fbs, 4), np.nan, dtype='float64')
+
+    return observed_p, attack_p, attack_bin_inputs
+
+@njit(inline='always')
+def store_attack_bin_inputs(attack_bin_inputs, fine_bin, attack_start_fb, x, mu, sigma2, p):
+    '''
+    Stores the attack bin inputs in an array
+    '''
+    # Compute postition relative to attack start if position is less than 12 we store
+    attack_fb = fine_bin - attack_start_fb
+    if 0 <= attack_fb < 12:
+        attack_bin_inputs[attack_fb, 0] = x
+        attack_bin_inputs[attack_fb, 1] = mu
+        attack_bin_inputs[attack_fb, 2] = sigma2
+        attack_bin_inputs[attack_fb, 3] = p
+
+@njit
+def update_attack_day_p(attack_day_p, observed_day_p, attack_bin_inputs, attack_start_day_fb, 
+                        attack_sizes, config_nt, log_min_likelihood, log_min_p_value):
+    '''
+    Updates the observed p values for the day with the attack p values
+    '''
+
+    n_attack_sizes = attack_sizes.shape[0]
+    n_day_fbs = observed_day_p.shape[0]
+    n_attack_fbs = attack_bin_inputs.shape[1]
+
+    # All non attack bins are changed for that day
+    for attack_idx in range(n_attack_sizes):
+        for day_fb in range(n_day_fbs):
+            attack_day_p[attack_idx, day_fb] = observed_day_p[day_fb]
+
+        added_counts_per_fb = attack_sizes[attack_idx] // n_attack_fbs
+
+        for attack_fb in range(n_attack_fbs):
+            attack_count = attack_bin_inputs[attack_fb, 0] + added_counts_per_fb
+            lpmf, log_strict_upper_tail = _get_lpmf_and_upper_tail(attack_count, attack_bin_inputs[attack_fb, 1], 
+                                                                   attack_bin_inputs[attack_fb, 2], attack_bin_inputs[attack_fb, 3], True, config_nt)
+            lpmf = max(lpmf, log_min_likelihood)
+            log_p = d.get_randomised_log_upper_tail(log_strict_upper_tail, lpmf)
+            attack_day_p[attack_idx, attack_start_day_fb + attack_fb] = math.exp(max(log_p, log_min_p_value))

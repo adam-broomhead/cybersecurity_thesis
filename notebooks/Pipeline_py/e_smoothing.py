@@ -75,7 +75,6 @@ def get_cluster_target(user_grid, cluster_grid, cluster_assignments, user_totals
 #####################################
 
 @njit 
-@njit 
 def smooth_params(user_param_grid, cluster_param_grid, cluster_assignments, user_totals, cluster_totals, 
                   alpha_grid, degen_mask, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
     '''
