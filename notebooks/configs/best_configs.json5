@@ -8,7 +8,7 @@
         "clustering_matrix_name": "u",
         "clustering_transformation": "none",
         "distance_metric": "l2",
-        "linear_smooth": true,
+        "constant_alpha": true,
         "smooth_a_mu": 0.0,
         "smooth_a_sigma2": 0.0,
         "smooth_a_p": 0.0,
@@ -27,7 +27,7 @@
         "smooth_t_mu": 0.0,
         "smooth_t_sigma2": 0.0,
         "smooth_t_p": 0.0,
-        "linear_smooth": true,
+        "constant_alpha": true,
         "smoothing_target": 1,
 
         "cluster_param": 30,
@@ -47,7 +47,7 @@
     "smooth_t_mu": 0.0,
     "smooth_t_sigma2": 0.0,
     "smooth_t_p": 0.0,
-    "linear_smooth": true,
+    "constant_alpha": true,
     "smoothing_target": 1,
 
     "cluster_param": 1,

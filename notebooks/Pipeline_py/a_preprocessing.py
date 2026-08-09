@@ -18,6 +18,7 @@ def get_bin_metrics(static_configs=static_configs):
     output_dict['fine_bins_per_coarse_bin'] = static_configs['coarse_bin_mins'] // static_configs['fine_bin_mins']
     output_dict["coarse_bins_per_day"] = output_dict["fine_bins_per_day"] // output_dict["fine_bins_per_coarse_bin"]
     output_dict['fine_bin_seconds'] = static_configs['fine_bin_mins'] * 60 
+    output_dict['fine_bins_per_cycle'] = output_dict['fine_bins_per_day']
 
     return output_dict
 
@@ -96,7 +97,7 @@ def create_coarse_bins(users_df, bin_metric_dict):
 
     return users_df
 
-def create_first_last_interaction_arrays(user_counts):
+def create_first_last_interactions(user_counts):
     '''
     Creates an output table with user first and last interaction indicies within df counts
     Note this is not a fine bin index but a row index

@@ -8,22 +8,22 @@ import d_math as d
 # Alpha Grid update
 #####################################
 
-def init_alpha_grid(n_counts_init, linear_smooth, smooth_a, smooth_t, fb_per_cb):
+def init_alpha_grid(n_counts_init, constant_alpha, smooth_a, smooth_t, fb_per_cb):
     '''
     Init a grid of alpha values that are used in smoothing
     '''
-    # Return a constant grid if we are using linear smoothing else make a count dependent alpha
-    if linear_smooth:
+    # Return a constant grid if we are using constant shrinkage else make a count dependent alpha
+    if constant_alpha:
         return np.full_like(n_counts_init, smooth_a, dtype='float64')
     else:
         return fb_per_cb * smooth_t / ((1.0 - smooth_t) * n_counts_init + fb_per_cb * smooth_t)
     
 @njit
-def get_alpha_val(n_counts, linear_smooth, smooth_a, smooth_t, fb_per_cb):
+def get_alpha_val(n_counts, constant_alpha, smooth_a, smooth_t, fb_per_cb):
     '''
     Gets a value of alpha fron n_counts similarly to `init_alpha_grid`
     '''
-    if linear_smooth:
+    if constant_alpha:
         return smooth_a
     else:
         return fb_per_cb * smooth_t / ((1.0 - smooth_t) * n_counts + fb_per_cb * smooth_t)
@@ -39,8 +39,8 @@ def update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, 
         n_counts[crnt_user_id, coarse_bin] = (1.0 - w) * n_counts[crnt_user_id, coarse_bin] + w * usr_updt_n_counts[coarse_bin]
         current_n = n_counts[crnt_user_id, coarse_bin]
 
-        alpha_mu_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_mu, config_nt.smooth_t_mu, fb_per_cb)
-        alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.linear_smooth, config_nt.smooth_a_sigma2, config_nt.smooth_t_sigma2, fb_per_cb)
+        alpha_mu_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.constant_alpha, config_nt.smooth_a_mu, config_nt.smooth_t_mu, fb_per_cb)
+        alpha_sigma2_grid[crnt_user_id, coarse_bin] = get_alpha_val(current_n, config_nt.constant_alpha, config_nt.smooth_a_sigma2, config_nt.smooth_t_sigma2, fb_per_cb)
 
 #####################################
 # Collecting and updating u, v, p grids

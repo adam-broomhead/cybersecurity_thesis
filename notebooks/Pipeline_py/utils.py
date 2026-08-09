@@ -91,7 +91,7 @@ def store_run_results(results, dir, run_name, calibration_results=None, results_
 
     # Forcing data types to be consistent
     result_dtypes = {
-        'linear_smooth': pl.Boolean,
+        'constant_alpha': pl.Boolean,
         'hurdle_model': pl.Boolean,
         'seed': pl.Int32,
         'cluster_param': pl.Int16,

@@ -60,10 +60,10 @@ class Tuner:
         if breakdown_groups is None:
             breakdown_groups = np.empty((0, 0), dtype='int8')
 
-        alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'], self.bin_metric_nt.fine_bins_per_coarse_bin)
-        alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['linear_smooth'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'], self.bin_metric_nt.fine_bins_per_coarse_bin)
+        alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['constant_alpha'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'], self.bin_metric_nt.fine_bins_per_coarse_bin)
+        alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['constant_alpha'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'], self.bin_metric_nt.fine_bins_per_coarse_bin)
         n_counts_p = np.full_like(self.n_counts_init, self.bin_metric_nt.fine_bins_per_coarse_bin, dtype='float64')
-        alpha_p_grid_init = f.init_alpha_grid(n_counts_p, config_dict['linear_smooth'], config_dict['smooth_a_p'], config_dict['smooth_t_p'], self.bin_metric_nt.fine_bins_per_coarse_bin)
+        alpha_p_grid_init = f.init_alpha_grid(n_counts_p, config_dict['constant_alpha'], config_dict['smooth_a_p'], config_dict['smooth_t_p'], self.bin_metric_nt.fine_bins_per_coarse_bin)
 
         u, v, p, _, _, _ = self.get_ll_param_grids(config_dict)
         cluster_u_init, cluster_v_init, cluster_p_init = c.get_cluster_centres(cluster_groups=model['cluster_assignments'], u_init=u, v_init=v, p_init=p, distance_metric=config_dict['distance_metric'])
@@ -128,7 +128,7 @@ class Tuner:
             'smooth_t_mu': config_dict['smooth_t_mu'],
             'smooth_t_sigma2': config_dict['smooth_t_sigma2'],
             'smooth_t_p': config_dict['smooth_t_p'],
-            'linear_smooth': config_dict['linear_smooth'],
+            'constant_alpha': config_dict['constant_alpha'],
             'smoothing_target': config_dict['smoothing_target'],
             'hurdle_model': config_dict['hurdle_model'],
             'test_valid' : test_valid,
@@ -174,7 +174,7 @@ class Tuner:
                     'smooth_t_mu': config_dict['smooth_t_mu'],
                     'smooth_t_sigma2': config_dict['smooth_t_sigma2'],
                     'smooth_t_p': config_dict['smooth_t_p'],
-                    'linear_smooth': config_dict['linear_smooth'],
+                    'constant_alpha': config_dict['constant_alpha'],
                     'smoothing_target': config_dict['smoothing_target'],
                     'hurdle_model': config_dict['hurdle_model'],
                     'test_valid': 'test',
@@ -231,7 +231,7 @@ class Tuner:
         # Fill in w inf and use defaults for the rest
         if experiment_name == 'no_smoothing' or experiment_name == 'LL_runner' or experiment_name.startswith('ablation_'):
             return [{'w_inf': w_inf, 
-                     'cluster_param': 1, 'smoothing_target': 0, 'clustering_matrix_name': 'u', 'clustering_transformation': 'none', 'distance_metric': 'l2', 'linear_smooth': True, 'smooth_a_mu': 0, 'smooth_a_sigma2': 0, 'smooth_a_p': 0, 'smooth_t_mu': 0, 'smooth_t_sigma2': 0, 'smooth_t_p': 0}
+                     'cluster_param': 1, 'smoothing_target': 0, 'clustering_matrix_name': 'u', 'clustering_transformation': 'none', 'distance_metric': 'l2', 'constant_alpha': True, 'smooth_a_mu': 0, 'smooth_a_sigma2': 0, 'smooth_a_p': 0, 'smooth_t_mu': 0, 'smooth_t_sigma2': 0, 'smooth_t_p': 0}
                 for w_inf in hyperparams['w_inf_vals']]
 
         # Init rng and seen configs
@@ -256,10 +256,10 @@ class Tuner:
                 distance_metric = rng.choice(hyperparams['distance_metric_vals'])
                 cluster_param = rng.choice(hyperparams['cluster_param_vals'])
 
-            linear_smooth = rng.choice(hyperparams['linear_smooth_vals'])
+            constant_alpha = rng.choice(hyperparams['constant_alpha_vals'])
             smoothing_target = rng.choice(hyperparams['smoothing_target_vals'])
 
-            if linear_smooth:
+            if constant_alpha:
                 smooth_a_mu = rng.choice(hyperparams['alpha_mu_vals'])
                 smooth_a_sigma2 = rng.choice(hyperparams['alpha_sigma2_vals'])
                 if hurdle_model:
@@ -285,7 +285,7 @@ class Tuner:
             # Creating the row and adding it to the outputs
             hyper_row = {'w_inf': w_inf, 'cluster_param': cluster_param, 'smoothing_target': smoothing_target, 
                          'clustering_matrix_name': clustering_matrix_name, 'clustering_transformation': clustering_transformation, 
-                         'distance_metric': distance_metric, 'linear_smooth': linear_smooth, 
+                         'distance_metric': distance_metric, 'constant_alpha': constant_alpha, 
                          'smooth_a_mu': smooth_a_mu, 'smooth_a_sigma2': smooth_a_sigma2, 'smooth_a_p': smooth_a_p, 'smooth_t_mu': smooth_t_mu, 'smooth_t_sigma2': smooth_t_sigma2, 'smooth_t_p': smooth_t_p}
 
             config_tuple = tuple(hyper_row.values())

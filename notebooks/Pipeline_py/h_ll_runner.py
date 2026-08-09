@@ -55,8 +55,8 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         n_calibration_outputs = 2 + log_calibration_thresholds.shape[0]
         calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
 
-    burn_in_first_day = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_day
-    test_last_day = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_day
+    burn_in_first_cycle = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_day
+    test_last_cycle = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_day
 
     # Init outputs
     output_metrics = np.zeros((2, len(output_idx_nt)), dtype='float64')
@@ -79,20 +79,20 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
 
     # Initialise days passed
-    days_passed = 0
+    cycles_passed = 0
 
-    for day in range(burn_in_first_day, test_last_day + 1):
-        days_passed += 1
-        w = config_nt.w_inf + (1 - config_nt.w_inf) / (1 + days_passed)
+    for cycle in range(burn_in_first_cycle, test_last_cycle + 1):
+        cycles_passed += 1
+        w = config_nt.w_inf + (1 - config_nt.w_inf) / (1 + cycles_passed)
 
-        day_start = day * bin_metric_nt.fine_bins_per_day
-        day_end = (day + 1) * bin_metric_nt.fine_bins_per_day
+        cycle_start = cycle * bin_metric_nt.fine_bins_per_day
+        cycle_end = (cycle + 1) * bin_metric_nt.fine_bins_per_day
 
-        if day_end > train_test_nt.test_end:
-            day_end = train_test_nt.test_end
+        if cycle_end > train_test_nt.test_end:
+            cycle_end = train_test_nt.test_end
 
         # Getting the train test valid
-        time_period_int = g.get_time_period(day_start, train_test_nt.validation_start, train_test_nt.validation_end, 
+        time_period_int = g.get_time_period(cycle_start, train_test_nt.validation_start, train_test_nt.validation_end, 
                                                 train_test_nt.test_start, train_test_nt.test_end)
 
         calc_calibration = time_period_int == 1 and not config_nt.nll_only
@@ -110,7 +110,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         for user_id in prange(n_users):
             thread_id = get_thread_id()
             if calc_calibration:
-                np.random.seed(config_nt.seed + day * n_users + user_id)
+                np.random.seed(config_nt.seed + cycle * n_users + user_id)
 
             cnt_tbl_idx = usr_frst_rw[user_id]
             usr_end_idx = user_interactions_nt.user_last_index[user_id]
@@ -122,7 +122,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             
             usr_updt_n_cnts = np.zeros(n_coarse_bins, dtype=np.float64)
 
-            for fine_bin in range(day_start, day_end):
+            for fine_bin in range(cycle_start, cycle_end):
                 
                 x, cnt_tbl_idx = g._get_user_count(cnt_tbl_idx, user_counts_nt, usr_end_idx, fine_bin)
                 
@@ -167,7 +167,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
             # Updating the users first row and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
-            f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
+            f.update_grid(u, v, p, user_id, usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_n_cnts, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             f.update_n_counts_and_alpha_grids(n_counts, alpha_mu_grid, alpha_sigma2_grid, user_id, usr_updt_n_cnts, w, bin_metric_nt.fine_bins_per_coarse_bin, config_nt)
             
         g.raise_parameter_errors(n_threads, thread_errors)
