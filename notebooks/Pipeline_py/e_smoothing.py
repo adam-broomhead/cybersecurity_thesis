@@ -75,9 +75,10 @@ def get_cluster_target(user_grid, cluster_grid, cluster_assignments, user_totals
 #####################################
 
 @njit 
+@njit 
 def smooth_params(user_param_grid, cluster_param_grid, cluster_assignments, user_totals, cluster_totals, 
-                  alpha_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
-    ''' 
+                  alpha_grid, degen_mask, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
+    '''
     Interpolated params with the interpolation weights
     Smooths params if applicable
     '''
@@ -111,27 +112,35 @@ def smooth_params(user_param_grid, cluster_param_grid, cluster_assignments, user
     else:
         v_1 = smoothing_function(alpha_1, user_param_grid[crnt_user, _1_coarse_bin], target_1)
 
+    # Do not interpolate towards a degenerate positive count distribution
+    if degen_mask is not None:
+        if degen_mask[crnt_user, neg_1_coarse_bin]:
+            v_neg_1 = v_0
+        if degen_mask[crnt_user, _1_coarse_bin]:
+            v_1 = v_0
+
     # Interpolate the values 
     return interpolate_values(v_neg_1, v_0, v_1, crnt_fine_bin_within_coarse_pos, interpolation_weights)
 
 @njit
 def get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_assignments, 
                         user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
-                        alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, crnt_user, crnt_coarse_bin, 
+                        alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, degen_mask, crnt_user, crnt_coarse_bin, 
                         crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
     '''
     Smooths mu sigma2 and p
     '''
     
     mu = smooth_params(u, cluster_u, cluster_assignments, user_u_totals, cluster_u_totals, 
-                       alpha_mu_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                       alpha_mu_grid, degen_mask, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
     sigma2 = smooth_params(v, cluster_v, cluster_assignments, user_v_totals, cluster_v_totals, 
-                           alpha_sigma2_grid, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                           alpha_sigma2_grid, degen_mask, crnt_user, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
     if config_nt.hurdle_model:
-        p_val = smooth_params(p, cluster_p, cluster_assignments, user_p_totals, cluster_p_totals, alpha_p_grid, crnt_user, crnt_coarse_bin, 
-                    crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+        p_val = smooth_params(p, cluster_p, cluster_assignments, user_p_totals, cluster_p_totals, 
+                              alpha_p_grid, None, crnt_user, crnt_coarse_bin, 
+                              crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
         # Clipping values above 1 if we shape or rate smooth
         if config_nt.smoothing_target == 1 or config_nt.smoothing_target == 2:

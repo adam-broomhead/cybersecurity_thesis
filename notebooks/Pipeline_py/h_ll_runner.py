@@ -3,12 +3,13 @@ import numpy as np
 import g_ll_runner_utils as g
 import e_smoothing as e
 import f_grids_and_outputs as f
+import d_math as d
 
 @njit(parallel=True)
 def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, 
     n_counts_init, alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init, degen_mask, user_counts_nt, user_interactions_nt, 
     interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, model_idx_nt, breakdown_groups,
-    quadratic_interpolation):
+    quadratic_interpolation, attack_start_fb, attack_sizes):
     ''' 
     Runs the lambert liu algorithm
     Args:
@@ -131,7 +132,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
                 mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = g._get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, 
                                                                                     cluster_groups, user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
-                                                                                    alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                                                                                    alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid, degen_mask, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
                 if quadratic_interpolation:
                     mu_t, sigma_2_t, p_t = g.cap_quadratic_params(mu_t, sigma_2_t, p_t, config_nt.hurdle_model)

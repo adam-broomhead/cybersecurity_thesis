@@ -74,20 +74,20 @@ def _get_user_count(cnt_tbl_idx, user_counts_nt, usr_end_idx, fine_bin_idx):
 @njit(inline='always')
 def _get_smoothed_and_unsmoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
                                         user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
-                                        alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, alpha_zero_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
+                                        alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, alpha_zero_grid, degen_mask, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt):
     ''' 
     Getting the smoothed and unsmoothed params mu, sigma and p
     '''
     # Getting the smoothed params
     mu_t, sigma_2_t, p_t = e.get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
                                             user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
-                                            alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                                            alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, degen_mask, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
     
 
     # Getting unsmoothed but interpolated params and using that for updates (difference from above call is passing smoothing strength 0):
     mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t = e.get_smoothed_params(u, v, p, cluster_u, cluster_v, cluster_p, cluster_groups, 
                                             user_u_totals, user_v_totals, user_p_totals, cluster_u_totals, cluster_v_totals, cluster_p_totals, 
-                                            alpha_zero_grid, alpha_zero_grid, alpha_zero_grid, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
+                                            alpha_zero_grid, alpha_zero_grid, alpha_zero_grid, degen_mask, user_id, crnt_coarse_bin, crnt_fine_bin_within_coarse_pos, interpolation_weights, config_nt)
 
     return mu_t, sigma_2_t, p_t, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t
 

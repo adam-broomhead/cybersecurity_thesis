@@ -7,6 +7,8 @@ from time import perf_counter
 import gc 
 import utils as ut
 import k_metric_breakdowns as k
+from scipy.special import ndtri
+from numba import njit, prange
 
 metric_breakdowns = ut.load_json5('metric_breakdowns')['breakdowns']
 
@@ -51,14 +53,18 @@ class Tuner:
         else:
             return self.u_init, self.v_init, np.zeros_like(self.u_init), self.u_clustering, self.v_clustering, np.zeros_like(self.u_clustering)
         
-    def run_pipeline_ll(self, model, config_nt, train_test_nt, config_dict, degen_mask, breakdown_groups=None):
+    def run_pipeline_ll(self, model, config_nt, train_test_nt, config_dict, degen_mask, breakdown_groups=None, attack_start_fb=None, attack_sizes=None):
         ''' 
         Makes a call to the numba lambert liu runner
         '''
 
-        # Init an empty array if we dont have breakdown requirement
+        # Init empty defaults is args are not passed for breakdown or attacks
         if breakdown_groups is None:
             breakdown_groups = np.empty((0, 0), dtype='int8')
+        if attack_start_fb is None:
+            attack_start_fb = np.empty(0, dtype='int64')
+        if attack_sizes is None:
+            attack_sizes = np.empty(0, dtype='int64')
 
         alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['constant_alpha'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'], self.bin_metric_nt.fine_bins_per_coarse_bin)
         alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['constant_alpha'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'], self.bin_metric_nt.fine_bins_per_coarse_bin)
@@ -90,7 +96,9 @@ class Tuner:
             output_idx_nt=self.output_idx_nt,
             model_idx_nt=self.model_idx_nt,
             breakdown_groups=breakdown_groups,
-            quadratic_interpolation=self.quadratic_interpolation)
+            quadratic_interpolation=self.quadratic_interpolation,
+            attack_start_fb=attack_start_fb,
+            attack_sizes=attack_sizes)
 
     #####################################
     # Output row creation
@@ -439,3 +447,127 @@ class Tuner:
                 ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')
 
             print(f'finished_seed {seed_number + 1}/{len(test_seeds)} in {perf_counter() - seed_start_time:.1f}s')
+
+# ####################################
+# Attack simulation
+# ####################################
+
+def make_detection_setup(degen_mask, train_test_nt, bin_metric_nt, seed):
+    '''
+    Creating a set of fine bins to attack
+    '''
+    rng = np.random.default_rng(seed)
+    n_users = degen_mask.shape[0]
+    eligible_users = np.flatnonzero(~degen_mask.all(axis=1))
+
+    # Creating a list of the users we will attack by shuffling and taking the first half
+    shuffled_users = rng.permutation(eligible_users)
+    attack_user = np.zeros(n_users, dtype='bool')
+    attack_user[shuffled_users[:len(shuffled_users) // 2]] = True
+
+    attack_start_fb = np.full(n_users, -1, dtype='int64')
+
+    for user_id in eligible_users:
+        # Randomly sampling a non degen hour for that user to attack
+        eligible_hours = np.flatnonzero(~degen_mask[user_id])
+        attack_day = rng.integers(0, 7)
+        attack_hour = rng.choice(eligible_hours)
+
+        attack_start_fb[user_id] = (train_test_nt.test_start +
+            attack_day * bin_metric_nt.fine_bins_per_day +
+            attack_hour * bin_metric_nt.fine_bins_per_coarse_bin)
+    return attack_user, attack_start_fb
+
+
+
+@njit(parallel=True)
+def get_ewma_scores(z_scores, alert_w, initial_scores):
+    '''
+    Updates EWMA scores using z scores
+    '''
+    ewma_scores = np.empty_like(z_scores)
+    for usr_row_idx in prange(z_scores.shape[0]):
+        current_score = initial_scores[usr_row_idx]
+
+        for fine_bin_idx in range(z_scores.shape[1]):
+            z = z_scores[usr_row_idx, fine_bin_idx]
+            # Update non degens
+            if not np.isnan(z):
+                current_score = (1 - alert_w) * current_score + alert_w * z
+            ewma_scores[usr_row_idx, fine_bin_idx] = current_score
+
+    return ewma_scores
+
+def get_z_scores(p):
+    '''
+    Gets the z scores for all non-degenerate bins
+    '''
+    z = np.full_like(p, np.nan)
+    mask = ~np.isnan(p)
+    z[mask] = ndtri(1 - p[mask])
+    return z
+
+def get_attack_max_scores(attack_z, observed_ewma, attack_start_fb, alert_w, train_test_nt, bin_metric_nt):
+
+    # Getting the users which had an attack
+    valid_attack = attack_start_fb >= 0
+    n_users, n_attack_sizes, n_day_fbs = attack_z.shape
+
+    attack_day_start_fb = (attack_start_fb // bin_metric_nt.fine_bins_per_cycle * bin_metric_nt.fine_bins_per_cycle)
+
+    attack_day_start_idx = (attack_day_start_fb - train_test_nt.test_start)
+
+    attack_fb_within_day = (attack_start_fb - attack_day_start_fb)
+
+    initial_scores = np.zeros(n_users, dtype=observed_ewma.dtype)
+
+    user_idx = np.flatnonzero(valid_attack)
+
+    initial_scores[user_idx] = observed_ewma[user_idx, attack_day_start_idx[user_idx] - 1]
+
+    attack_ewma = get_ewma_scores(attack_z.reshape(n_users * n_attack_sizes, n_day_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes)).reshape(n_users, n_attack_sizes, n_day_fbs)
+
+    attack_max = np.full((n_users, n_attack_sizes), np.nan)
+
+    for user_id in np.flatnonzero(valid_attack):
+        attack_max[user_id] = np.max(attack_ewma[user_id, :, attack_fb_within_day[user_id]:,], axis=1)
+
+    return attack_max, valid_attack
+
+def get_split_detection_results(observed_ewma, observed_mask, attack_max, attack_user, attack_user_value, 
+                                valid_attack, attack_sizes, fpr_rates, alert_w, seed, experiment_name):
+    threshold_users = attack_user != attack_user_value
+    evaluation_users = attack_user == attack_user_value
+
+    evaluation_attack_users = evaluation_users & valid_attack
+
+    threshold_scores = observed_ewma[threshold_users][observed_mask[threshold_users]]
+
+    evaluation_scores = observed_ewma[evaluation_users][observed_mask[evaluation_users]]
+
+    thresholds = np.quantile(threshold_scores, 1.0 - np.asarray(fpr_rates))
+
+    results = []
+
+    for fpr_rate, threshold in zip(fpr_rates, thresholds):
+
+        n_observed = evaluation_scores.size
+        n_false_positives = np.count_nonzero(evaluation_scores > threshold)
+
+        for attack_idx, attack_size in enumerate(attack_sizes):
+
+            attack_scores = attack_max[evaluation_attack_users, attack_idx]
+            results.append({
+                'experiment_name': experiment_name,
+                'seed': int(seed),
+                'alert_w': float(alert_w),
+                'fpr_rate': float(fpr_rate),
+                'attack_size': int(attack_size),
+                'attack_user': bool(attack_user_value),
+                'threshold': float(threshold),
+                'n_observed': int(n_observed),
+                'n_false_positives': int(n_false_positives),
+                'n_attacks': int(attack_scores.size),
+                'n_detected': int(np.count_nonzero(attack_scores > threshold)),})
+
+    return results

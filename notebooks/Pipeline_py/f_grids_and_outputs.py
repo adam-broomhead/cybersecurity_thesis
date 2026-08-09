@@ -147,3 +147,5 @@ def update_calibration_outputs(user_id, lpmf, log_strict_upper_tail, log_calibra
         for threshold_idx in range(log_calibration_thresholds.shape[0]):
             if rdm_upper_tail < log_calibration_thresholds[threshold_idx]:
                 calibration_output[breakdown_type_idx, breakdown_group_idx, 2 + threshold_idx,] += 1
+
+    return rdm_upper_tail
