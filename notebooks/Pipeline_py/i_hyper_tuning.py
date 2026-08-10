@@ -415,7 +415,7 @@ class Tuner:
                                     model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
                                     p_clustering=p_cluster, train_test_dict=train_test_dict)
 
-        output_metrics, calibration_outputs, user_output_metrics = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
+            output_metrics, calibration_outputs, user_output_metrics, observed_p_vals, attack_p_vals = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
             train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups)
 
         if best_config['nll_only']:
@@ -423,7 +423,10 @@ class Tuner:
         else:
             test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
         test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics, experiment_name=experiment_name, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster)
-        return test_results, test_user_results
+
+        detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_user, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, best_config['seed'], experiment_name)
+        
+        return test_results, test_user_results, detection_results
 
     def run_test_seeds(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
         '''
@@ -436,15 +439,17 @@ class Tuner:
             run_config = selected_config.copy()
             run_config['seed'] = seed
 
-            test_results, user_results = self.test_run(experiment_name=experiment_name, hurdle_nb_model=hurdle_nb_model,
+            test_results, user_results, detection_results = self.test_run(experiment_name=experiment_name, hurdle_nb_model=hurdle_nb_model,
                                     selected_config=run_config, train_test_dict=train_test_dict, base_config=base_config, 
                                     degen_mask=degen_mask, bin_metric_dict=bin_metric_dict, nll_only=False)
 
             ut.store_run_results(results=test_results, dir=f'test/{experiment_name}/full', run_name=experiment_name)
+            ut.store_run_results(results=detection_results, dir=f'test/{experiment_name}/detection', run_name=f'{experiment_name}_detection')
 
             # We only have seed variation in clustering and calibration therefore the log liklihood table only varies for cluster_smoothing
             if experiment_name == 'cluster_smoothing' or seed_number == 0:
                 ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')
+
 
             print(f'finished_seed {seed_number + 1}/{len(test_seeds)} in {perf_counter() - seed_start_time:.1f}s')
 
@@ -470,7 +475,7 @@ def make_detection_setup(degen_mask, train_test_nt, bin_metric_nt, seed):
     for user_id in eligible_users:
         # Randomly sampling a non degen hour for that user to attack
         eligible_hours = np.flatnonzero(~degen_mask[user_id])
-        attack_day = rng.integers(0, 7)
+        attack_day = rng.integers(7, 14)
         attack_hour = rng.choice(eligible_hours)
 
         attack_start_fb[user_id] = (train_test_nt.test_start +
@@ -502,87 +507,78 @@ def get_z_scores(p):
     '''
     z = np.full_like(p, np.nan)
     mask = ~np.isnan(p)
-    z[mask] = ndtri(1 - p[mask])
+    z[mask] = -ndtri(p[mask])
     return z
 
-def get_attack_max_scores(attack_z, observed_ewma, attack_start_fb, alert_w, train_test_nt):
-    valid_attack = attack_start_fb >= 0
-    n_users, n_attack_sizes, n_day_fbs = attack_z.shape
+def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt):
+    '''
+    Gets the highest EWMA score during the attack for each fb
+    '''
 
-    attack_offset = attack_start_fb - train_test_nt.test_start
+    # Init variables
+    n_users, n_attack_sizes, n_attack_fbs = attack_z_vals.shape
+    initial_scores = np.zeros(n_users, dtype='float64')
 
-    attack_day_start_idx = attack_offset // n_day_fbs * n_day_fbs
+    # Getting initial scored of EWMA before bin starts
+    usrs_possible_to_attack = attack_start_fb >= 0
+    attackable_user_idxs = np.where(usrs_possible_to_attack)[0]
+    attack_test_relative_fb = attack_start_fb - train_test_nt.test_start
+    initial_scores[attackable_user_idxs] = observed_ewma[attackable_user_idxs, attack_test_relative_fb[attackable_user_idxs] - 1]
 
-    attack_fb_within_day = attack_offset % n_day_fbs
+    # Running EWMA and taking the max
+    attack_ewma = get_ewma_scores(attack_z_vals.reshape(n_users * n_attack_sizes, n_attack_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes)).reshape(n_users, n_attack_sizes, n_attack_fbs)
+    attack_max = np.max(attack_ewma, axis=2)
 
-    initial_scores = np.zeros(n_users, dtype=observed_ewma.dtype)
+    return attack_max, usrs_possible_to_attack
 
-    user_idx = np.flatnonzero(valid_attack)
+def get_split_detection_results(observed_ewma, observed_mask, attack_max, attack_user, 
+                                usrs_possible_to_attack, attack_sizes, fpr_rates, alert_w, seed, experiment_name):
+    '''
+    Getting the detection results for a single data split
+    '''
+    # Getting the user split
+    users_held_out = attack_user != True
+    users_attacked = (attack_user == True) & usrs_possible_to_attack
 
-    initial_scores[user_idx] = observed_ewma[user_idx, attack_day_start_idx[user_idx] - 1]
+    # Getting the threshold value
+    threshold_scores = observed_ewma[users_held_out][observed_mask[users_held_out]]
+    thresholds = np.quantile(threshold_scores, 1 - np.asarray(fpr_rates))
 
-    attack_ewma = get_ewma_scores(attack_z.reshape(n_users * n_attack_sizes, n_day_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes)).reshape(n_users, n_attack_sizes, n_day_fbs)
-
-    attack_max = np.full((n_users, n_attack_sizes), np.nan,)
-
-    for user_id in user_idx:
-        attack_max[user_id] = np.max(attack_ewma[user_id, :, attack_fb_within_day[user_id]:,], axis=1,)
-
-    return attack_max, valid_attack
-
-def get_split_detection_results(observed_ewma, observed_mask, attack_max, attack_user, attack_user_value, 
-                                valid_attack, attack_sizes, fpr_rates, alert_w, seed, experiment_name):
-    threshold_users = attack_user != attack_user_value
-    evaluation_users = attack_user == attack_user_value
-
-    evaluation_attack_users = evaluation_users & valid_attack
-
-    threshold_scores = observed_ewma[threshold_users][observed_mask[threshold_users]]
-
-    evaluation_scores = observed_ewma[evaluation_users][observed_mask[evaluation_users]]
-
-    thresholds = np.quantile(threshold_scores, 1.0 - np.asarray(fpr_rates))
-
+    # Iterating over the rates and attack sizes and seeing how many detected
     results = []
-
     for fpr_rate, threshold in zip(fpr_rates, thresholds):
-
-        n_observed = evaluation_scores.size
-        n_false_positives = np.count_nonzero(evaluation_scores > threshold)
-
-        for attack_idx, attack_size in enumerate(attack_sizes):
-
-            attack_scores = attack_max[evaluation_attack_users, attack_idx]
+        for attack_size_idx, attack_size in enumerate(attack_sizes):
+            attack_scores = attack_max[users_attacked, attack_size_idx]
             results.append({
                 'experiment_name': experiment_name,
                 'seed': int(seed),
                 'alert_w': float(alert_w),
                 'fpr_rate': float(fpr_rate),
                 'attack_size': int(attack_size),
-                'attack_user': bool(attack_user_value),
                 'threshold': float(threshold),
-                'n_observed': int(n_observed),
-                'n_false_positives': int(n_false_positives),
                 'n_attacks': int(attack_scores.size),
-                'n_detected': int(np.count_nonzero(attack_scores > threshold)),})
-
+                'n_detected': int(np.count_nonzero(attack_scores > threshold))})
     return results
 
-def get_detection_results(observed_p, attack_p, attack_user, attack_start_fb, attack_sizes, alert_w_vals, fpr_rates, train_test_nt, seed, experiment_name):
-    observed_mask = ~np.isnan(observed_p)
-
-    observed_z = get_z_scores(observed_p)
-    attack_z = get_z_scores(attack_p)
-
-    n_users = observed_p.shape[0]
+def get_detection_results(observed_p_vals, attack_p_vals, attack_user, attack_start_fb, attack_sizes, alert_w_vals, fpr_rates, train_test_nt, seed, experiment_name):
+    '''
+    Gets the detection results from observed p values and attack p values
+    '''
+    # Init varaibles and outputs
+    non_degen_fb_mask = ~np.isnan(observed_p_vals)
+    observed_z_vals = get_z_scores(observed_p_vals)
+    attack_z_vals= get_z_scores(attack_p_vals)
+    n_users = observed_p_vals.shape[0]
     results = []
 
     for alert_w in alert_w_vals:
-        observed_ewma = get_ewma_scores(observed_z, alert_w, np.zeros(n_users))
+        # Getting observed EWMA vals and attack max vals
+        observed_ewma = get_ewma_scores(observed_z_vals, alert_w, np.zeros(n_users))
+        attack_max, usrs_possible_to_attack = get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt)
 
-        attack_max, valid_attack = get_attack_max_scores(attack_z, observed_ewma, attack_start_fb, alert_w, train_test_nt)
-
-        for attack_user_value in (True, False):
-            results.extend(get_split_detection_results(observed_ewma, observed_mask, attack_max, attack_user, attack_user_value, valid_attack, attack_sizes, fpr_rates, alert_w, seed, experiment_name))
-
+        # Getting detection results
+        results.extend(get_split_detection_results(observed_ewma[:, observed_ewma.shape[1] // 2:], 
+                                                    non_degen_fb_mask[:, non_degen_fb_mask.shape[1] // 2:], 
+                                                    attack_max, attack_user, usrs_possible_to_attack, 
+                                                    attack_sizes, fpr_rates, alert_w, seed, experiment_name))
     return results

@@ -73,8 +73,12 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     thread_output_metrics = np.zeros((n_threads, 2, len(output_idx_nt)), dtype='float64')
     if config_nt.nll_only:
         thread_calibration_output = np.empty( (0, 0, 0, 0), dtype='float64')
+        observed_p_vals = np.empty((0, 0), dtype='float64')
+        attack_p_vals = np.empty((0, 0, 0), dtype='float64')
+        attack_bin_inputs = np.empty((0, 0, 0), dtype='float64')
     else:
         thread_calibration_output = np.zeros((n_threads, n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
+        observed_p, attack_p, attack_bin_inputs = g.init_detection_outputs(n_users, train_test_nt.test_end - train_test_nt.test_start, attack_sizes.shape[0], bin_metric_nt.fine_bins_per_coarse_bin)
 
     # Init pointer for user interactions
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
@@ -107,7 +111,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         cluster_v_totals = e.get_grid_row_sums(cluster_v)
         cluster_p_totals = e.get_grid_row_sums(cluster_p)
 
-        # (terate over the users and init the pointers to that users row
+        # Iterate over the users and init the pointers to that users row
         for user_id in prange(n_users):
             thread_id = get_thread_id()
             if calc_calibration:
@@ -115,6 +119,8 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
             cnt_tbl_idx = usr_frst_rw[user_id]
             usr_end_idx = user_interactions_nt.user_last_index[user_id]
+
+            is_attack_day = calc_calibration and cycle_start <= attack_start_fb[user_id] < cycle_end
 
             # Init numpy vectors for calculating the user sums
             usr_updt_u_sum = np.zeros(n_coarse_bins, dtype=np.float64)
@@ -162,9 +168,15 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                                 f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=lpmf)
 
                             if calc_calibration:
-                                f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
+                                observed_log_p_vals = f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
+                                if is_attack_day:
+                                    g.store_attack_bin_inputs(attack_bin_inputs[user_id], fine_bin, attack_start_fb[user_id], x, mu_t, sigma_2_t, p_t)
                 if update_error == 0:
                     f.collect_temp_grid(usr_updt_u_sum, usr_updt_v_sum, usr_updt_p_sum, usr_updt_n_cnts, crnt_coarse_bin, x, mu_unsmth_t, sigma_unsmth_2_t, p_unsmth_t, w, config_nt)
+
+            # Scoring attacks
+            if is_attack_day:
+                g.get_attack_p_values(attack_p[user_id], attack_bin_inputs[user_id], attack_sizes, config_nt, log_min_likelihood, log_min_p_value)
 
             # Updating the users first row and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
@@ -176,4 +188,4 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
-    return output_metrics, calibration_output, user_output_metrics
+    return output_metrics, calibration_output, user_output_metrics, attack_p_vals, observed_p_vals
