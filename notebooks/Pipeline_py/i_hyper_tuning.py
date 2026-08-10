@@ -225,7 +225,6 @@ class Tuner:
 
             output['cluster_distance'] = c.get_user_cluster_distances(matrix_to_cluster=matrix_to_cluster, cluster_assignments=model['cluster_assignments'], 
                                             cluster_centres=model['cluster_centres'], distance_metric=model['distance_metric'])
-
         return output
 
     #####################################
@@ -407,16 +406,18 @@ class Tuner:
         _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(best_config)
         test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
 
-        # Getting deciles for breakdown if needed
+        # Getting breakdown groups and attack groups if needed
         if best_config['nll_only']:
             breakdown_groups = None
         else:
             breakdown_groups = k.get_metric_breakdown(user_counts_nt=self.user_counts_nt, user_type_groups=self.user_type_groups,
                                     model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
                                     p_clustering=p_cluster, train_test_dict=train_test_dict)
+            attack_sizes = np.asarray(best_config['attack_sizes'], dtype='int64')
+            attack_user, attack_start_fb = make_detection_setup(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
 
             output_metrics, calibration_outputs, user_output_metrics, observed_p_vals, attack_p_vals = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
-            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups)
+            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups, attack_start_fb=attack_start_fb, attack_sizes=attack_sizes)
 
         if best_config['nll_only']:
             test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, test_valid='test', experiment_name=experiment_name)]
@@ -472,7 +473,7 @@ def make_detection_setup(degen_mask, train_test_nt, bin_metric_nt, seed):
 
     attack_start_fb = np.full(n_users, -1, dtype='int64')
 
-    for user_id in eligible_users:
+    for user_id in np.where(attack_user)[0]:
         # Randomly sampling a non degen hour for that user to attack
         eligible_hours = np.flatnonzero(~degen_mask[user_id])
         attack_day = rng.integers(7, 14)

@@ -78,7 +78,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         attack_bin_inputs = np.empty((0, 0, 0), dtype='float64')
     else:
         thread_calibration_output = np.zeros((n_threads, n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
-        observed_p, attack_p, attack_bin_inputs = g.init_detection_outputs(n_users, train_test_nt.test_end - train_test_nt.test_start, attack_sizes.shape[0], bin_metric_nt.fine_bins_per_coarse_bin)
+        observed_p_vals, attack_p_vals, attack_bin_inputs = g.init_detection_outputs(n_users, train_test_nt.test_end - train_test_nt.test_start, attack_sizes.shape[0], bin_metric_nt.fine_bins_per_coarse_bin)
 
     # Init pointer for user interactions
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
@@ -169,6 +169,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
                             if calc_calibration:
                                 observed_log_p_vals = f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
+                                observed_p_vals[user_id, fine_bin - train_test_nt.test_start] = np.exp(observed_log_p_vals)
                                 if is_attack_day:
                                     g.store_attack_bin_inputs(attack_bin_inputs[user_id], fine_bin, attack_start_fb[user_id], x, mu_t, sigma_2_t, p_t)
                 if update_error == 0:
@@ -176,7 +177,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
             # Scoring attacks
             if is_attack_day:
-                g.get_attack_p_values(attack_p[user_id], attack_bin_inputs[user_id], attack_sizes, config_nt, log_min_likelihood, log_min_p_value)
+                g.get_attack_p_values(attack_p_vals[user_id], attack_bin_inputs[user_id], attack_sizes, config_nt, log_min_likelihood, log_min_p_value)
 
             # Updating the users first row and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx
@@ -188,4 +189,4 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         g.combine_threads(output_metrics, thread_output_metrics, calibration_output, thread_calibration_output, output_idx_nt, time_period_int, n_threads, config_nt)
         cluster_u, cluster_v, cluster_p = g.get_new_cluster_centres(cluster_groups, u, v, p, config_nt.distance_metric)
 
-    return output_metrics, calibration_output, user_output_metrics, attack_p_vals, observed_p_vals
+    return output_metrics, calibration_output, user_output_metrics, observed_p_vals, attack_p_vals
