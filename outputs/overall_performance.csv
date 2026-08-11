@@ -1,6 +1,0 @@
-Model,Overall,Human,Machine
-Cluster shrinkage,-1.37041 $\pm$ 0.00012,-1.01590 $\pm$ 0.00021,-1.61060 $\pm$ 0.00010
-Global shrinkage,-1.37168,-1.01610,-1.61258
-No shrinkage,-1.37638,-1.01728,-1.61966
-Hourly user benchmark,-1.45226,-1.06032,-1.71780
-User level benchmark,-1.46085,-1.06623,-1.72819

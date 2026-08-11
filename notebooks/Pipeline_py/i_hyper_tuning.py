@@ -391,6 +391,8 @@ class Tuner:
         '''
         Runs the best config on the test set depending on the experiment name
         '''
+        assert not best_config["nll_only"]
+        
         if selected_config is None:
             raise ValueError(f'Config not found for {experiment_name}')
 
@@ -417,7 +419,7 @@ class Tuner:
             attack_user, attack_start_fb = make_detection_setup(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
 
             output_metrics, calibration_outputs, user_output_metrics, observed_p_vals, attack_p_vals = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
-            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups, attack_start_fb=attack_start_fb, attack_sizes=attack_sizes)
+                train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups, attack_start_fb=attack_start_fb, attack_sizes=attack_sizes)
 
         if best_config['nll_only']:
             test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, test_valid='test', experiment_name=experiment_name)]
