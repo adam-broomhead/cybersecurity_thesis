@@ -66,11 +66,11 @@ class Tuner:
         if attack_sizes is None:
             attack_sizes = np.empty(0, dtype='int64')
 
+        # Init grids needed for the ll runner
         alpha_mu_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['constant_alpha'], config_dict['smooth_a_mu'], config_dict['smooth_t_mu'], self.bin_metric_nt.fine_bins_per_coarse_bin)
         alpha_sigma2_grid_init = f.init_alpha_grid(self.n_counts_init, config_dict['constant_alpha'], config_dict['smooth_a_sigma2'], config_dict['smooth_t_sigma2'], self.bin_metric_nt.fine_bins_per_coarse_bin)
         n_counts_p = np.full_like(self.n_counts_init, self.bin_metric_nt.fine_bins_per_coarse_bin, dtype='float64')
         alpha_p_grid_init = f.init_alpha_grid(n_counts_p, config_dict['constant_alpha'], config_dict['smooth_a_p'], config_dict['smooth_t_p'], self.bin_metric_nt.fine_bins_per_coarse_bin)
-
         u, v, p, _, _, _ = self.get_ll_param_grids(config_dict)
         cluster_u_init, cluster_v_init, cluster_p_init = c.get_cluster_centres(cluster_groups=model['cluster_assignments'], u_init=u, v_init=v, p_init=p, distance_metric=config_dict['distance_metric'])
 
@@ -124,7 +124,7 @@ class Tuner:
         
 
         output = {
-            # Row descriptions
+            # Configs
             'smoothed_model_name': model['name'],
             'experiment_name' : experiment_name,
             'seed' : config_dict['seed'],
@@ -141,7 +141,7 @@ class Tuner:
             'hurdle_model': config_dict['hurdle_model'],
             'test_valid' : test_valid,
 
-            # Log likelihood for non degenerate bins
+            # Output metrics
             'non_degen_ll': output_metrics[period_idx, self.output_idx_nt.non_degen_ll_sum] / n_non_degen_bins,
             
             # Clustering metrics
@@ -155,7 +155,7 @@ class Tuner:
 
     def make_full_output_rows(self, model, calibration_outputs, config_dict, experiment_name):
         '''
-        Makes outputs rows for full test runs
+        Makes outputs rows for full test runs involving breakdowns and calibration
         '''
         output = []
 
@@ -170,7 +170,7 @@ class Tuner:
                     continue
 
                 output_row = {
-                    # Row descriptions
+                    # Configs
                     'smoothed_model_name': model['name'],
                     'experiment_name': experiment_name,
                     'seed': config_dict['seed'],
@@ -202,16 +202,17 @@ class Tuner:
                     'non_degen_ll_sum': group_output[1],
                 }
 
+                # First two rows are log likelihood + n bins rest are calibration
                 for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
                     threshold_name = format(float(threshold), 'f')
-                    output_row[f'calibration_count_'f'{threshold_name}'] = group_output[2 + threshold_idx]
+                    output_row[f'calibration_count_{threshold_name}'] = group_output[2 + threshold_idx]
                 output.append(output_row)
 
         return output
 
     def make_user_output_table(self, model, user_output_metrics, experiment_name, config_dict, u_clustering, v_clustering, p_clustering):
         '''
-        Creates the user-level output table
+        Creates the user-level log likelihood output table
         '''
         n_users = user_output_metrics.shape[0]
 
@@ -246,10 +247,10 @@ class Tuner:
         output_list = []
         seen_configs = set()
 
+        # Keep sampling until we hit the required number to sample
         while len(output_list) < hyperparams['n_hypers_sampled']:
 
             w_inf = rng.choice(hyperparams['w_inf_vals'])
-
 
             # Setting clustering hyperparameters or defaults
             if experiment_name == 'global_smoothing':
@@ -295,11 +296,11 @@ class Tuner:
                          'distance_metric': distance_metric, 'constant_alpha': constant_alpha, 
                          'smooth_a_mu': smooth_a_mu, 'smooth_a_sigma2': smooth_a_sigma2, 'smooth_a_p': smooth_a_p, 'smooth_t_mu': smooth_t_mu, 'smooth_t_sigma2': smooth_t_sigma2, 'smooth_t_p': smooth_t_p}
 
+            # Storing hyper values in seen configs and adding to output
             config_tuple = tuple(hyper_row.values())
             if config_tuple not in seen_configs:
                 seen_configs.add(config_tuple)
                 output_list.append(hyper_row)
-
         return output_list
 
     #####################################
@@ -383,15 +384,136 @@ class Tuner:
 
         return results
 
+
+    # ####################################
+    # Attack simulation
+    # ####################################
+
+    def get_attack_hour(degen_mask, train_test_nt, bin_metric_nt, seed):
+        '''
+        Selects an hour to attack in the second week of test for each user
+        '''
+        rng = np.random.default_rng(seed)
+        n_users = degen_mask.shape[0]
+        n_hours_in_mask = degen_mask.shape[1]
+
+        # Init attack time array
+        attack_start_fb = np.full(n_users, -1, dtype='int64')
+        hours_in_wk_2 = np.arange(7 * 24, 14 * 24)
+
+        for user_id in range(n_users):
+            eligible_hours = hours_in_wk_2[~degen_mask[user_id, hours_in_wk_2 % n_hours_in_mask]]
+
+            if eligible_hours.size > 0:
+                attack_hour = rng.choice(eligible_hours)
+                attack_start_fb[user_id] = train_test_nt.test_start + attack_hour * bin_metric_nt.fine_bins_per_coarse_bin
+
+        return attack_start_fb
+
+    @njit(parallel=True)
+    def get_ewma_scores(z_scores, alert_w, initial_scores):
+        '''
+        Updates EWMA scores using z scores
+        '''
+        ewma_scores = np.empty_like(z_scores)
+        for usr_row_idx in prange(z_scores.shape[0]):
+            current_score = initial_scores[usr_row_idx]
+
+            for fine_bin_idx in range(z_scores.shape[1]):
+                z = z_scores[usr_row_idx, fine_bin_idx]
+                # Update non degens
+                if not np.isnan(z):
+                    current_score = (1 - alert_w) * current_score + alert_w * z
+                ewma_scores[usr_row_idx, fine_bin_idx] = current_score
+
+        return ewma_scores
+
+    def get_z_scores(p):
+        '''
+        Gets the z scores for all non-degenerate bins
+        '''
+        z = np.full_like(p, np.nan)
+        mask = ~np.isnan(p)
+        z[mask] = -ndtri(p[mask])
+        return z
+
+    def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt):
+        '''
+        Gets the highest EWMA score during the attack for each fb
+        '''
+
+        # Init variables
+        n_users, n_attack_sizes, n_attack_fbs = attack_z_vals.shape
+        initial_scores = np.zeros(n_users, dtype='float64')
+
+        # Getting initial scored of EWMA before bin starts
+        usrs_possible_to_attack = attack_start_fb >= 0
+        attackable_user_idxs = np.where(usrs_possible_to_attack)[0]
+        attack_test_relative_fb = attack_start_fb - train_test_nt.test_start
+        initial_scores[attackable_user_idxs] = observed_ewma[attackable_user_idxs, attack_test_relative_fb[attackable_user_idxs] - 1]
+
+        # Running EWMA and taking the max
+        attack_ewma = get_ewma_scores(attack_z_vals.reshape(n_users * n_attack_sizes, n_attack_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes))
+        attack_ewma = attack_ewma.reshape(n_users, n_attack_sizes, n_attack_fbs)
+        attack_max = np.max(attack_ewma, axis=2)
+
+        return attack_max, usrs_possible_to_attack
+
+    def get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, alert_w_vals, fpr_rates,
+                            train_test_nt, bin_metric_nt, seed, experiment_name):
+        '''
+        Gets the results for the injected attack detection from the observed p values over the two weeks 
+        and the attack p vals for a given hour
+        '''
+        # Get degen from p vals
+        non_degen_fb_mask = ~np.isnan(observed_p_vals)
+
+        # Get the observed z score for thresholding and attack p vals
+        observed_z_vals = get_z_scores(observed_p_vals)
+        attack_z_vals = get_z_scores(attack_p_vals)
+
+        n_users = observed_p_vals.shape[0]
+        results = []
+
+        # first 6 hours to test end calibration period and shrink the non degen mask to this period
+        threshold_calibration_start = 6 * bin_metric_nt.fine_bins_per_coarse_bin
+        threshold_calibration_end = bin_metric_nt.fine_bins_per_week
+        non_degen_fb_mask = non_degen_fb_mask[:, threshold_calibration_start:threshold_calibration_end]
+
+        for alert_w in alert_w_vals:
+            observed_ewma = get_ewma_scores(observed_z_vals, alert_w, np.zeros(n_users))
+            calibration_ewma = observed_ewma[:, threshold_calibration_start:threshold_calibration_end]
+            threshold_scores = calibration_ewma[non_degen_fb_mask]
+
+            # Get thesholds and use them to compute max EWMA during attack
+            thresholds = np.quantile(threshold_scores, 1 - np.asarray(fpr_rates))
+            attack_max, users_attacked = get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt)
+
+            # Compare detection threshold and attack
+            for fpr_rate, threshold in zip(fpr_rates, thresholds):
+                for attack_size_idx, attack_size in enumerate(attack_sizes):
+                    attack_scores = attack_max[users_attacked, attack_size_idx]
+
+                    results.append({'experiment_name': experiment_name,
+                                    'seed': seed,
+                                    'alert_w': alert_w,
+                                    'fpr_rate': fpr_rate,
+                                    'attack_size': attack_size,
+
+                                    'threshold': threshold,
+                                    'n_attacks': attack_scores.size,
+                                    'n_detected': np.count_nonzero(attack_scores > threshold)})
+        return results
+
     #####################################
     # Test set runner
     #####################################
 
-    def test_run(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict, nll_only=False):
+    def test_run(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
         '''
+        Single seed test runner, using selected config
         Runs the best config on the test set depending on the experiment name
         '''
-        assert not nll_only
         
         if selected_config is None:
             raise ValueError(f'Config not found for {experiment_name}')
@@ -401,35 +523,34 @@ class Tuner:
 
         # Create one complete runnable configuration
         best_config = ut.merge_configs(base_config, hurdle_nb_model, selected_config)
-        best_config['nll_only'] = nll_only
+        best_config['nll_only'] = False
 
+        # Creating nts and param grids and model
         _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
-
         _, _, _, u_cluster, v_cluster, p_cluster = self.get_ll_param_grids(best_config)
         test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
 
         # Getting breakdown groups and attack groups if needed
-        if best_config['nll_only']:
-            breakdown_groups = None
-        else:
-            breakdown_groups = k.get_metric_breakdown(user_counts_nt=self.user_counts_nt, user_type_groups=self.user_type_groups,
-                                    model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
-                                    p_clustering=p_cluster, train_test_dict=train_test_dict)
-            attack_sizes = np.asarray(best_config['attack_sizes'], dtype='int64')
-            attack_user, attack_start_fb = get_attack_hour(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
+        breakdown_groups = k.get_metric_breakdown(user_counts_nt=self.user_counts_nt, user_type_groups=self.user_type_groups,
+                                model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
+                                p_clustering=p_cluster, train_test_dict=train_test_dict)
+        attack_sizes = np.asarray(best_config['attack_sizes'], dtype='int64')
+        attack_start_fb = get_attack_hour(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
 
-            output_metrics, calibration_outputs, user_output_metrics, observed_p_vals, attack_p_vals = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
-                train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups, attack_start_fb=attack_start_fb, attack_sizes=attack_sizes)
+        # Run LL pipeline
+        _, calibration_outputs, user_output_metrics, observed_p_vals, attack_p_vals = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
+            train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups, attack_start_fb=attack_start_fb, attack_sizes=attack_sizes)
 
-        if best_config['nll_only']:
-            test_results = [self.make_output_table_row(model=test_model, output_metrics=output_metrics, config_dict=best_config, test_valid='test', experiment_name=experiment_name)]
-        else:
-            test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
+        # Make results table
+        test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
+
+        # Multi user nll and attack detection outputs
         test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics, experiment_name=experiment_name, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster)
-
         detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, self.bin_metric_nt, best_config['seed'], experiment_name)
                 
         return test_results, test_user_results, detection_results
+
+
 
     def run_test_seeds(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
         '''
@@ -444,7 +565,7 @@ class Tuner:
 
             test_results, user_results, detection_results = self.test_run(experiment_name=experiment_name, hurdle_nb_model=hurdle_nb_model,
                                     selected_config=run_config, train_test_dict=train_test_dict, base_config=base_config, 
-                                    degen_mask=degen_mask, bin_metric_dict=bin_metric_dict, nll_only=False)
+                                    degen_mask=degen_mask, bin_metric_dict=bin_metric_dict)
 
             ut.store_run_results(results=test_results, dir=f'test/{experiment_name}/full', run_name=experiment_name)
             ut.store_run_results(results=detection_results, dir=f'test/{experiment_name}/detection', run_name=f'{experiment_name}_detection')
@@ -455,123 +576,3 @@ class Tuner:
 
 
             print(f'finished_seed {seed_number + 1}/{len(test_seeds)} in {perf_counter() - seed_start_time:.1f}s')
-
-# ####################################
-# Attack simulation
-# ####################################
-
-def get_attack_hour(degen_mask, train_test_nt, bin_metric_nt, seed):
-    '''
-    Selects an hour to attack in the second week of test for each user
-    '''
-    rng = np.random.default_rng(seed)
-    n_users = degen_mask.shape[0]
-    n_hours_in_mask = degen_mask.shape[1]
-
-    # Init attack time array
-    attack_start_fb = np.full(n_users, -1, dtype='int64')
-    hours_in_wk_2 = np.arange(7 * 24, 14 * 24)
-
-    for user_id in range(n_users):
-        eligible_hours = hours_in_wk_2[~degen_mask[user_id, hours_in_wk_2 % n_hours_in_mask]]
-
-        if eligible_hours.size > 0:
-            attack_hour = rng.choice(eligible_hours)
-            attack_start_fb[user_id] = train_test_nt.test_start + attack_hour * bin_metric_nt.fine_bins_per_coarse_bin
-
-    return attack_start_fb
-
-@njit(parallel=True)
-def get_ewma_scores(z_scores, alert_w, initial_scores):
-    '''
-    Updates EWMA scores using z scores
-    '''
-    ewma_scores = np.empty_like(z_scores)
-    for usr_row_idx in prange(z_scores.shape[0]):
-        current_score = initial_scores[usr_row_idx]
-
-        for fine_bin_idx in range(z_scores.shape[1]):
-            z = z_scores[usr_row_idx, fine_bin_idx]
-            # Update non degens
-            if not np.isnan(z):
-                current_score = (1 - alert_w) * current_score + alert_w * z
-            ewma_scores[usr_row_idx, fine_bin_idx] = current_score
-
-    return ewma_scores
-
-def get_z_scores(p):
-    '''
-    Gets the z scores for all non-degenerate bins
-    '''
-    z = np.full_like(p, np.nan)
-    mask = ~np.isnan(p)
-    z[mask] = -ndtri(p[mask])
-    return z
-
-def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt):
-    '''
-    Gets the highest EWMA score during the attack for each fb
-    '''
-
-    # Init variables
-    n_users, n_attack_sizes, n_attack_fbs = attack_z_vals.shape
-    initial_scores = np.zeros(n_users, dtype='float64')
-
-    # Getting initial scored of EWMA before bin starts
-    usrs_possible_to_attack = attack_start_fb >= 0
-    attackable_user_idxs = np.where(usrs_possible_to_attack)[0]
-    attack_test_relative_fb = attack_start_fb - train_test_nt.test_start
-    initial_scores[attackable_user_idxs] = observed_ewma[attackable_user_idxs, attack_test_relative_fb[attackable_user_idxs] - 1]
-
-    # Running EWMA and taking the max
-    attack_ewma = get_ewma_scores(attack_z_vals.reshape(n_users * n_attack_sizes, n_attack_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes))
-    attack_ewma = attack_ewma.reshape(n_users, n_attack_sizes, n_attack_fbs)
-    attack_max = np.max(attack_ewma, axis=2)
-
-    return attack_max, usrs_possible_to_attack
-
-def get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, alert_w_vals, fpr_rates,
-                          train_test_nt, bin_metric_nt, seed, experiment_name):
-    '''
-    Gets the results for the injected attack detection from the observed p values over the two weeks 
-    and the attack p vals for a given hour
-    '''
-    # Get degen from p vals
-    non_degen_fb_mask = ~np.isnan(observed_p_vals)
-
-    # Get the observed z score for thresholding and attack p vals
-    observed_z_vals = get_z_scores(observed_p_vals)
-    attack_z_vals = get_z_scores(attack_p_vals)
-
-    n_users = observed_p_vals.shape[0]
-    results = []
-
-    # first 6 hours to test end calibration period and shrink the non degen mask to this period
-    threshold_calibration_start = 6 * bin_metric_nt.fine_bins_per_coarse_bin
-    threshold_calibration_end = bin_metric_nt.fine_bins_per_week
-    non_degen_fb_mask = non_degen_fb_mask[:, threshold_calibration_start:threshold_calibration_end]
-
-    for alert_w in alert_w_vals:
-        observed_ewma = get_ewma_scores(observed_z_vals, alert_w, np.zeros(n_users))
-        calibration_ewma = observed_ewma[:, threshold_calibration_start:threshold_calibration_end]
-        threshold_scores = calibration_ewma[non_degen_fb_mask]
-
-        # Get thesholds and use them to compute max EWMA during attack
-        thresholds = np.quantile(threshold_scores, 1 - np.asarray(fpr_rates))
-        attack_max, users_attacked = get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt)
-
-        # Compare detection threshold and attack
-        for fpr_rate, threshold in zip(fpr_rates, thresholds):
-            for attack_size_idx, attack_size in enumerate(attack_sizes):
-                attack_scores = attack_max[users_attacked, attack_size_idx]
-
-                results.append({'experiment_name': experiment_name,
-                                'seed': seed,
-                                'alert_w': alert_w,
-                                'fpr_rate': fpr_rate,
-                                'attack_size': attack_size,
-
-                                'threshold': threshold,
-                                'n_attacks': attack_scores.size,
-                                'n_detected': np.count_nonzero(attack_scores > threshold)})
-    return results
