@@ -34,7 +34,7 @@ def get_grid_row_sums(grid):
     n_rows, n_cols = grid.shape
     output = np.zeros(n_rows, dtype='float64')
 
-    # Loop over and count element contributions
+    # Loop over and sum rows
     for row_idx in range(n_rows):
         total = 0
         for col_idx in range(n_cols):

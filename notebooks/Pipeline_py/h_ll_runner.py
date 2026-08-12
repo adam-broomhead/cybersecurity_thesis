@@ -126,7 +126,6 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             usr_updt_u_sum = np.zeros(n_coarse_bins, dtype=np.float64)
             usr_updt_v_sum = np.zeros(n_coarse_bins, dtype=np.float64)
             usr_updt_p_sum = np.zeros(n_coarse_bins, dtype=np.float64)
-            
             usr_updt_n_cnts = np.zeros(n_coarse_bins, dtype=np.float64)
 
             for fine_bin in range(cycle_start, cycle_end):

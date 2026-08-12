@@ -111,7 +111,12 @@ def store_run_results(results, dir, run_name, calibration_results=None, results_
         'n_bins_scored': pl.Int64,
         'non_degen_ll_sum': pl.Float64,
         'user_idx': pl.Int32,
-        'cluster_distance': pl.Float64}
+        'cluster_distance': pl.Float64,
+        'alert_w': pl.Float32,
+        'fpr_rate': pl.Float32,
+        'attack_size': pl.Int32,
+        'n_attacks': pl.Int32,
+        'n_detected': pl.Int32}
 
     results_df = results_df.with_columns([pl.col(column).cast(dtype) for column, dtype in result_dtypes.items() if column in results_df.columns])
 

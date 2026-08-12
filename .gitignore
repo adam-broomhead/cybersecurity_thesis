@@ -1,23 +1,13 @@
-# Python
 __pycache__/
 *.pyc
 .venv/
-
-# Jupyter
 .ipynb_checkpoints/
-
-# Data
 data/
-
-# Temporary files
 tmp/
 temp/
 *.log
 *~
-
 savedplots/
-
 project_root.json5
 junk/
-
 *.zip
