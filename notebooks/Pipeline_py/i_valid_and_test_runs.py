@@ -385,126 +385,6 @@ class Tuner:
         return results
 
 
-    # ####################################
-    # Attack simulation
-    # ####################################
-
-    def get_attack_hour(degen_mask, train_test_nt, bin_metric_nt, seed):
-        '''
-        Selects an hour to attack in the second week of test for each user
-        '''
-        rng = np.random.default_rng(seed)
-        n_users = degen_mask.shape[0]
-        n_hours_in_mask = degen_mask.shape[1]
-
-        # Init attack time array
-        attack_start_fb = np.full(n_users, -1, dtype='int64')
-        hours_in_wk_2 = np.arange(7 * 24, 14 * 24)
-
-        for user_id in range(n_users):
-            eligible_hours = hours_in_wk_2[~degen_mask[user_id, hours_in_wk_2 % n_hours_in_mask]]
-
-            if eligible_hours.size > 0:
-                attack_hour = rng.choice(eligible_hours)
-                attack_start_fb[user_id] = train_test_nt.test_start + attack_hour * bin_metric_nt.fine_bins_per_coarse_bin
-
-        return attack_start_fb
-
-    @njit(parallel=True)
-    def get_ewma_scores(z_scores, alert_w, initial_scores):
-        '''
-        Updates EWMA scores using z scores
-        '''
-        ewma_scores = np.empty_like(z_scores)
-        for usr_row_idx in prange(z_scores.shape[0]):
-            current_score = initial_scores[usr_row_idx]
-
-            for fine_bin_idx in range(z_scores.shape[1]):
-                z = z_scores[usr_row_idx, fine_bin_idx]
-                # Update non degens
-                if not np.isnan(z):
-                    current_score = (1 - alert_w) * current_score + alert_w * z
-                ewma_scores[usr_row_idx, fine_bin_idx] = current_score
-
-        return ewma_scores
-
-    def get_z_scores(p):
-        '''
-        Gets the z scores for all non-degenerate bins
-        '''
-        z = np.full_like(p, np.nan)
-        mask = ~np.isnan(p)
-        z[mask] = -ndtri(p[mask])
-        return z
-
-    def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt):
-        '''
-        Gets the highest EWMA score during the attack for each fb
-        '''
-
-        # Init variables
-        n_users, n_attack_sizes, n_attack_fbs = attack_z_vals.shape
-        initial_scores = np.zeros(n_users, dtype='float64')
-
-        # Getting initial scored of EWMA before bin starts
-        usrs_possible_to_attack = attack_start_fb >= 0
-        attackable_user_idxs = np.where(usrs_possible_to_attack)[0]
-        attack_test_relative_fb = attack_start_fb - train_test_nt.test_start
-        initial_scores[attackable_user_idxs] = observed_ewma[attackable_user_idxs, attack_test_relative_fb[attackable_user_idxs] - 1]
-
-        # Running EWMA and taking the max
-        attack_ewma = get_ewma_scores(attack_z_vals.reshape(n_users * n_attack_sizes, n_attack_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes))
-        attack_ewma = attack_ewma.reshape(n_users, n_attack_sizes, n_attack_fbs)
-        attack_max = np.max(attack_ewma, axis=2)
-
-        return attack_max, usrs_possible_to_attack
-
-    def get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, alert_w_vals, fpr_rates,
-                            train_test_nt, bin_metric_nt, seed, experiment_name):
-        '''
-        Gets the results for the injected attack detection from the observed p values over the two weeks 
-        and the attack p vals for a given hour
-        '''
-        # Get degen from p vals
-        non_degen_fb_mask = ~np.isnan(observed_p_vals)
-
-        # Get the observed z score for thresholding and attack p vals
-        observed_z_vals = get_z_scores(observed_p_vals)
-        attack_z_vals = get_z_scores(attack_p_vals)
-
-        n_users = observed_p_vals.shape[0]
-        results = []
-
-        # first 6 hours to test end calibration period and shrink the non degen mask to this period
-        threshold_calibration_start = 6 * bin_metric_nt.fine_bins_per_coarse_bin
-        threshold_calibration_end = bin_metric_nt.fine_bins_per_week
-        non_degen_fb_mask = non_degen_fb_mask[:, threshold_calibration_start:threshold_calibration_end]
-
-        for alert_w in alert_w_vals:
-            observed_ewma = get_ewma_scores(observed_z_vals, alert_w, np.zeros(n_users))
-            calibration_ewma = observed_ewma[:, threshold_calibration_start:threshold_calibration_end]
-            threshold_scores = calibration_ewma[non_degen_fb_mask]
-
-            # Get thesholds and use them to compute max EWMA during attack
-            thresholds = np.quantile(threshold_scores, 1 - np.asarray(fpr_rates))
-            attack_max, users_attacked = get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt)
-
-            # Compare detection threshold and attack
-            for fpr_rate, threshold in zip(fpr_rates, thresholds):
-                for attack_size_idx, attack_size in enumerate(attack_sizes):
-                    attack_scores = attack_max[users_attacked, attack_size_idx]
-
-                    results.append({'experiment_name': experiment_name,
-                                    'seed': seed,
-                                    'alert_w': alert_w,
-                                    'fpr_rate': fpr_rate,
-                                    'attack_size': attack_size,
-
-                                    'threshold': threshold,
-                                    'n_attacks': attack_scores.size,
-                                    'n_detected': np.count_nonzero(attack_scores > threshold)})
-        return results
-
     #####################################
     # Test set runner
     #####################################
@@ -576,3 +456,123 @@ class Tuner:
 
 
             print(f'finished_seed {seed_number + 1}/{len(test_seeds)} in {perf_counter() - seed_start_time:.1f}s')
+
+# ####################################
+# Attack simulation
+# ####################################
+
+def get_attack_hour(degen_mask, train_test_nt, bin_metric_nt, seed):
+    '''
+    Selects an hour to attack in the second week of test for each user
+    '''
+    rng = np.random.default_rng(seed)
+    n_users = degen_mask.shape[0]
+    n_hours_in_mask = degen_mask.shape[1]
+
+    # Init attack time array
+    attack_start_fb = np.full(n_users, -1, dtype='int64')
+    hours_in_wk_2 = np.arange(7 * 24, 14 * 24)
+
+    for user_id in range(n_users):
+        eligible_hours = hours_in_wk_2[~degen_mask[user_id, hours_in_wk_2 % n_hours_in_mask]]
+
+        if eligible_hours.size > 0:
+            attack_hour = rng.choice(eligible_hours)
+            attack_start_fb[user_id] = train_test_nt.test_start + attack_hour * bin_metric_nt.fine_bins_per_coarse_bin
+
+    return attack_start_fb
+
+@njit(parallel=True)
+def get_ewma_scores(z_scores, alert_w, initial_scores):
+    '''
+    Updates EWMA scores using z scores
+    '''
+    ewma_scores = np.empty_like(z_scores)
+    for usr_row_idx in prange(z_scores.shape[0]):
+        current_score = initial_scores[usr_row_idx]
+
+        for fine_bin_idx in range(z_scores.shape[1]):
+            z = z_scores[usr_row_idx, fine_bin_idx]
+            # Update non degens
+            if not np.isnan(z):
+                current_score = (1 - alert_w) * current_score + alert_w * z
+            ewma_scores[usr_row_idx, fine_bin_idx] = current_score
+
+    return ewma_scores
+
+def get_z_scores(p):
+    '''
+    Gets the z scores for all non-degenerate bins
+    '''
+    z = np.full_like(p, np.nan)
+    mask = ~np.isnan(p)
+    z[mask] = -ndtri(p[mask])
+    return z
+
+def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt):
+    '''
+    Gets the highest EWMA score during the attack for each fb
+    '''
+
+    # Init variables
+    n_users, n_attack_sizes, n_attack_fbs = attack_z_vals.shape
+    initial_scores = np.zeros(n_users, dtype='float64')
+
+    # Getting initial scored of EWMA before bin starts
+    usrs_possible_to_attack = attack_start_fb >= 0
+    attackable_user_idxs = np.where(usrs_possible_to_attack)[0]
+    attack_test_relative_fb = attack_start_fb - train_test_nt.test_start
+    initial_scores[attackable_user_idxs] = observed_ewma[attackable_user_idxs, attack_test_relative_fb[attackable_user_idxs] - 1]
+
+    # Running EWMA and taking the max
+    attack_ewma = get_ewma_scores(attack_z_vals.reshape(n_users * n_attack_sizes, n_attack_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes))
+    attack_ewma = attack_ewma.reshape(n_users, n_attack_sizes, n_attack_fbs)
+    attack_max = np.max(attack_ewma, axis=2)
+
+    return attack_max, usrs_possible_to_attack
+
+def get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, alert_w_vals, fpr_rates,
+                        train_test_nt, bin_metric_nt, seed, experiment_name):
+    '''
+    Gets the results for the injected attack detection from the observed p values over the two weeks 
+    and the attack p vals for a given hour
+    '''
+    # Get degen from p vals
+    non_degen_fb_mask = ~np.isnan(observed_p_vals)
+
+    # Get the observed z score for thresholding and attack p vals
+    observed_z_vals = get_z_scores(observed_p_vals)
+    attack_z_vals = get_z_scores(attack_p_vals)
+
+    n_users = observed_p_vals.shape[0]
+    results = []
+
+    # first 6 hours to test end calibration period and shrink the non degen mask to this period
+    threshold_calibration_start = 6 * bin_metric_nt.fine_bins_per_coarse_bin
+    threshold_calibration_end = bin_metric_nt.fine_bins_per_week
+    non_degen_fb_mask = non_degen_fb_mask[:, threshold_calibration_start:threshold_calibration_end]
+
+    for alert_w in alert_w_vals:
+        observed_ewma = get_ewma_scores(observed_z_vals, alert_w, np.zeros(n_users))
+        calibration_ewma = observed_ewma[:, threshold_calibration_start:threshold_calibration_end]
+        threshold_scores = calibration_ewma[non_degen_fb_mask]
+
+        # Get thesholds and use them to compute max EWMA during attack
+        thresholds = np.quantile(threshold_scores, 1 - np.asarray(fpr_rates))
+        attack_max, users_attacked = get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt)
+
+        # Compare detection threshold and attack
+        for fpr_rate, threshold in zip(fpr_rates, thresholds):
+            for attack_size_idx, attack_size in enumerate(attack_sizes):
+                attack_scores = attack_max[users_attacked, attack_size_idx]
+
+                results.append({'experiment_name': experiment_name,
+                                'seed': seed,
+                                'alert_w': alert_w,
+                                'fpr_rate': fpr_rate,
+                                'attack_size': attack_size,
+
+                                'threshold': threshold,
+                                'n_attacks': attack_scores.size,
+                                'n_detected': np.count_nonzero(attack_scores > threshold)})
+    return results
