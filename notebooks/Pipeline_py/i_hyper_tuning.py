@@ -416,7 +416,7 @@ class Tuner:
                                     model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
                                     p_clustering=p_cluster, train_test_dict=train_test_dict)
             attack_sizes = np.asarray(best_config['attack_sizes'], dtype='int64')
-            attack_user, attack_start_fb = make_detection_setup(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
+            attack_user, attack_start_fb = get_attack_hour(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
 
             output_metrics, calibration_outputs, user_output_metrics, observed_p_vals, attack_p_vals = self.run_pipeline_ll(model=test_model, config_nt=config_nt, 
                 train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups, attack_start_fb=attack_start_fb, attack_sizes=attack_sizes)
@@ -427,8 +427,8 @@ class Tuner:
             test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
         test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics, experiment_name=experiment_name, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster)
 
-        detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_user, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, best_config['seed'], experiment_name)
-        
+        detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, self.bin_metric_nt, best_config['seed'], experiment_name)
+                
         return test_results, test_user_results, detection_results
 
     def run_test_seeds(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
@@ -546,14 +546,14 @@ def get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attac
     n_users = observed_p_vals.shape[0]
     results = []
 
-    # first 6 hours to test end calibration period
+    # first 6 hours to test end calibration period and shrink the non degen mask to this period
     threshold_calibration_start = 6 * bin_metric_nt.fine_bins_per_coarse_bin
     threshold_calibration_end = bin_metric_nt.fine_bins_per_week
+    non_degen_fb_mask = non_degen_fb_mask[:, threshold_calibration_start:threshold_calibration_end]
 
     for alert_w in alert_w_vals:
         observed_ewma = get_ewma_scores(observed_z_vals, alert_w, np.zeros(n_users))
         calibration_ewma = observed_ewma[:, threshold_calibration_start:threshold_calibration_end]
-        non_degen_fb_mask = non_degen_fb_mask[:, threshold_calibration_start:threshold_calibration_end]
         threshold_scores = calibration_ewma[non_degen_fb_mask]
 
         # Get thesholds and use them to compute max EWMA during attack
