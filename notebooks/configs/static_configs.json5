@@ -16,7 +16,7 @@
 
 
     // P value cap and likelihood cap
-    "min_p_value" : 1e-30,
+    "min_p_value" : 1.1754943508222875e-38,
     "min_likelihood": 1e-30,
 
     // Ratio for using the poisson fallback

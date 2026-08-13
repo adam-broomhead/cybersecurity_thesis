@@ -130,7 +130,7 @@ def update_user_outputs(user_id, user_output_metrics, lpmf):
     user_output_metrics[user_id, 1] += lpmf
 
 @njit
-def update_calibration_outputs(user_id, lpmf, log_strict_upper_tail, log_calibration_thresholds, 
+def update_calibration_outputs(user_id, lpmf, capped_lpmf, log_strict_upper_tail, log_calibration_thresholds, 
                                breakdown_groups, calibration_output, log_min_p_value):
     '''
     Updates calibration outputs with one observation
@@ -142,7 +142,7 @@ def update_calibration_outputs(user_id, lpmf, log_strict_upper_tail, log_calibra
     for breakdown_type_idx in range(breakdown_groups.shape[0]):
         breakdown_group_idx = int(breakdown_groups[breakdown_type_idx, user_id])
         calibration_output[breakdown_type_idx, breakdown_group_idx, 0] += 1
-        calibration_output[breakdown_type_idx, breakdown_group_idx, 1] += lpmf
+        calibration_output[breakdown_type_idx, breakdown_group_idx, 1] += capped_lpmf
 
         for threshold_idx in range(log_calibration_thresholds.shape[0]):
             if rdm_upper_tail < log_calibration_thresholds[threshold_idx]:

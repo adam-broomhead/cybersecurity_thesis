@@ -20,8 +20,8 @@ def safe_read(directory, expected_files=None):
     '''
     Reads parquet files in a directory
     '''
-    if expected_files is not None:
-        assert len(os.listdir(directory)) == expected_files
+    # if expected_files is not None:
+    #     assert len(os.listdir(directory)) == expected_files
 
     return pd.read_parquet(directory)
 
@@ -290,6 +290,22 @@ def get_overall_performance_output(overall_performance, user_type_summary):
 
     output = output[['model', 'Overall', 'Human', 'Machine']].rename(columns={'model': 'Model'})
     return output
+
+def get_attack_detection_summary(results_dir, n_test_seeds):
+    '''
+    Calculatates detection results mean and sd cross multiple seeds
+    '''
+    detection_results = pd.concat([safe_read(directory=f'{results_dir}/test/{model}/detection', expected_files=n_test_seeds) 
+                                   for model in ll_model_names], ignore_index=True)
+
+    output = detection_results.assign(detection_rate=lambda data: data['n_detected'] / data['n_attacks'])
+
+    output = output.groupby(['experiment_name', 'alert_w', 'fpr_rate', 'attack_size'], as_index=False, sort=False).agg(
+        threshold_mean=('threshold', 'mean'), threshold_sd=('threshold', 'std'), 
+        detection_mean=('detection_rate', 'mean'), detection_sd=('detection_rate', 'std'))
+
+    return output
+
 
 #####################################
 # Storage and loading

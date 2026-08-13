@@ -155,19 +155,19 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                     if scoring_error == 0:
                         lpmf, log_strict_upper_tail = g._get_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration, config_nt)
 
-                        if  np.isnan(lpmf) or lpmf > 0 or (calc_calibration and (np.isnan(log_strict_upper_tail) or log_strict_upper_tail > 0)):
+                        if np.isnan(lpmf) or lpmf > 0 or (calc_calibration and (np.isnan(log_strict_upper_tail) or log_strict_upper_tail > 0)):
                             thread_errors[thread_id] |= 1
 
                         # Updating outputs and test outputs
                         else:
-                            lpmf = max(lpmf, log_min_likelihood)
-                            f.update_outputs(time_period_int, thread_output_metrics[thread_id], output_idx_nt, lpmf)
+                            capped_lpmf = max(lpmf, log_min_likelihood)
+                            f.update_outputs(time_period_int, thread_output_metrics[thread_id], output_idx_nt, capped_lpmf)
 
                             if time_period_int == 1:
-                                f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=lpmf)
+                                f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=capped_lpmf)
 
                             if calc_calibration:
-                                observed_log_p_vals = f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
+                                observed_log_p_vals = f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, capped_lpmf=capped_lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
                                 observed_p_vals[user_id, fine_bin - train_test_nt.test_start] = np.exp(observed_log_p_vals)
                                 if is_attack_day:
                                     g.store_attack_bin_inputs(attack_bin_inputs[user_id], fine_bin, attack_start_fb[user_id], x, mu_t, sigma_2_t, p_t)
@@ -176,7 +176,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
             # Scoring attacks
             if is_attack_day:
-                g.get_attack_p_values(attack_p_vals[user_id], attack_bin_inputs[user_id], attack_sizes, config_nt, log_min_likelihood, log_min_p_value)
+                g.get_attack_p_values(attack_p_vals[user_id], attack_bin_inputs[user_id], attack_sizes, config_nt, log_min_p_value)
 
             # Updating the users first row and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx

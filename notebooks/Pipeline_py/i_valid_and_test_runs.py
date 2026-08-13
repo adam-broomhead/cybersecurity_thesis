@@ -500,13 +500,22 @@ def get_ewma_scores(z_scores, alert_w, initial_scores):
 
     return ewma_scores
 
-def get_z_scores(p):
+def get_z_scores(p, min_p_value=1.1754943508222875e-38, max_p_value=0.9999999403953552):
     '''
     Gets the z scores for all non-degenerate bins
+    p values are capped to float 32 precision away from 0
     '''
     z = np.full_like(p, np.nan)
     mask = ~np.isnan(p)
     z[mask] = -ndtri(p[mask])
+
+
+    z = np.full_like(p, np.nan)
+    mask = ~np.isnan(p)
+
+    p = np.clip(p[mask], min_p_value, max_p_value)
+    z[mask] = -ndtri(p)
+
     return z
 
 def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w, train_test_nt):
