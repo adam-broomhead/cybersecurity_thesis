@@ -64,7 +64,6 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     user_output_metrics = np.zeros((n_users, 2), dtype='float64')
 
     # Get min p and likelihood values
-    log_min_p_value = np.log(config_nt.min_p_value)
     log_min_likelihood = np.log(config_nt.min_likelihood)
 
     # Init thread level outputs for paralellisation
@@ -167,7 +166,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                                 f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=capped_lpmf)
 
                             if calc_calibration:
-                                observed_log_p_vals = f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, capped_lpmf=capped_lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id], log_min_p_value=log_min_p_value)
+                                observed_log_p_vals = f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, capped_lpmf=capped_lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id])
                                 observed_p_vals[user_id, fine_bin - train_test_nt.test_start] = np.exp(observed_log_p_vals)
                                 if is_attack_day:
                                     g.store_attack_bin_inputs(attack_bin_inputs[user_id], fine_bin, attack_start_fb[user_id], x, mu_t, sigma_2_t, p_t)
@@ -176,7 +175,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
 
             # Scoring attacks
             if is_attack_day:
-                g.get_attack_p_values(attack_p_vals[user_id], attack_bin_inputs[user_id], attack_sizes, config_nt, log_min_p_value)
+                g.get_attack_p_values(attack_p_vals[user_id], attack_bin_inputs[user_id], attack_sizes, config_nt)
 
             # Updating the users first row and the parameter grid and alpha grid
             usr_frst_rw[user_id] = cnt_tbl_idx

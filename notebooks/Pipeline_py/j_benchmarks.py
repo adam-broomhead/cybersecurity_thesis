@@ -145,7 +145,6 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
     '''
     Runs the user static hurdle benchmark and the user x coarse bin hurdle benchmark
     '''
-    log_min_p_value = np.log(config_nt.min_p_value)
     log_min_likelihood = np.log(config_nt.min_likelihood)
 
     n_users = user_means.shape[0]
@@ -193,18 +192,18 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
 
             # Getting the lmpf values for the two counts
             user_lpmf = d.get_lpmf_val(count, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
-            user_hour_lpmf = d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id], 
-                        user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
+
+            user_hour_lpmf = d.get_lpmf_val(count, user_hour_means[user_id, coarse_bin_id],  user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
 
             # Capping LPMF values
-            user_lpmf = max(user_lpmf, log_min_likelihood)
-            user_hour_lpmf = max(user_hour_lpmf, log_min_likelihood)
+            user_capped_lpmf = max(user_lpmf, log_min_likelihood)
+            user_hour_capped_lpmf = max(user_hour_lpmf, log_min_likelihood)
 
             # Updating the outputs for the two models
             thread_results[thread_id, 0, 0] += 1
-            thread_results[thread_id, 0, 1] += user_lpmf
+            thread_results[thread_id, 0, 1] += user_capped_lpmf
             thread_results[thread_id, 1, 0] += 1
-            thread_results[thread_id, 1, 1] += user_hour_lpmf
+            thread_results[thread_id, 1, 1] += user_hour_capped_lpmf
 
             if not config_nt.nll_only:
                 user_strict_upper_tail = d.get_upper_tail_value(count + 1, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
@@ -212,13 +211,13 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
                 user_hour_strict_upper_tail = d.get_upper_tail_value(count + 1, user_hour_means[user_id, coarse_bin_id], 
                     user_hour_variances[user_id, coarse_bin_id], user_hour_p[user_id, coarse_bin_id], config_nt)
 
-                f.update_calibration_outputs(user_id=user_id, lpmf=user_lpmf, log_strict_upper_tail=user_strict_upper_tail, 
+                f.update_calibration_outputs(user_id=user_id, lpmf=user_lpmf, capped_lpmf=user_capped_lpmf, log_strict_upper_tail=user_strict_upper_tail, 
                                              log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups,
-                                               calibration_output=thread_full_results[thread_id, 0], log_min_p_value=log_min_p_value)
+                                               calibration_output=thread_full_results[thread_id, 0])
 
-                f.update_calibration_outputs(user_id=user_id, lpmf=user_hour_lpmf, 
+                f.update_calibration_outputs(user_id=user_id, lpmf=user_hour_lpmf, capped_lpmf=user_capped_lpmf,
                     log_strict_upper_tail=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
-                    breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1], log_min_p_value=log_min_p_value)
+                    breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1])
 
     # Combiging thread outputs together
     for thread_id in range(n_threads):

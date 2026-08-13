@@ -503,13 +503,8 @@ def get_ewma_scores(z_scores, alert_w, initial_scores):
 def get_z_scores(p, min_p_value=1.1754943508222875e-38, max_p_value=0.9999999403953552):
     '''
     Gets the z scores for all non-degenerate bins
-    p values are capped to float 32 precision away from 0
+    p values are capped to float 32 precision away from 0 and 1 to prevent infinite normal vals
     '''
-    z = np.full_like(p, np.nan)
-    mask = ~np.isnan(p)
-    z[mask] = -ndtri(p[mask])
-
-
     z = np.full_like(p, np.nan)
     mask = ~np.isnan(p)
 

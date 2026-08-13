@@ -305,7 +305,7 @@ def store_attack_bin_inputs(attack_bin_inputs, fine_bin, attack_start_fb, x, mu,
         attack_bin_inputs[attack_fb, 3] = p
 
 @njit
-def get_attack_p_values(attack_p_vals, attack_bin_inputs, attack_sizes, config_nt, log_min_p_value):
+def get_attack_p_values(attack_p_vals, attack_bin_inputs, attack_sizes, config_nt):
     '''
     Updates the observed p values for the day with the attack p values
     '''
@@ -322,4 +322,4 @@ def get_attack_p_values(attack_p_vals, attack_bin_inputs, attack_sizes, config_n
             lpmf, log_strict_upper_tail = _get_lpmf_and_upper_tail(attack_count, attack_bin_inputs[attack_fb, 1], 
                                                                    attack_bin_inputs[attack_fb, 2], attack_bin_inputs[attack_fb, 3], True, config_nt)
             log_p = d.get_randomised_log_upper_tail(log_strict_upper_tail, lpmf)
-            attack_p_vals[attack_size_idx, attack_fb] = math.exp(max(log_p, log_min_p_value))
+            attack_p_vals[attack_size_idx, attack_fb] = math.exp(log_p)
