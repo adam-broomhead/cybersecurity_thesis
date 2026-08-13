@@ -282,13 +282,17 @@ def get_overall_performance_output(overall_performance, user_type_summary):
     output = pd.concat([overall_performance.set_index('model'), usr_typ_means, usr_typ_sds], axis=1).reset_index()
     output = output.sort_values(by='mean_log_likelihood', ascending=False).reset_index(drop=True)
     output.columns.name = None
+
+    # Get the raw model score and add the difference
+    unsmoothing_ll_lpmf = output.loc[output['model'] == 'no_smoothing', 'mean_log_likelihood'].iloc[0]
+    output['$\Delta$ LL'] = np.where(output['model'] == 'no_smoothing', '-', (output['mean_log_likelihood'] - unsmoothing_ll_lpmf).map(lambda x: f'{x:+.5f}'))
     output['model'] = output['model'].map(model_labels)
 
     output['Overall'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
     output['Human'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
     output['Machine'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
 
-    output = output[['model', 'Overall', 'Human', 'Machine']].rename(columns={'model': 'Model'})
+    output = output[['model', 'Overall', '$\Delta$ LL', 'Human', 'Machine']].rename(columns={'model': 'Model'})
     return output
 
 def get_attack_detection_summary(results_dir, n_test_seeds):
