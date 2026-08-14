@@ -208,7 +208,7 @@ def get_new_clustering_means(cluster_groups, u, v, p):
     # Summing u and v contributions in each cluster
     # Extract the cluster assignment for each user and then add their parameters to each bin
     for user_id in range(n_users):
-        cluster_assignment = int(cluster_groups[user_id])
+        cluster_assignment = cluster_groups[user_id]
 
         cluster_mean_u[cluster_assignment, :] += u[user_id, :]
         cluster_mean_v[cluster_assignment, :] += v[user_id, :]
@@ -237,15 +237,15 @@ def get_param_cluster_medians(cluster_groups, param_grid):
     for user_id in range(n_users):
         users_per_cluster[cluster_groups[user_id]] += 1
 
-    cluster_medians = np.zeros((n_clusters, n_coarse_bins), dtype='float64',)
+    cluster_medians = np.zeros((n_clusters, n_coarse_bins))
 
     for cluster_id in range(n_clusters):
         for coarse_bin in range(n_coarse_bins):
-            values = np.zeros(users_per_cluster[cluster_id], dtype='float64')
+            values = np.zeros(users_per_cluster[cluster_id])
             value_idx = 0
 
             for user_id in range(n_users):
-                if int(cluster_groups[user_id]) == cluster_id:
+                if cluster_groups[user_id] == cluster_id:
                     values[value_idx] = param_grid[user_id, coarse_bin]
                     value_idx += 1
 

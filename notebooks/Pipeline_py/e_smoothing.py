@@ -32,7 +32,7 @@ def get_grid_row_sums(grid):
     '''
     # Extract the number of rows and init the ouptu gird
     n_rows, n_cols = grid.shape
-    output = np.zeros(n_rows, dtype='float64')
+    output = np.zeros(n_rows)
 
     # Loop over and sum rows
     for row_idx in range(n_rows):

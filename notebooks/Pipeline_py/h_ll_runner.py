@@ -43,39 +43,39 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
     n_users, n_coarse_bins = u.shape
 
     if config_nt.nll_only:
-        log_calibration_thresholds = np.empty(0, dtype='float64')
-        calibration_output = np.empty((0, 0, 0), dtype='float64')
+        log_calibration_thresholds = np.empty(0)
+        calibration_output = np.empty((0, 0, 0))
 
     else:
         log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
-        n_groups = int(breakdown_groups.max()) + 1
+        n_groups = breakdown_groups.max() + 1
         n_breakdowns = breakdown_groups.shape[0]
 
         # n_bins, non_degen_ll and calibration threshold counts
         n_calibration_outputs = 2 + log_calibration_thresholds.shape[0]
-        calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
+        calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs))
 
     burn_in_first_cycle = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_cycle
     test_last_cycle = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_cycle
 
     # Init outputs
-    output_metrics = np.zeros((2, len(output_idx_nt)), dtype='float64')
-    user_output_metrics = np.zeros((n_users, 2), dtype='float64')
+    output_metrics = np.zeros((2, len(output_idx_nt)))
+    user_output_metrics = np.zeros((n_users, 2))
 
     # Get min p and likelihood values
     log_min_likelihood = np.log(config_nt.min_likelihood)
 
     # Init thread level outputs for paralellisation
     n_threads = get_num_threads()
-    thread_errors = np.zeros(n_threads, dtype='uint8')
-    thread_output_metrics = np.zeros((n_threads, 2, len(output_idx_nt)), dtype='float64')
+    thread_errors = np.zeros(n_threads, dtype='int8')
+    thread_output_metrics = np.zeros((n_threads, 2, len(output_idx_nt)))
     if config_nt.nll_only:
-        thread_calibration_output = np.empty( (0, 0, 0, 0), dtype='float64')
-        observed_p_vals = np.empty((0, 0), dtype='float64')
-        attack_p_vals = np.empty((0, 0, 0), dtype='float64')
-        attack_bin_inputs = np.empty((0, 0, 0), dtype='float64')
+        thread_calibration_output = np.empty( (0, 0, 0, 0))
+        observed_p_vals = np.empty((0, 0))
+        attack_p_vals = np.empty((0, 0, 0))
+        attack_bin_inputs = np.empty((0, 0, 0))
     else:
-        thread_calibration_output = np.zeros((n_threads, n_breakdowns, n_groups, n_calibration_outputs), dtype='float64')
+        thread_calibration_output = np.zeros((n_threads, n_breakdowns, n_groups, n_calibration_outputs))
         observed_p_vals, attack_p_vals, attack_bin_inputs = g.init_detection_outputs(n_users, train_test_nt.test_end - train_test_nt.test_start, attack_sizes.shape[0], bin_metric_nt.fine_bins_per_coarse_bin)
 
     # Init pointer for user interactions
@@ -121,10 +121,10 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
             is_attack_day = calc_calibration and cycle_start <= attack_start_fb[user_id] < cycle_end
 
             # Init numpy vectors for calculating the user sums
-            usr_updt_u_sum = np.zeros(n_coarse_bins, dtype=np.float64)
-            usr_updt_v_sum = np.zeros(n_coarse_bins, dtype=np.float64)
-            usr_updt_p_sum = np.zeros(n_coarse_bins, dtype=np.float64)
-            usr_updt_n_cnts = np.zeros(n_coarse_bins, dtype=np.float64)
+            usr_updt_u_sum = np.zeros(n_coarse_bins)
+            usr_updt_v_sum = np.zeros(n_coarse_bins)
+            usr_updt_p_sum = np.zeros(n_coarse_bins)
+            usr_updt_n_cnts = np.zeros(n_coarse_bins)
 
             for fine_bin in range(cycle_start, cycle_end):
                 

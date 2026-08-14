@@ -193,13 +193,13 @@ class Tuner:
 
                 # First two rows are log likelihood + n bins rest are calibration
                 for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
-                    threshold_name = format(float(threshold), 'f')
+                    threshold_name = format(threshold, 'f')
                     output_row[f'calibration_count_{threshold_name}'] = group_output[2 + threshold_idx]
                 output.append(output_row)
 
         return output
 
-    def make_user_output_table(self, model, user_output_metrics, experiment_name, config_dict, u_clustering, v_clustering, p_clustering):
+    def make_user_output_table(self, model, user_output_metrics):
         '''
         Creates the user-level log likelihood output table
         '''
@@ -210,11 +210,6 @@ class Tuner:
                   'non_degen_ll_sum': user_output_metrics[:, 1], 
                   'n_bins_scored': user_output_metrics[:, 0]}
 
-        if experiment_name == 'cluster_smoothing':
-            matrix_to_cluster = c.make_clustering_matrix(u=u_clustering, v=v_clustering, p=p_clustering, runtime_configs=config_dict)
-
-            output['cluster_distance'] = c.get_user_cluster_distances(matrix_to_cluster=matrix_to_cluster, cluster_assignments=model['cluster_assignments'], 
-                                            cluster_centres=model['cluster_centres'], distance_metric=model['distance_metric'])
         return output
 
     #####################################
@@ -393,7 +388,7 @@ class Tuner:
 
         # Getting breakdown groups and attack groups if needed
         breakdown_groups = k.get_metric_breakdown(user_counts_nt=self.user_counts_nt, user_type_groups=self.user_type_groups, train_test_dict=train_test_dict)
-        attack_sizes = np.asarray(best_config['attack_sizes'], dtype='int64')
+        attack_sizes = np.asarray(best_config['attack_sizes'])
         attack_start_fb = get_attack_hour(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
 
         # Run LL pipeline
@@ -404,7 +399,7 @@ class Tuner:
         test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
 
         # Multi user nll and attack detection outputs
-        test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics, experiment_name=experiment_name, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, p_clustering=p_cluster)
+        test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics)
         detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, self.bin_metric_nt, best_config['seed'], experiment_name)
                 
         return test_results, test_user_results, detection_results
@@ -483,7 +478,7 @@ def get_z_scores(p, min_p_value=1.1754943508222875e-38, max_p_value=0.9999999403
     Gets the z scores for all non-degenerate bins
     p values are capped to float 32 precision away from 0 and 1 to prevent infinite normal vals
     '''
-    z = np.full_like(p, np.nan)
+    z = np.full_like(p, np.nan, dtype='float64')
     mask = ~np.isnan(p)
 
     p = np.clip(p[mask], min_p_value, max_p_value)
@@ -498,7 +493,7 @@ def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w
 
     # Init variables
     n_users, n_attack_sizes, n_attack_fbs = attack_z_vals.shape
-    initial_scores = np.zeros(n_users, dtype='float64')
+    initial_scores = np.zeros(n_users)
 
     # Getting initial scored of EWMA before bin starts
     usrs_possible_to_attack = attack_start_fb >= 0

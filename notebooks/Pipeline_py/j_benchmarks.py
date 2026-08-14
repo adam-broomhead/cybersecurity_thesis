@@ -28,9 +28,9 @@ def get_user_hurdle_params(user_counts, n_users, period_start, period_end, confi
     period_df = period_df.group_by('user_id').agg(pl.sum('count').alias('sum_cnt'), pl.sum('count_2').alias('sum_cnt_2'), pl.len().alias('n_bins'))
 
     # Init p, mean and variance vectors
-    usr_means = np.zeros(n_users, dtype='float64')
-    usr_variances = np.zeros(n_users, dtype='float64')
-    usr_p = np.zeros(n_users, dtype='float64')
+    usr_means = np.zeros(n_users)
+    usr_variances = np.zeros(n_users)
+    usr_p = np.zeros(n_users)
 
     # Getting sum of counts -1 which are used to find the hurdle mean and variance
     usrs = period_df['user_id'].to_numpy()
@@ -58,27 +58,26 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
     log_min_likelihood = np.log(config_nt.min_likelihood)
 
     n_users = user_means.shape[0]
-    results = np.zeros((2, 2), dtype='float64')
+    results = np.zeros((2, 2))
 
     if config_nt.nll_only:
-        log_calibration_thresholds = np.empty(0, dtype='float64')
-        full_results = np.empty((0, 0, 0, 0), dtype='float64')
+        log_calibration_thresholds = np.empty(0)
+        full_results = np.empty((0, 0, 0, 0))
     else:
         log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
         n_breakdown_types = breakdown_groups.shape[0]
-        n_breakdown_groups = int(breakdown_groups.max()) + 1
+        n_breakdown_groups = breakdown_groups.max() + 1
 
         n_full_results = 2 + log_calibration_thresholds.shape[0]
-        full_results = np.zeros((2, n_breakdown_types, n_breakdown_groups, n_full_results), dtype='float64')
+        full_results = np.zeros((2, n_breakdown_types, n_breakdown_groups, n_full_results))
 
     n_threads = get_num_threads()
-    thread_results = np.zeros((n_threads, 2, 2), dtype='float64')
+    thread_results = np.zeros((n_threads, 2, 2))
 
     if config_nt.nll_only:
-        thread_full_results = np.empty((0, 0, 0, 0, 0), dtype='float64')
+        thread_full_results = np.empty((0, 0, 0, 0, 0))
     else:
-        thread_full_results = np.zeros((n_threads, 2, n_breakdown_types, n_breakdown_groups, n_full_results), dtype='float64')
-
+        thread_full_results = np.zeros((n_threads, 2, n_breakdown_types, n_breakdown_groups, n_full_results))
     for user_id in prange(n_users):
         thread_id = get_thread_id()
 
@@ -205,7 +204,7 @@ def make_full_hurdle_benchmark_output_rows(full_results, config_dict):
 
                 # Adding calubrtion results to the output table
                 for threshold_idx, threshold in enumerate(config_dict['calibration_thresholds']):
-                    threshold_name = format(float(threshold), 'f')
+                    threshold_name = format(threshold, 'f')
                     output_row[f'calibration_count_{threshold_name}'] = group_output[2 + threshold_idx]
 
                 output.append(output_row)

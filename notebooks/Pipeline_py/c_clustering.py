@@ -59,7 +59,7 @@ def get_k_means_assignments(k, random_state, matrix_to_cluster):
     '''
     k_means_model = KMeans(n_clusters=k, random_state=random_state)
 
-    clusters = k_means_model.fit_predict(matrix_to_cluster).astype(np.int64)
+    clusters = k_means_model.fit_predict(matrix_to_cluster)
 
     return clusters, k_means_model.cluster_centers_, k_means_model.inertia_
 
@@ -131,18 +131,6 @@ def get_centroid_distance(cluster_centres, distance_metric):
 
     return output
 
-def get_user_cluster_distances(matrix_to_cluster, cluster_assignments, cluster_centres, distance_metric):
-    '''
-    Calculates user distances from cluster centres
-    '''
-    vec_to_centre = matrix_to_cluster - cluster_centres[cluster_assignments]
-
-    if distance_metric == 'l1':
-        return np.abs(vec_to_centre).sum(axis=1)
-
-    if distance_metric in ('l2', 'standardised_l2'):
-        return np.sqrt(np.square(vec_to_centre).sum(axis=1))
-
 def create_cluster_summary_df(model, user_mapping, runtime_configs):
     ''' 
     Creates an output df which summarises cluster quality metrics
@@ -195,7 +183,7 @@ def get_param_cluster_centre(cluster_groups, param_grid, distance_metric):
     # Getting number of clusters and bins and init a vector of centre points
     n_clusters = cluster_groups.max() + 1
     n_coarse_bins = param_grid.shape[1]
-    cluster_centre = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
+    cluster_centre = np.zeros((n_clusters, n_coarse_bins))
 
     for cluster_id in range(n_clusters):
         # Identify the rows in the clsuter and get the centre
@@ -223,13 +211,13 @@ def get_param_cluster_mean(cluster_groups, param_grid):
     n_clusters = cluster_groups.max() + 1
 
     # Init mean vectors
-    cluster_mean = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
-    users_per_cluster = np.zeros(n_clusters, dtype='float64')
+    cluster_mean = np.zeros((n_clusters, n_coarse_bins))
+    users_per_cluster = np.zeros(n_clusters)
 
     # Summing u or v or p contributions in each cluster
     # Extract the cluster assignment for each user and then add their parameters to each bin
     for user_id in range(n_users):
-        cluster_assignment = int(cluster_groups[user_id])
+        cluster_assignment = cluster_groups[user_id]
         cluster_mean[cluster_assignment, :] += param_grid[user_id, :]
         users_per_cluster[cluster_assignment] += 1
 

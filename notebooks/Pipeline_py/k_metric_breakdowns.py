@@ -19,7 +19,7 @@ def make_rank_deciles(val_to_rank):
     '''
     # Create and rank assignments 
     n_users = val_to_rank.shape[0]
-    ranked_groups = (np.arange(n_users, dtype=np.int64) * 10) // n_users
+    ranked_groups = (np.arange(n_users) * 10) // n_users
 
     # Init output and assign users
     output = np.empty(n_users, dtype='int8')
@@ -35,4 +35,4 @@ def get_metric_breakdown(user_counts_nt, user_type_groups, train_test_dict):
     activity_deciles = get_activity_deciles(user_counts_nt=user_counts_nt, n_users=n_users, 
                                 period_start=train_test_dict['train_start'], period_end=train_test_dict['burn_in_end'])    
 
-    return np.vstack((all_user_group, activity_deciles, user_type_groups)).astype('int8')
+    return np.vstack((all_user_group, activity_deciles, user_type_groups))

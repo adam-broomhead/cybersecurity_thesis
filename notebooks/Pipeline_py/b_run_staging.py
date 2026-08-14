@@ -45,8 +45,8 @@ def init_grid_NB(user_counts, n_users, coarse_bins_per_day, period_start, period
     fb_per_cb = get_fine_bins_per_cb(period_start, period_end, bin_metric_dict)
     
     # Init a grid of parmeters to use
-    u_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
-    v_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
+    u_init = np.zeros((n_users, coarse_bins_per_day))
+    v_init = np.zeros((n_users, coarse_bins_per_day))
 
     # Extrating the entries to assign and assigning them to the df
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
@@ -64,9 +64,9 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_day, period_start, pe
     fb_per_cb = get_fine_bins_per_cb(period_start, period_end, bin_metric_dict)
     
     # Init a grid of parmeters to use
-    u_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
-    v_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
-    p_init = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
+    u_init = np.zeros((n_users, coarse_bins_per_day))
+    v_init = np.zeros((n_users, coarse_bins_per_day))
+    p_init = np.zeros((n_users, coarse_bins_per_day))
 
     # Extrating the entries to assign and assigning them to the df
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
@@ -99,7 +99,7 @@ def init_n_counts_grid(user_counts, n_users, coarse_bins_per_day, period_start, 
     n_days = (period_end - period_start) // bin_metric_dict['fine_bins_per_day']
 
     # Init a grid and get entries to assign and assigning the number of counts
-    n_counts = np.zeros((n_users, coarse_bins_per_day), dtype='float64')
+    n_counts = np.zeros((n_users, coarse_bins_per_day))
     entries_to_assign = train_df.select(['user_id', 'coarse_bin_id']).to_numpy()
     n_counts[entries_to_assign[:, 0], entries_to_assign[:, 1]] = train_df['n_bins'].to_numpy() / n_days
     return n_counts
@@ -158,9 +158,9 @@ def get_linear_interpolation_weights(bin_metric_dict):
 
     # getting M and the fraction through the coarse bin
     M = bin_metric_dict['fine_bins_per_coarse_bin']
-    position_fraction = (np.arange(M, dtype='float64') + 0.5) / M
+    position_fraction = (np.arange(M) + 0.5) / M
 
-    weights = np.zeros((M, 3), dtype='float64')
+    weights = np.zeros((M, 3))
 
     # Obtain linear interpolation weights
     weights[:, 0] = np.maximum(0, 0.5 - position_fraction)
@@ -184,7 +184,7 @@ def df_to_nt(name, df):
     ''' 
     Converts a dataframe to a Namedtuple of numpy arrays for use in the numba runner
     '''
-    table_dict = {col : df[col].to_numpy().astype('int64') for col in df.columns}
+    table_dict = {col : df[col].to_numpy() for col in df.columns}
 
     return dictionary_to_named_tuple_class(name, table_dict)(**table_dict)
 

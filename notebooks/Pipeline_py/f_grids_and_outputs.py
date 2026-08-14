@@ -139,7 +139,7 @@ def update_calibration_outputs(user_id, lpmf, capped_lpmf, log_strict_upper_tail
     rdm_upper_tail = d.get_randomised_log_upper_tail(log_strict_upper_tail, lpmf)
 
     for breakdown_type_idx in range(breakdown_groups.shape[0]):
-        breakdown_group_idx = int(breakdown_groups[breakdown_type_idx, user_id])
+        breakdown_group_idx = breakdown_groups[breakdown_type_idx, user_id]
         calibration_output[breakdown_type_idx, breakdown_group_idx, 0] += 1
         calibration_output[breakdown_type_idx, breakdown_group_idx, 1] += capped_lpmf
 
