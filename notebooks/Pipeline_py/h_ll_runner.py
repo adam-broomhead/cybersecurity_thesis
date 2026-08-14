@@ -22,7 +22,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         train_test_nt, bin_metric_nt, config_dt : named tuple versions of dicts train_test_dict, config_dict and bin_metric_dict
         output_idx_nt : a named tuple containing the names and indicies of the outputs we want to store
     '''
-    # Calculating needed values
+    # Calculating values needed in runner
     n_users, n_coarse_bins = u_init.shape
     burn_in_first_cycle = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_cycle
     test_last_cycle = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_cycle
@@ -56,7 +56,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         time_period_int = g.get_time_period(cycle_start, train_test_nt.validation_start, train_test_nt.validation_end, 
                                                 train_test_nt.test_start, train_test_nt.test_end)
 
-        calc_calibration = time_period_int == 1 and not config_nt.nll_only
+        calc_calibration_and_detection = time_period_int == 1 and not config_nt.ll_only
 
         # Getting grid totals for seperating rate from shape
         user_u_totals = e.get_grid_row_sums(u)
@@ -70,13 +70,13 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         # Iterate over the users and init the pointers to that users row
         for user_id in prange(n_users):
             thread_id = get_thread_id()
-            if calc_calibration:
+            if calc_calibration_and_detection:
                 np.random.seed(config_nt.seed + cycle * n_users + user_id)
 
             cnt_tbl_idx = usr_frst_rw[user_id]
             usr_end_idx = user_interactions_nt.user_last_index[user_id]
 
-            is_attack_day = calc_calibration and cycle_start <= attack_start_fb[user_id] < cycle_end
+            is_attack_day = calc_calibration_and_detection and cycle_start <= attack_start_fb[user_id] < cycle_end
 
             # Init numpy vectors for calculating the user sums
             usr_updt_u_sum = np.zeros(n_coarse_bins)
@@ -109,9 +109,9 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                     thread_errors[thread_id] |= scoring_error
 
                     if scoring_error == 0:
-                        lpmf, log_strict_upper_tail = g._get_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration, config_nt)
+                        lpmf, log_strict_upper_tail = g._get_lpmf_and_upper_tail(x, mu_t, sigma_2_t, p_t, calc_calibration_and_detection, config_nt)
 
-                        if np.isnan(lpmf) or lpmf > 0 or (calc_calibration and (np.isnan(log_strict_upper_tail) or log_strict_upper_tail > 0)):
+                        if np.isnan(lpmf) or lpmf > 0 or (calc_calibration_and_detection and (np.isnan(log_strict_upper_tail) or log_strict_upper_tail > 0)):
                             thread_errors[thread_id] |= 1
 
                         # Updating outputs and test outputs
@@ -122,7 +122,7 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
                             if time_period_int == 1:
                                 f.update_user_outputs(user_id=user_id, user_output_metrics=user_output_metrics, lpmf=capped_lpmf)
 
-                            if calc_calibration:
+                            if calc_calibration_and_detection:
                                 observed_log_p_vals = f.update_calibration_outputs(user_id=user_id, lpmf=lpmf, capped_lpmf=capped_lpmf, log_strict_upper_tail=log_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups, calibration_output=thread_calibration_output[thread_id])
                                 observed_p_vals[user_id, fine_bin - train_test_nt.test_start] = np.exp(observed_log_p_vals)
                                 if is_attack_day:

@@ -158,14 +158,14 @@ def store_variant_results():
     variant_comparison = pd.DataFrame({
         'Change': ['Ordinary NB', 'Quadratic interpolation', 'Weekly cycle',],
         'variant_ll': [
-            pd.read_parquet(f'{ut.results_dir}/variant_nb/nll_only/')['non_degen_ll'].max(),
-            pd.read_parquet(f'{ut.results_dir}/variant_quadratic/nll_only/')['non_degen_ll'].max(),
-            pd.read_parquet(f'{ut.results_dir}/variant_weekly/nll_only/')['non_degen_ll'].max(),
+            pd.read_parquet(f'{ut.results_dir}/variant_nb/ll_only/')['non_degen_ll'].max(),
+            pd.read_parquet(f'{ut.results_dir}/variant_quadratic/ll_only/')['non_degen_ll'].max(),
+            pd.read_parquet(f'{ut.results_dir}/variant_weekly/ll_only/')['non_degen_ll'].max(),
         ],
         'comparison_ll': [
-            pd.read_parquet(f'{ut.results_dir}/LL_runner/nll_only/')['non_degen_ll'].max(),
-            pd.read_parquet(f'{ut.results_dir}/LL_runner/nll_only/')['non_degen_ll'].max(),
-            pd.read_parquet(f'{ut.results_dir}/variant_daily_weekly_mask/nll_only/')['non_degen_ll'].max()]})
+            pd.read_parquet(f'{ut.results_dir}/LL_runner/ll_only/')['non_degen_ll'].max(),
+            pd.read_parquet(f'{ut.results_dir}/LL_runner/ll_only/')['non_degen_ll'].max(),
+            pd.read_parquet(f'{ut.results_dir}/variant_daily_weekly_mask/ll_only/')['non_degen_ll'].max()]})
 
     variant_comparison['$Log-Likelihood $\Delta$'] = (variant_comparison['variant_ll'] - variant_comparison['comparison_ll'])
     variant_comparison[['Change', '$Log-Likelihood $\Delta$']].to_csv(f'{outputs_dir}/variants.csv', index=False)

@@ -23,24 +23,24 @@ def read_all(directory, expected_files=None):
 
 def load_test_results(results_dir, n_test_seeds):
     '''
-    Loads the full results and concats them into a big dataframe adds the mean log likelihood column
+    Loads all the results and concats them into a big dataframe adds the mean log likelihood column
     '''
     # Creating three long dataframes with the reruns in them
-    ll_full_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/full', expected_files=n_test_seeds).assign(model=model)
+    ll_calibration_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/calibration', expected_files=n_test_seeds).assign(model=model)
                                  for model in ll_model_names], ignore_index=True)
 
     ll_user_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/user', expected_files=(n_test_seeds if model == 'cluster_smoothing' else 1)).assign(model=model) 
                                  for model in ll_model_names],ignore_index=True)
 
-    benchmark_results = read_all(directory=f'{results_dir}/benchmarks/full', expected_files=1).rename(columns={'model_name': 'model'})
+    benchmark_results = read_all(directory=f'{results_dir}/benchmarks/calibration', expected_files=1).rename(columns={'model_name': 'model'})
 
     # Adding in mean log likelihood column
-    ll_full_results['mean_ll'] = ll_full_results['non_degen_ll_sum'] / ll_full_results['n_bins_scored']
+    ll_calibration_results['mean_ll'] = ll_calibration_results['non_degen_ll_sum'] / ll_calibration_results['n_bins_scored']
     ll_user_results['mean_ll'] = ll_user_results['non_degen_ll_sum'] / ll_user_results['n_bins_scored']
 
     benchmark_results['mean_ll'] = benchmark_results['non_degen_ll_sum'] / benchmark_results['n_bins_scored']
 
-    return ll_full_results, ll_user_results, benchmark_results
+    return ll_calibration_results, ll_user_results, benchmark_results
 
 def summarise_decile_improvements(run_results, decile_column):
     '''
@@ -60,11 +60,11 @@ def summarise_decile_improvements(run_results, decile_column):
         relative_seed_sd=('relative_improvement', 'std'))
     return improvements
 
-def get_activity_decile_improvement(ll_full_results):
+def get_activity_decile_improvement(ll_calibration_results):
     '''
     gets improvement by activity decile
     '''
-    run_results = ll_full_results.loc[ll_full_results['breakdown_type'] == 'activity_decile', 
+    run_results = ll_calibration_results.loc[ll_calibration_results['breakdown_type'] == 'activity_decile', 
                                       ['seed', 'breakdown_group', 'model', 'mean_ll']]
     run_results = run_results.rename(columns={'breakdown_group': 'activity_decile'})
 
@@ -77,19 +77,19 @@ def get_activity_decile_improvement(ll_full_results):
 
     return output
 
-def get_calibration_summary(ll_full_results):
+def get_calibration_summary(ll_calibration_results):
     '''
     Gets average and sd of calibraiton results across different seeds
     '''
 
     # Getting overall results
-    overall_results = ll_full_results.loc[ll_full_results['breakdown_type'] == 'overall'].copy()
+    overall_results = ll_calibration_results.loc[ll_calibration_results['breakdown_type'] == 'overall'].copy()
 
     # Unpivoting the calibration count columns and getting threshold and great
     calibration_columns = [column for column in overall_results.columns if column.startswith('calibration_count_')]
     calibration_output = overall_results.melt(id_vars=['model', 'seed', 'n_bins_scored'], value_vars=calibration_columns, var_name='calibration_column', value_name='calibration_count')
-    calibration_output = calibration_output.assign(threshold=lambda data: (data['calibration_column'].str.replace('calibration_count_', '', regex=False).astype(float)),
-            observed_rate=lambda data: (data['calibration_count'] / data['n_bins_scored']))
+    calibration_output['threshold'] = calibration_output['calibration_column'].str.replace('calibration_count_', '', regex=False).astype(float)
+    calibration_output['observed_rate'] = calibration_output['calibration_count'] / calibration_output['n_bins_scored']
 
     # Getting mean and sd of calibration exceed
     calibration_output = calibration_output.groupby(['model', 'threshold'], as_index=False, sort=False).agg(
@@ -97,16 +97,16 @@ def get_calibration_summary(ll_full_results):
     
     return calibration_output
 
-def get_all_model_performance_table(ll_full_results, benchmark_results):
+def get_all_model_performance_table(ll_calibration_results, benchmark_results):
     '''
     Table of mean log likelihood for 3 models and benchmarks
     '''
-    ll_performance = ll_full_results.loc[ll_full_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
+    ll_performance = ll_calibration_results.loc[ll_calibration_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
     ll_performance = ll_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
 
     benchmark_performance = benchmark_results.loc[benchmark_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
     benchmark_performance = benchmark_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'))
-    benchmark_performance = benchmark_performance.assign(seed_sd=np.nan)
+    benchmark_performance['seed_sd'] = np.nan
 
     overall_performance = pd.concat([ll_performance, benchmark_performance], ignore_index=True)
     overall_performance.loc[overall_performance['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
@@ -189,7 +189,8 @@ def get_attack_detection_summary(results_dir, n_test_seeds):
     detection_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/detection', expected_files=n_test_seeds) 
                                    for model in ll_model_names], ignore_index=True)
 
-    output = detection_results.assign(detection_rate=lambda data: data['n_detected'] / data['n_attacks'])
+    output = detection_results.copy()
+    output['detection_rate'] = output['n_detected'] / output['n_attacks']
     output = output.rename(columns={'experiment_name': 'model'})
 
     output = output.groupby(['model', 'alert_w', 'fpr_rate', 'attack_size'], as_index=False, sort=False).agg(

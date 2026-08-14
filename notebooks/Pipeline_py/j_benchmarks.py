@@ -60,28 +60,28 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
     n_users = user_means.shape[0]
     results = np.zeros((2, 2))
 
-    if config_nt.nll_only:
+    if config_nt.ll_only:
         log_calibration_thresholds = np.empty(0)
-        full_results = np.empty((0, 0, 0, 0))
+        calibration_results = np.empty((0, 0, 0, 0))
     else:
         log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
         n_breakdown_types = breakdown_groups.shape[0]
         n_breakdown_groups = breakdown_groups.max() + 1
 
-        n_full_results = 2 + log_calibration_thresholds.shape[0]
-        full_results = np.zeros((2, n_breakdown_types, n_breakdown_groups, n_full_results))
+        n_calibration_results = 2 + log_calibration_thresholds.shape[0]
+        calibration_results = np.zeros((2, n_breakdown_types, n_breakdown_groups, n_calibration_results))
 
     n_threads = get_num_threads()
     thread_results = np.zeros((n_threads, 2, 2))
 
-    if config_nt.nll_only:
-        thread_full_results = np.empty((0, 0, 0, 0, 0))
+    if config_nt.ll_only:
+        thread_calibration_results = np.empty((0, 0, 0, 0, 0))
     else:
-        thread_full_results = np.zeros((n_threads, 2, n_breakdown_types, n_breakdown_groups, n_full_results))
+        thread_calibration_results = np.zeros((n_threads, 2, n_breakdown_types, n_breakdown_groups, n_calibration_results))
     for user_id in prange(n_users):
         thread_id = get_thread_id()
 
-        if not config_nt.nll_only:
+        if not config_nt.ll_only:
             np.random.seed(config_nt.seed + user_id)
 
         cnt_tbl_idx = user_interactions_nt.user_first_index[user_id]
@@ -114,7 +114,7 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
             thread_results[thread_id, 1, 0] += 1
             thread_results[thread_id, 1, 1] += user_hour_capped_lpmf
 
-            if not config_nt.nll_only:
+            if not config_nt.ll_only:
                 user_strict_upper_tail = d.get_upper_tail_value(count + 1, user_means[user_id], user_variances[user_id], user_p[user_id], config_nt)
 
                 user_hour_strict_upper_tail = d.get_upper_tail_value(count + 1, user_hour_means[user_id, coarse_bin_id], 
@@ -122,11 +122,11 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
 
                 f.update_calibration_outputs(user_id=user_id, lpmf=user_lpmf, capped_lpmf=user_capped_lpmf, log_strict_upper_tail=user_strict_upper_tail, 
                                              log_calibration_thresholds=log_calibration_thresholds, breakdown_groups=breakdown_groups,
-                                               calibration_output=thread_full_results[thread_id, 0])
+                                               calibration_output=thread_calibration_results[thread_id, 0])
 
                 f.update_calibration_outputs(user_id=user_id, lpmf=user_hour_lpmf, capped_lpmf=user_hour_capped_lpmf,
                     log_strict_upper_tail=user_hour_strict_upper_tail, log_calibration_thresholds=log_calibration_thresholds, 
-                    breakdown_groups=breakdown_groups, calibration_output=thread_full_results[thread_id, 1])
+                    breakdown_groups=breakdown_groups, calibration_output=thread_calibration_results[thread_id, 1])
 
     # Combiging thread outputs together
     for thread_id in range(n_threads):
@@ -134,14 +134,14 @@ def run_hurdle_benchmarks(user_counts_nt, user_interactions_nt, user_means, user
             for output_idx in range(2):
                 results[model_idx, output_idx] += thread_results[thread_id, model_idx, output_idx]
 
-        if not config_nt.nll_only:
+        if not config_nt.ll_only:
             for model_idx in range(2):
                 for breakdown_type_idx in range(n_breakdown_types):
                     for breakdown_group_idx in range(n_breakdown_groups):
-                        for output_idx in range(n_full_results):
-                            full_results[model_idx, breakdown_type_idx, breakdown_group_idx, output_idx] += thread_full_results[thread_id, model_idx, breakdown_type_idx, breakdown_group_idx, output_idx]
+                        for output_idx in range(n_calibration_results):
+                            calibration_results[model_idx, breakdown_type_idx, breakdown_group_idx, output_idx] += thread_calibration_results[thread_id, model_idx, breakdown_type_idx, breakdown_group_idx, output_idx]
 
-    return results, full_results
+    return results, calibration_results
 
 #####################################
 # Benchmark output rows
@@ -174,7 +174,7 @@ def make_hurdle_benchmark_output_rows(results, config_dict, test_valid):
     return output
 
 
-def make_full_hurdle_benchmark_output_rows(full_results, config_dict):
+def make_calibration_hurdle_benchmark_output_rows(full_results, config_dict):
     '''
     Makes full test benchmark outputs
     '''

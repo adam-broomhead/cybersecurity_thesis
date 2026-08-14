@@ -179,7 +179,7 @@ def combine_threads(output_metrics, thread_output_metrics, calibration_output, t
                 output_metrics[time_period_int, output_idx] += thread_output_metrics[thread_id, time_period_int, output_idx]
                 thread_output_metrics[thread_id, time_period_int, output_idx] = 0
 
-    if time_period_int == 1 and not config_nt.nll_only:
+    if time_period_int == 1 and not config_nt.ll_only:
         for thread_id in range(n_threads):
             for breakdown_type_idx in range(calibration_output.shape[0]):
                 for breakdown_group_idx in range(calibration_output.shape[1]):
@@ -346,7 +346,7 @@ def init_outputs(n_users, breakdown_groups, attack_sizes, train_test_nt, bin_met
     output_metrics = np.zeros((2, len(output_idx_nt)))
     user_output_metrics = np.zeros((n_users, 2))
 
-    if config_nt.nll_only:
+    if config_nt.ll_only:
         log_calibration_thresholds = np.empty(0)
         calibration_output = np.empty((0, 0, 0))
         observed_p_vals = np.empty((0, 0))

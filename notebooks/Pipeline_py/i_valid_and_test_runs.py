@@ -142,7 +142,7 @@ class Tuner:
         return output
 
 
-    def make_full_output_rows(self, model, calibration_outputs, config_dict, experiment_name):
+    def make_calibration_output_rows(self, model, calibration_outputs, config_dict, experiment_name):
         '''
         Makes outputs rows for full test runs involving breakdowns and calibration
         '''
@@ -325,7 +325,7 @@ class Tuner:
 
         # Using the first config in loop to create a nt class
         first_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=first_sampled_config)
-        first_config['nll_only'] = True
+        first_config['ll_only'] = True
         config_nt_class = (b.dictionary_to_named_tuple_class('config_nt', first_config))
 
 
@@ -340,7 +340,7 @@ class Tuner:
 
             # Making a copy of the config dict with our sampled hyperparameters and turning it into nt
             temp_config = self.join_configs_and_hypers(config_dict=config_dict, hurdle_model=hurdle_model, sampled_config=sampled_config)
-            temp_config['nll_only'] = True
+            temp_config['ll_only'] = True
             temp_config_nt = config_nt_class(**temp_config)
 
             # Getting the model and the cluster grids
@@ -357,7 +357,7 @@ class Tuner:
 
             # Storing completed configs
             if run_name is not None:
-                ut.store_run_results(results=[result_row], dir=f'{run_name}/nll_only', run_name=run_name)
+                ut.store_run_results(results=[result_row], dir=f'{run_name}/ll_only', run_name=run_name)
 
             print(f'finished_config {config_idx}/{len(seen_configs)} in {perf_counter() - config_start:.1f}s')
 
@@ -379,7 +379,7 @@ class Tuner:
         '''
         # Create one complete runnable configuration
         best_config = ut.merge_configs(base_config, hurdle_nb_model, selected_config)
-        best_config['nll_only'] = False
+        best_config['ll_only'] = False
 
         # Creating nts and param grids and model
         _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
@@ -396,7 +396,7 @@ class Tuner:
             train_test_nt=train_test_nt, config_dict=best_config, degen_mask=degen_mask, breakdown_groups=breakdown_groups, attack_start_fb=attack_start_fb, attack_sizes=attack_sizes)
 
         # Make results table
-        test_results = self.make_full_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
+        test_results = self.make_calibration_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
 
         # Multi user nll and attack detection outputs
         test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics)
@@ -421,7 +421,7 @@ class Tuner:
                                     selected_config=run_config, train_test_dict=train_test_dict, base_config=base_config, 
                                     degen_mask=degen_mask, bin_metric_dict=bin_metric_dict)
 
-            ut.store_run_results(results=test_results, dir=f'test/{experiment_name}/full', run_name=experiment_name)
+            ut.store_run_results(results=test_results, dir=f'test/{experiment_name}/calibration', run_name=experiment_name)
             ut.store_run_results(results=detection_results, dir=f'test/{experiment_name}/detection', run_name=f'{experiment_name}_detection')
 
             # Save user results for all cluster smoothing or first of other runs as only variation in cluster runs
@@ -550,5 +550,5 @@ def get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attac
 
                                 'threshold': threshold,
                                 'n_attacks': attack_scores.size,
-                                'n_detected': np.count_nonzero(attack_scores > threshold)})
+                                'n_detected': (attack_scores > threshold).sum()})
     return results
