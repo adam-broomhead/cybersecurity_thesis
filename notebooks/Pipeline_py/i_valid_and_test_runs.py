@@ -497,9 +497,8 @@ def get_attack_max_scores(attack_z_vals, observed_ewma, attack_start_fb, alert_w
 
     # Getting initial scored of EWMA before bin starts
     usrs_possible_to_attack = attack_start_fb >= 0
-    attackable_user_idxs = np.where(usrs_possible_to_attack)[0]
     attack_test_relative_fb = attack_start_fb - train_test_nt.test_start
-    initial_scores[attackable_user_idxs] = observed_ewma[attackable_user_idxs, attack_test_relative_fb[attackable_user_idxs] - 1]
+    initial_scores[usrs_possible_to_attack] = observed_ewma[usrs_possible_to_attack, attack_test_relative_fb[usrs_possible_to_attack] - 1]
 
     # Running EWMA and taking the max
     attack_ewma = get_ewma_scores(attack_z_vals.reshape(n_users * n_attack_sizes, n_attack_fbs), alert_w, np.repeat(initial_scores, n_attack_sizes))
