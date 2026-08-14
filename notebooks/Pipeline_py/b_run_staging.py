@@ -26,8 +26,7 @@ def get_period_sums(user_counts, period_start, period_end):
     period_df = period_df.with_columns(count=pl.col('count').cast(pl.Float64))
     period_df = period_df.with_columns(count_2 = pl.col('count') ** 2)
     period_df = period_df.group_by(['user_id', 'coarse_bin_id']).agg(pl.sum('count').alias('sum_cnt'), 
-                                                                    pl.sum('count_2').alias('sum_cnt_2'),
-                                                                    pl.len().alias('n_bins'))
+                                        pl.sum('count_2').alias('sum_cnt_2'), pl.len().alias('n_bins'))
     
     return period_df.collect(engine='streaming') 
 

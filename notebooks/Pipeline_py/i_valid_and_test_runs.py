@@ -226,7 +226,7 @@ class Tuner:
         '''
 
         # Fill in w inf and use defaults for the rest
-        if experiment_name == 'no_smoothing' or experiment_name == 'LL_runner' or experiment_name.startswith('ablation_'):
+        if experiment_name == 'no_smoothing' or experiment_name == 'LL_runner' or experiment_name.startswith('variant_'):
             return [{'w_inf': w_inf, 
                      'cluster_param': 1, 'smoothing_target': 0, 'clustering_matrix_name': 'u', 'clustering_transformation': 'none', 'distance_metric': 'l2', 'constant_alpha': True, 'smooth_a_mu': 0, 'smooth_a_sigma2': 0, 'smooth_a_p': 0, 'smooth_t_mu': 0, 'smooth_t_sigma2': 0, 'smooth_t_p': 0}
                 for w_inf in hyperparams['w_inf_vals']]
@@ -392,9 +392,7 @@ class Tuner:
         test_model = c.make_cluster_model(cluster_param=best_config['cluster_param'], runtime_configs=best_config, u_init=u_cluster, v_init=v_cluster, p_init=p_cluster,)
 
         # Getting breakdown groups and attack groups if needed
-        breakdown_groups = k.get_metric_breakdown(user_counts_nt=self.user_counts_nt, user_type_groups=self.user_type_groups,
-                                model=test_model, config_dict=best_config, u_clustering=u_cluster, v_clustering=v_cluster, 
-                                p_clustering=p_cluster, train_test_dict=train_test_dict)
+        breakdown_groups = k.get_metric_breakdown(user_counts_nt=self.user_counts_nt, user_type_groups=self.user_type_groups, train_test_dict=train_test_dict)
         attack_sizes = np.asarray(best_config['attack_sizes'], dtype='int64')
         attack_start_fb = get_attack_hour(degen_mask, train_test_nt, self.bin_metric_nt, best_config['seed'])
 
