@@ -312,3 +312,48 @@ def get_attack_p_values(attack_p_vals, attack_bin_inputs, attack_sizes, config_n
                                                                    attack_bin_inputs[attack_fb, 2], attack_bin_inputs[attack_fb, 3], True, config_nt)
             log_p = d.get_randomised_log_upper_tail(log_strict_upper_tail, lpmf)
             attack_p_vals[attack_size_idx, attack_fb] = math.exp(log_p)
+
+@njit
+def init_runner_grids(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init,
+    n_counts_init, alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init):
+    '''
+    Init grids needed for the ll runner
+    '''
+    # Init param grids
+    u = u_init.copy()
+    v = v_init.copy()
+    p = p_init.copy()
+
+    # Init cluster param grids
+    cluster_u = cluster_u_init.copy()
+    cluster_v = cluster_v_init.copy()
+    cluster_p = cluster_p_init.copy()
+
+    # Init n counts and alpha grids
+    n_counts = n_counts_init.copy()
+    alpha_mu_grid = alpha_mu_grid_init.copy()
+    alpha_sigma2_grid = alpha_sigma2_grid_init.copy()
+    alpha_p_grid = alpha_p_grid_init.copy()
+    zero_alpha_grid = np.zeros_like(alpha_mu_grid)
+
+    return u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid
+
+@njit
+def init_calibration_outputs(breakdown_groups, config_nt):
+    '''
+    Gets calibration outputs if needed i.e. not nll only else use defaults
+    '''
+    if config_nt.nll_only:
+        log_calibration_thresholds = np.empty(0)
+        calibration_output = np.empty((0, 0, 0))
+    
+    else:
+        log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
+        n_groups = breakdown_groups.max() + 1
+        n_breakdowns = breakdown_groups.shape[0]
+
+        # n_bins, non_degen_ll and calibration threshold counts
+        n_calibration_outputs = 2 + log_calibration_thresholds.shape[0]
+        calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs))
+
+    return log_calibration_thresholds, calibration_output

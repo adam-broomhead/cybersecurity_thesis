@@ -22,48 +22,21 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         train_test_nt, bin_metric_nt, config_dt : named tuple versions of dicts train_test_dict, config_dict and bin_metric_dict
         output_idx_nt : a named tuple containing the names and indicies of the outputs we want to store
     '''
-    ###
-    # Initialising grids where we will keep track of parameters and cluster mean parameters
-    u = u_init.copy()
-    v = v_init.copy()
-    p = p_init.copy()
-
-    cluster_u = cluster_u_init.copy()
-    cluster_v = cluster_v_init.copy()
-    cluster_p = cluster_p_init.copy()
-
-    # Init n counts and alpha grids
-    n_counts = n_counts_init.copy()
-    alpha_mu_grid = alpha_mu_grid_init.copy()
-    alpha_sigma2_grid = alpha_sigma2_grid_init.copy()
-    alpha_p_grid = alpha_p_grid_init.copy()
-    zero_alpha_grid = np.zeros_like(alpha_mu_grid)
+    # Init grids
+    (u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, 
+     zero_alpha_grid)= g.init_runner_grids(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, 
+                                           n_counts_init, alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init)
 
     # Calculating needed values
-    n_users, n_coarse_bins = u.shape
-
-    if config_nt.nll_only:
-        log_calibration_thresholds = np.empty(0)
-        calibration_output = np.empty((0, 0, 0))
-
-    else:
-        log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
-        n_groups = breakdown_groups.max() + 1
-        n_breakdowns = breakdown_groups.shape[0]
-
-        # n_bins, non_degen_ll and calibration threshold counts
-        n_calibration_outputs = 2 + log_calibration_thresholds.shape[0]
-        calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs))
-
+    n_users, n_coarse_bins = u_init.shape
     burn_in_first_cycle = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_cycle
     test_last_cycle = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_cycle
+    log_min_likelihood = np.log(config_nt.min_likelihood)
 
     # Init outputs
+    log_calibration_thresholds, calibration_output = g.init_calibration_outputs(breakdown_groups, config_nt)
     output_metrics = np.zeros((2, len(output_idx_nt)))
     user_output_metrics = np.zeros((n_users, 2))
-
-    # Get min p and likelihood values
-    log_min_likelihood = np.log(config_nt.min_likelihood)
 
     # Init thread level outputs for paralellisation
     n_threads = get_num_threads()
