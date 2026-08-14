@@ -199,11 +199,10 @@ def get_new_clustering_means(cluster_groups, u, v, p):
     n_clusters = cluster_groups.max() + 1
 
     # Init mean vectors
-    cluster_mean_u = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
-    cluster_mean_v = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
-    cluster_mean_p = np.zeros((n_clusters, n_coarse_bins), dtype='float64')
-
-    users_per_cluster = np.zeros(n_clusters, dtype='float64')
+    cluster_mean_u = np.zeros((n_clusters, n_coarse_bins))
+    cluster_mean_v = np.zeros((n_clusters, n_coarse_bins))
+    cluster_mean_p = np.zeros((n_clusters, n_coarse_bins))
+    users_per_cluster = np.zeros(n_clusters)
 
     # Summing u and v contributions in each cluster
     # Extract the cluster assignment for each user and then add their parameters to each bin
@@ -273,11 +272,11 @@ def init_detection_outputs(n_users, n_test_fbs, n_attack_sizes, n_attack_fbs):
     Inits arrays needed for the attack experiment
     '''
 
-    observed_p_vals = np.full((n_users, n_test_fbs), np.nan, dtype='float64')
-    attack_p_vals = np.full((n_users, n_attack_sizes, n_attack_fbs), np.nan, dtype='float64')
+    observed_p_vals = np.full((n_users, n_test_fbs), np.nan)
+    attack_p_vals = np.full((n_users, n_attack_sizes, n_attack_fbs), np.nan)
 
     # inputs are x, mu sigma2, and p for the attack bin
-    attack_bin_inputs = np.full((n_users, n_attack_fbs, 4), np.nan, dtype='float64')
+    attack_bin_inputs = np.full((n_users, n_attack_fbs, 4), np.nan)
 
     return observed_p_vals, attack_p_vals, attack_bin_inputs
 
