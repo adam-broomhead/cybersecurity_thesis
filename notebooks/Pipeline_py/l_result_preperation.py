@@ -4,10 +4,7 @@ import numpy as np
 import pandas as pd
 
 
-ll_model_names = (
-    'no_smoothing',
-    'global_smoothing',
-    'cluster_smoothing')
+ll_model_names = ('no_smoothing', 'global_smoothing', 'cluster_smoothing')
 
 model_labels = {
         'no_smoothing': 'No shrinkage',
@@ -303,13 +300,44 @@ def get_attack_detection_summary(results_dir, n_test_seeds):
                                    for model in ll_model_names], ignore_index=True)
 
     output = detection_results.assign(detection_rate=lambda data: data['n_detected'] / data['n_attacks'])
+    output = output.rename(columns={'experiment_name': 'model'})
 
-    output = output.groupby(['experiment_name', 'alert_w', 'fpr_rate', 'attack_size'], as_index=False, sort=False).agg(
+    output = output.groupby(['model', 'alert_w', 'fpr_rate', 'attack_size'], as_index=False, sort=False).agg(
         threshold_mean=('threshold', 'mean'), threshold_sd=('threshold', 'std'), 
         detection_mean=('detection_rate', 'mean'), detection_sd=('detection_rate', 'std'))
 
     return output
 
+def get_mean_threshold_differences(detection_results):
+    '''
+    get the threshold differences from the unsmoothed ll model
+    '''
+    # Dropping the attack strenght col
+    output = detection_results[['model', 'alert_w', 'fpr_rate', 'threshold_mean']].drop_duplicates()
+    no_shrink_threshold = output.loc[output['model'] == 'no_smoothing', ['alert_w', 'fpr_rate', 'threshold_mean']].rename(columns={'threshold_mean': 'll_threshold'})
+    output = output.loc[output['model'] != 'no_smoothing'].merge(no_shrink_threshold, on=['alert_w', 'fpr_rate'])
+    output['threshold_difference'] = output['threshold_mean'] - output['ll_threshold']
+    output = output.drop(columns='threshold_mean')
+    return output
+
+def get_user_pct_ll_improvement(ll_user_results):
+    '''
+    gets the % improvement in loglikelihood for each user
+    '''
+    # Getting mean ll across seeds
+    ll_user_results = ll_user_results.groupby(['user_idx', 'model'], as_index=False, 
+                                              sort=False).agg(mean_ll=('mean_ll', 'mean'))
+    
+    # getting the mean ll for the the no shrinkage ll model
+    no_shrinkage_df = ll_user_results.loc[ll_user_results['model'] == 'no_smoothing', ['user_idx', 'mean_ll']]
+    no_shrinkage_df = no_shrinkage_df.rename(columns={'mean_ll': 'unsmooth_ll'})
+
+    # Getting pct imprvement
+    ll_user_results = ll_user_results.merge(no_shrinkage_df, on='user_idx', how='left')
+    ll_user_results = ll_user_results[ll_user_results['model'] != 'no_smoothing'].copy()
+    ll_user_results['pct_improvement'] = ((ll_user_results['mean_ll'] - ll_user_results['unsmooth_ll'])/ ll_user_results['unsmooth_ll'].abs() * 100)
+
+    return ll_user_results[['user_idx', 'model', 'pct_improvement']]
 
 #####################################
 # Storage and loading

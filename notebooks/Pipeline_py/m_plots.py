@@ -1,36 +1,28 @@
 import matplotlib.pyplot as plt
 from l_result_preperation import model_labels
 import seaborn as sns
+from l_result_preperation import model_labels, ll_model_names
 
 
-def declile_log_likelihood_plot(decile_results, x_label, relative):
+def declile_log_likelihood_plot(decile_results, x_label, error_bars=True):
     '''
     Log likelihood decile plot used for both activity and distance
     '''
     fig, ax = plt.subplots(figsize=(6, 4.9))
-
-    # Setting config and label
-    if relative:
-        mean_col = 'mean_relative_improvement'
-        sd_col = 'relative_seed_sd'
-        y_label = 'Mean Log-Likelihood Improvement (%)'
-    else:
-        mean_col = 'mean_improvement'
-        sd_col = 'seed_sd'
-        y_label = 'Mean Log-Likelihood Improvement'
 
     for model in ('global_smoothing', 'cluster_smoothing'):
 
         # Getting results for that model
         results = decile_results.loc[decile_results['model'] == model].sort_values('decile')
 
-        ax.errorbar(results['decile'], results[mean_col], yerr=results[sd_col], fmt='o', 
-                    linestyle='none', capsize=2, label=model_labels[model])
+        if error_bars:
+            ax.errorbar(results['decile'], results['mean_relative_improvement'], linestyle='none', 
+                        yerr=results['relative_seed_sd'], marker='o', capsize=2, label=model_labels[model])
 
     ax.axhline(0, linewidth=0.8)
 
     ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
+    ax.set_ylabel('Mean Log-Likelihood Improvement (%)')
     ax.set_xticks(range(1, 11))
     add_legend(ax)
 
@@ -39,7 +31,7 @@ def declile_log_likelihood_plot(decile_results, x_label, relative):
     return fig, ax
 
 
-def plot_calibration(calibration_df, extreme):
+def plot_calibration(calibration_df, extreme, error_bars=True):
     '''
     Creates calibration and extreme calibration plots
     '''
@@ -53,8 +45,11 @@ def plot_calibration(calibration_df, extreme):
     for model in ('no_smoothing', 'global_smoothing', 'cluster_smoothing'):
         results = relevant_thresholds.loc[relevant_thresholds['model'] == model].sort_values('threshold')
 
-        ax.errorbar(results['threshold'], results['observed_rate_mean'], 
-                    yerr=results['seed_sd'], marker='o', markersize=2, capsize=4, label=model_labels[model])
+        if error_bars:
+            ax.errorbar(results['threshold'], results['observed_rate_mean'], 
+                        yerr=results['seed_sd'], marker='o', capsize=2, label=model_labels[model])
+        else:
+            ax.plot(results['threshold'], results['observed_rate_mean'], marker='o', label=model_labels[model])
 
     # Perfect calibration line
     if extreme:
@@ -73,7 +68,7 @@ def plot_calibration(calibration_df, extreme):
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
 
-    ax.set_xlabel('Nominal rate')
+    ax.set_xlabel('P Value')
     ax.set_ylabel('Observed rate')
     add_legend(ax)
 
@@ -84,26 +79,30 @@ def plot_calibration(calibration_df, extreme):
 def add_legend(ax, position='best'):
     legend_args = {'frameon': True, 'fancybox': False, 'edgecolor': 'black'}
     if position == 'outside':
-        ax.legend( loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=2, **legend_args)
+        ax.legend( loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=3, **legend_args)
     else:
         ax.legend(loc=position, **legend_args)
 
-def plot_attack_detection(detection_results):
+def plot_attack_detection(detection_results, runtime_configs, error_bars=True):
     '''
     Plots the attack detection rates
     '''
     fig, axes = plt.subplots(3, 3, figsize=(11, 9), sharex=True, sharey='row')
 
     for row, fpr_rate in enumerate(runtime_configs['fpr_rates']):
-        for col, alert_w in enumerate(runtime_configs['alert_ws']):
+        for col, alert_w in enumerate(runtime_configs['alert_w_vals']):
+            ax = axes[row, col]
             for model_name in ('no_smoothing', 'global_smoothing', 'cluster_smoothing'):
                     results = detection_results.loc[(detection_results['model'] == model_name) & 
                                                   (detection_results['alert_w'] == alert_w) & 
                                                   (detection_results['fpr_rate'] == fpr_rate)]
                     results = results.sort_values('attack_size')
 
-                    ax.errorbar(results['attack_size'], results['detection_mean'], yerr=results['detection_sd'], 
-                                marker='o', capsize=2, label=model_labels[model_name])
+                    if error_bars:
+                        ax.errorbar(results['attack_size'], results['detection_mean'], yerr=results['detection_sd'], 
+                                    marker='o', capsize=2, label=model_labels[model_name])
+                    else:
+                        ax.plot(results['attack_size'], results['detection_mean'], marker='o', label=model_labels[model_name])
 
             if row == 0:
                 ax.set_title(f'w={alert_w}')
@@ -112,46 +111,51 @@ def plot_attack_detection(detection_results):
             if row == 2:
                 ax.set_xlabel('Attack Strength')
             ax.set_ylim(bottom=0)
-    add_legend(axes[0, 0])
+            ax.set_xscale('log', base=2)
+    
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.02))
     fig.tight_layout()
+    fig.subplots_adjust(top=0.95 ,wspace=0.12, hspace=0.12)
+    axes[2, 0].set_xticks(results['attack_size'].unique())
+    axes[2,0].set_xticklabels(results['attack_size'].unique())
 
     return fig, axes
 
-def plot_threshold_heatmap(threshold_differences):
+def plot_threshold_heatmap(threshold_differences, model):
     '''
     heatmap of differences of EWMA thresholds from the no smoothing ll model.
     '''
-
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3.5))
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     vmax = threshold_differences['threshold_difference'].abs().max()
 
-    for ax, model in zip(axes, ('global_smoothing', 'cluster_smoothing')):
-        # Get the results for that model and and the unsmoothed ll model 
-        results = threshold_differences.loc[threshold_differences['model'] == model]
-        threshold_difference = results.pivot(index='fpr_rate', columns='alert_w', values='threshold_difference').loc[runtime_configs['fpr_rates'], runtime_configs['alert_ws']]
-        ll_threshold = results.pivot(index='fpr_rate', columns='alert_w', values='ll_threshold').loc[runtime_configs['fpr_rates'], runtime_configs['alert_ws']]
-        heatmap_cell_annot = threshold_difference.copy().astype(str)
+    # Get the results for that model and and the unsmoothed ll model 
+    results = threshold_differences.loc[threshold_differences['model'] == model]
+    threshold_difference = results.pivot(index='fpr_rate', columns='alert_w', values='threshold_difference')
+    ll_threshold = results.pivot(index='fpr_rate', columns='alert_w', values='ll_threshold')
+    heatmap_cell_annot = threshold_difference.copy().astype(str)
 
-        for fpr in runtime_configs['fpr_rates']:
-            for w in runtime_configs['alert_ws']:
-                heatmap_cell_annot.loc[fpr, w] = (f'{threshold_difference.loc[fpr, w]} No = {ll_threshold.loc[fpr, w]}')
+    # Creating heatmap cell annotations
+    for fpr in threshold_difference.index:
+        for w in threshold_difference.columns:
+            heatmap_cell_annot.loc[fpr, w] = f'{threshold_difference.loc[fpr, w]:.2f} \n No = {ll_threshold.loc[fpr, w]:.2f}'
 
-        sns.heatmap(threshold_difference, ax=ax, annot=heatmap_cell_annot, fmt='', cmap='RdBu_r', center=0, vmin=-vmax, vmax=vmax)
+    sns.heatmap(threshold_difference, ax=ax, annot=heatmap_cell_annot, fmt='', cmap='RdBu_r', center=0, vmin=-0.5, vmax=0.5)
 
-        ax.set_title(model_labels[model])
-        ax.set_xlabel('w')
-        ax.set_ylabel('FPR')
-
+    ax.set_xlabel('w')
+    ax.set_ylabel('FPR')
     fig.tight_layout()
+    ax.set_yticklabels([f'{fpr:.0e}' for fpr in threshold_difference.index])
 
-    return fig, axes
+    return fig, ax
 
 def plot_user_pct_ll_improvemet(user_improvements):
     '''
     % improvement in log likelihood plot by users
     '''
+    shrinkage_models = ll_model_names[1:]
     fig, ax = plt.subplots(figsize=(6, 4.9))
-    for model in ('global_smoothing', 'cluster_smoothing'):
+    for model in shrinkage_models:
         results = user_improvements.loc[user_improvements['model'] == model]
         results = results.sort_values('pct_improvement', ascending=False).reset_index(drop=True)
 
@@ -159,16 +163,16 @@ def plot_user_pct_ll_improvemet(user_improvements):
 
         ax.plot(user_prop_rank, results['pct_improvement'], label=model_labels[model])
 
-        ax.axhline(0, linewidth=0.8)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(-10, 20)
+    ax.axhline(0, linewidth=0.8)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(-10, 20)
 
-        ax.set_xlabel('Proportion of users')
-        ax.set_ylabel('Percentage Improvement in Log-Likelihood')
+    ax.set_xlabel('Proportion of users')
+    ax.set_ylabel('Percentage Improvement in Log-Likelihood')
 
-        add_legend(ax)
+    add_legend(ax)
 
-        fig.tight_layout()
+    fig.tight_layout()
 
-        return fig, ax
+    return fig, ax
 
