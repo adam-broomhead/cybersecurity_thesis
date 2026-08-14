@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit, get_num_threads
 import math 
 
 import d_math as d
@@ -339,21 +339,46 @@ def init_runner_grids(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cl
     return u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, zero_alpha_grid
 
 @njit
-def init_calibration_outputs(breakdown_groups, config_nt):
+def init_outputs(n_users, breakdown_groups, attack_sizes, train_test_nt, bin_metric_nt, output_idx_nt, config_nt):
     '''
-    Gets calibration outputs if needed i.e. not nll only else use defaults
+    Gets outputs off the nl runner init or fills in defaults if we are running with nll only
     '''
+    output_metrics = np.zeros((2, len(output_idx_nt)))
+    user_output_metrics = np.zeros((n_users, 2))
+
     if config_nt.nll_only:
         log_calibration_thresholds = np.empty(0)
         calibration_output = np.empty((0, 0, 0))
-    
+        observed_p_vals = np.empty((0, 0))
+        attack_p_vals = np.empty((0, 0, 0))
+        attack_bin_inputs = np.empty((0, 0, 0))
+
     else:
         log_calibration_thresholds = np.log(config_nt.calibration_thresholds)
         n_groups = breakdown_groups.max() + 1
         n_breakdowns = breakdown_groups.shape[0]
-
-        # n_bins, non_degen_ll and calibration threshold counts
         n_calibration_outputs = 2 + log_calibration_thresholds.shape[0]
+
         calibration_output = np.zeros((n_breakdowns, n_groups, n_calibration_outputs))
 
-    return log_calibration_thresholds, calibration_output
+        observed_p_vals, attack_p_vals, attack_bin_inputs = init_detection_outputs(
+            n_users, train_test_nt.test_end - train_test_nt.test_start, attack_sizes.shape[0], bin_metric_nt.fine_bins_per_coarse_bin)
+
+    return output_metrics, user_output_metrics, log_calibration_thresholds, calibration_output, observed_p_vals, attack_p_vals, attack_bin_inputs
+
+@njit
+def init_thread_outputs(output_metrics, calibration_output):
+    '''
+    Gets outputs needed for each thread to parallelise the codebase
+    '''
+    n_threads = get_num_threads()
+
+    thread_errors = np.zeros(n_threads, dtype='int8')
+    thread_output_metrics = np.zeros((n_threads, output_metrics.shape[0], output_metrics.shape[1]))
+
+    if calibration_output.size == 0:
+        thread_calibration_output = np.empty((0, 0, 0, 0))
+    else:
+        thread_calibration_output = np.zeros((n_threads, calibration_output.shape[0], calibration_output.shape[1], calibration_output.shape[2]))
+
+    return n_threads, thread_errors, thread_output_metrics, thread_calibration_output

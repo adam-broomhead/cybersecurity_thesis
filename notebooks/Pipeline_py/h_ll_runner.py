@@ -22,40 +22,25 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         train_test_nt, bin_metric_nt, config_dt : named tuple versions of dicts train_test_dict, config_dict and bin_metric_dict
         output_idx_nt : a named tuple containing the names and indicies of the outputs we want to store
     '''
-    # Init grids
-    (u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, 
-     zero_alpha_grid)= g.init_runner_grids(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, 
-                                           n_counts_init, alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init)
-
     # Calculating needed values
     n_users, n_coarse_bins = u_init.shape
     burn_in_first_cycle = train_test_nt.burn_in_start // bin_metric_nt.fine_bins_per_cycle
     test_last_cycle = (train_test_nt.test_end - 1) // bin_metric_nt.fine_bins_per_cycle
     log_min_likelihood = np.log(config_nt.min_likelihood)
 
-    # Init outputs
-    log_calibration_thresholds, calibration_output = g.init_calibration_outputs(breakdown_groups, config_nt)
-    output_metrics = np.zeros((2, len(output_idx_nt)))
-    user_output_metrics = np.zeros((n_users, 2))
-
-    # Init thread level outputs for paralellisation
-    n_threads = get_num_threads()
-    thread_errors = np.zeros(n_threads, dtype='int8')
-    thread_output_metrics = np.zeros((n_threads, 2, len(output_idx_nt)))
-    if config_nt.nll_only:
-        thread_calibration_output = np.empty( (0, 0, 0, 0))
-        observed_p_vals = np.empty((0, 0))
-        attack_p_vals = np.empty((0, 0, 0))
-        attack_bin_inputs = np.empty((0, 0, 0))
-    else:
-        thread_calibration_output = np.zeros((n_threads, n_breakdowns, n_groups, n_calibration_outputs))
-        observed_p_vals, attack_p_vals, attack_bin_inputs = g.init_detection_outputs(n_users, train_test_nt.test_end - train_test_nt.test_start, attack_sizes.shape[0], bin_metric_nt.fine_bins_per_coarse_bin)
-
-    # Init pointer for user interactions
+    # Init pointer for user interactions and cycles passed
     usr_frst_rw = g._init_user_count_table_pointer(n_users, user_interactions_nt, user_counts_nt, train_test_nt)
-
-    # Initialise cycles passed
     cycles_passed = 0
+
+    # Init grids
+    (u, v, p, cluster_u, cluster_v, cluster_p, n_counts, alpha_mu_grid, alpha_sigma2_grid, alpha_p_grid, 
+     zero_alpha_grid)= g.init_runner_grids(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, 
+                                           n_counts_init, alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init)
+    # Init outputs
+    output_metrics, user_output_metrics, log_calibration_thresholds, calibration_output, observed_p_vals, attack_p_vals, attack_bin_inputs = g.init_outputs(n_users, breakdown_groups, attack_sizes, train_test_nt, bin_metric_nt, output_idx_nt, config_nt)
+
+    # Init thread outputS needed for paralisation
+    n_threads, thread_errors, thread_output_metrics, thread_calibration_output = g.init_thread_outputs(output_metrics, calibration_output)
 
     for cycle in range(burn_in_first_cycle, test_last_cycle + 1):
         cycles_passed += 1
