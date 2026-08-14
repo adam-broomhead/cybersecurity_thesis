@@ -68,7 +68,8 @@ def get_nb_lpmf_val(x, mu, sigma2, config_nt):
 @njit 
 def hurdle_lpmf(x, mu, sigma2, p, config_nt):
     '''
-    Note the poisson fallback is handled as we use the nb functions with poisson integrated
+    Gets the hurle NB lpmf
+    Note the poisson fallback is handled via get_nb_lpmf_val
     '''
     if x == 0:
         return math.log1p(-p)
@@ -119,8 +120,6 @@ def neg_bin_log_upper_tail(x, mu, sigma2, config_nt):
 def get_nb_upper_tail_value(x, mu, sigma2, config_nt):
     ''' 
     Gets the NB upper tail
-    Note:
-    We dont need edge case checks here as the other function is called with the same mu and sigma
     '''
     if sigma2/mu <= config_nt.min_mean_var_ratio:
         return poisson_log_upper_tail(x, mu, config_nt)

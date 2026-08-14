@@ -1,8 +1,4 @@
-{
-    "breakdowns": [
-        {"type": "overall", "groups": ["all_users"]},
-        {"type": "activity_decile", "groups": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]},
-        {"type": "distance_decile", "groups": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]},
-        {"type": "user_type", "groups": ["human", "machine"]},
-    ],
+{"breakdowns": [{"type": "overall", "groups": ["all_users"]},
+    {"type": "activity_decile", "groups": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]},
+    {"type": "user_type", "groups": ["human", "machine"]}],
 }

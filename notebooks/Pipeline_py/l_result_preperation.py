@@ -13,28 +13,26 @@ model_labels = {
         'static_user_hurdle': 'User level benchmark',
         'static_user_hour_hurdle': 'Hourly user benchmark'}
 
-def safe_read(directory, expected_files=None):
+def read_all(directory, expected_files=None):
     '''
-    Reads parquet files in a directory
+    Reads all parquet files in a directory
     '''
-    # if expected_files is not None:
-    #     assert len(os.listdir(directory)) == expected_files
-
+    if expected_files is not None:
+        assert len(os.listdir(directory)) == expected_files
     return pd.read_parquet(directory)
 
 def load_test_results(results_dir, n_test_seeds):
     '''
     Loads the full results and concats them into a big dataframe adds the mean log likelihood column
     '''
-
     # Creating three long dataframes with the reruns in them
-    ll_full_results = pd.concat([safe_read(directory=f'{results_dir}/test/{model}/full', expected_files=n_test_seeds).assign(model=model)
+    ll_full_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/full', expected_files=n_test_seeds).assign(model=model)
                                  for model in ll_model_names], ignore_index=True)
 
-    ll_user_results = pd.concat([safe_read(directory=f'{results_dir}/test/{model}/user', expected_files=(n_test_seeds if model == 'cluster_smoothing' else 1)).assign(model=model) 
+    ll_user_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/user', expected_files=(n_test_seeds if model == 'cluster_smoothing' else 1)).assign(model=model) 
                                  for model in ll_model_names],ignore_index=True)
 
-    benchmark_results = safe_read(directory=f'{results_dir}/benchmarks/full', expected_files=1).rename(columns={'model_name': 'model'})
+    benchmark_results = read_all(directory=f'{results_dir}/benchmarks/full', expected_files=1).rename(columns={'model_name': 'model'})
 
     # Adding in mean log likelihood column
     ll_full_results['mean_ll'] = ll_full_results['non_degen_ll_sum'] / ll_full_results['n_bins_scored']
@@ -43,7 +41,6 @@ def load_test_results(results_dir, n_test_seeds):
     benchmark_results['mean_ll'] = benchmark_results['non_degen_ll_sum'] / benchmark_results['n_bins_scored']
 
     return ll_full_results, ll_user_results, benchmark_results
-
 
 def summarise_decile_improvements(run_results, decile_column):
     '''
@@ -82,40 +79,6 @@ def get_activity_decile_improvement(ll_full_results):
 
     return output
 
-def get_distance_decile_improvement(ll_user_results):
-    '''
-    Gets the distance improvement over the baseline model by decile for the two models:
-        returns both mean and sd across seeds
-    '''
-    # Get the results for cluster smoothing
-    cluster_smoothing_results = ll_user_results.loc[ll_user_results['model'] == 'cluster_smoothing'].copy()
-
-    # Ranking the users for each seed and getting deciles
-    distance_rank = cluster_smoothing_results.groupby('seed')['cluster_distance'].rank(method='first')
-    users_per_seed = cluster_smoothing_results.groupby('seed')['cluster_distance'].transform('size')
-    cluster_smoothing_results['distance_decile'] = (((distance_rank - 1) * 10 // users_per_seed) + 1).astype('int8')
-
-    # For the no cluster models creating one row per seed for each user with the distance decile they are assigned to
-    distance_groups = cluster_smoothing_results[['seed', 'user_idx', 'distance_decile']]
-    global_and_static_results = ll_user_results.loc[ll_user_results['model'] != 'cluster_smoothing'].drop(columns=['seed', 'cluster_distance', 'mean_ll'])
-    global_and_static_results = global_and_static_results.merge(distance_groups, on='user_idx', how='inner')
-
-    # Concat together two results
-    cluster_smoothing_results = cluster_smoothing_results[['model', 'seed', 'user_idx', 'distance_decile', 'non_degen_ll_sum', 'n_bins_scored']]
-    all_results = pd.concat([global_and_static_results, cluster_smoothing_results], ignore_index=True)
-
-    # Calculate the totals for each decile and get mean and sd
-    all_results = all_results.groupby(['seed', 'distance_decile', 'model'], as_index=False).agg(
-        non_degen_ll_sum=('non_degen_ll_sum', 'sum'), n_bins_scored=('n_bins_scored', 'sum'))
-    all_results = all_results.assign(mean_ll=lambda data: data['non_degen_ll_sum'] / data['n_bins_scored'])
-    output = summarise_decile_improvements(run_results=all_results, decile_column='distance_decile')
-
-    # Altering output form
-    output.insert(0, 'breakdown', 'distance')
-    output = output.rename(columns={'distance_decile': 'decile'})
-
-    return output
-
 def get_calibration_summary(ll_full_results):
     '''
     Gets average and sd of calibraiton results across different seeds
@@ -136,18 +99,6 @@ def get_calibration_summary(ll_full_results):
     
     return calibration_output
 
-def get_user_type_summary(ll_full_results, benchmark_results):
-    '''
-    Gets mean and seed sd of user log likelihood by model
-    '''
-    all_results = pd.concat([ll_full_results, benchmark_results], ignore_index=True)
-    output = all_results.loc[all_results['breakdown_type'] == 'user_type', ['model', 'seed', 'breakdown_group', 'mean_ll']]
-    output = output.rename(columns={'breakdown_group': 'user_type'})
-    output = output.groupby(['user_type', 'model'], as_index=False, sort=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
-    output.loc[output['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
-
-    return output
-
 def get_all_model_performance_table(ll_full_results, benchmark_results):
     '''
     Table of mean log likelihood for 3 models and benchmarks
@@ -163,44 +114,6 @@ def get_all_model_performance_table(ll_full_results, benchmark_results):
     overall_performance.loc[overall_performance['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
 
     return overall_performance
-
-def prepare_model_comparisons(ll_user_results,overall_performance):
-    '''
-    Looks at log likelihood improvement by model and how that is distributed across the users
-    '''
-
-    # Getting model pairs for comparison
-    model_pairs = pd.DataFrame({'m1': ['global_smoothing', 'cluster_smoothing', 'cluster_smoothing'],
-                                'm2': ['no_smoothing', 'no_smoothing', 'global_smoothing']})
-
-    # Getting mean log likelihood an number of bins scored by model
-    user_model_results = ll_user_results.groupby(['user_idx', 'model'], as_index=False, sort=False).agg(
-                                                    mean_log_likelihood=('mean_ll', 'mean'))
-
-    # Getting two copies of the model table ad joining onto model pairs
-    m1_scores = user_model_results.rename(columns={'model' : 'm1', 'mean_log_likelihood': 'm1_mean_log_likelihood'})
-    m2_scores = user_model_results.rename(columns={'model': 'm2', 'mean_log_likelihood': 'm2_mean_log_likelihood'})
-    model_pairs = model_pairs.merge(m1_scores[['user_idx', 'm1', 'm1_mean_log_likelihood']], on='m1', how='left')
-    model_pairs = model_pairs.merge(m2_scores[['user_idx', 'm2', 'm2_mean_log_likelihood']], on=['user_idx', 'm2'], how='left')
-
-    # Getting the users of bins that imporve
-    model_pairs = model_pairs.assign(user_ll_difference=lambda data: data['m1_mean_log_likelihood'] - data['m2_mean_log_likelihood'],
-                                     user_improved=lambda data: data['user_ll_difference'] > 0)
-    model_pairs = model_pairs.groupby(['m1', 'm2'], as_index=False, sort=False).agg(
-                                                    users_improved_pct=('user_improved', 'mean'),
-                                                    median_user_ll_difference=('user_ll_difference', 'median'))
-    model_pairs = model_pairs.assign(users_improved_pct=lambda data: 100 * data['users_improved_pct'])
-
-    # Getting the log likelihood difference on a model level
-    m1_ll = overall_performance[['model', 'mean_log_likelihood']].rename(columns={'model': 'm1', 'mean_log_likelihood': 'm1_mean_log_likelihood'})
-    m2_ll = overall_performance[['model', 'mean_log_likelihood']].rename(columns={'model': 'm2', 'mean_log_likelihood': 'm2_mean_log_likelihood'})
-
-    model_pairs = model_pairs.merge(m1_ll, on='m1', how='left').merge(m2_ll, on='m2', how='left')
-    model_pairs = model_pairs.assign(mean_log_likelihood_difference=lambda data: data['m1_mean_log_likelihood'] - data['m2_mean_log_likelihood'])
-    model_pairs = model_pairs[['m1', 'm2', 'mean_log_likelihood_difference', 'median_user_ll_difference', 'users_improved_pct']]
-
-    return model_pairs
-
 
 #####################################
 # Final output prep
@@ -219,34 +132,10 @@ def get_extreme_calibration_output(calibration):
 
     return output
 
-def get_user_type_output(user_type_summary):
-    '''
-    Pivots the user type table ready for output
-    '''
-    mean_log_likelihood = user_type_summary.pivot_table(index='user_type', columns='model', values='mean_ll', sort=False)
-    cluster_seed_sd = user_type_summary.loc[user_type_summary['model'] == 'cluster_smoothing'].set_index('user_type')['seed_sd'].rename('cluster_smoothing_seed_sd')
-    output = pd.concat([mean_log_likelihood, cluster_seed_sd], axis=1).reset_index()
-    output.columns.name = None
-    output['user_type'] = output['user_type'].str.title()
-
-    return output
-
-def get_model_comparison_output(model_comparisons):
-    '''
-    Gets the final model comparison table ready for output by adding model names
-    '''
-    output = model_comparisons.copy()
-    output.insert(0, 'model_comparison', (output['m1'].map(model_labels).str.replace('shrinkage ', '') + ' vs ' + output['m2'].map(model_labels)))
-
-    return output.drop(columns=['m1', 'm2'])
-
-
 def format_numeric_cols(table, columns):
     '''
     Rounds selected cols to 5pd keeping trailing zeros
     '''
-    table = table
-
     for column in columns:
         table[column] = table[column].apply(lambda value: f'{value:.5f}')
     return table
@@ -256,10 +145,8 @@ def format_mean_and_sd(mean, sd):
     '''
     Combines a mean with \pm sd if aplicable
     '''
-    mean = f'{mean:.5f}'
-
     if pd.notna(sd):
-        return f'{mean} $\pm$ {sd:.5f}'
+        return f'{mean:.5f} $\pm$ {sd:.5f}'
     else: 
         return mean
 
@@ -292,11 +179,15 @@ def get_overall_performance_output(overall_performance, user_type_summary):
     output = output[['model', 'Overall', '$\Delta$ LL', 'Human', 'Machine']].rename(columns={'model': 'Model'})
     return output
 
+#####################################
+# Detection outputs
+#####################################
+
 def get_attack_detection_summary(results_dir, n_test_seeds):
     '''
     Calculatates detection results mean and sd cross multiple seeds
     '''
-    detection_results = pd.concat([safe_read(directory=f'{results_dir}/test/{model}/detection', expected_files=n_test_seeds) 
+    detection_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/detection', expected_files=n_test_seeds) 
                                    for model in ll_model_names], ignore_index=True)
 
     output = detection_results.assign(detection_rate=lambda data: data['n_detected'] / data['n_attacks'])

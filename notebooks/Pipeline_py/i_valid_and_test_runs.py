@@ -16,7 +16,7 @@ class Tuner:
 
     def __init__(self, u_init, v_init, p_init, u_pos_init, v_pos_init, 
                 u_clustering, v_clustering, u_pos_clustering, v_pos_clustering, p_pos_clustering, n_counts_init, 
-                user_counts_nt, user_interactions_nt, interpolation_weights, bin_metric_nt, output_idx_nt, model_idx_nt, 
+                user_counts_nt, user_interactions_nt, interpolation_weights, bin_metric_nt, output_idx_nt, 
                 train_test_nt_class, user_type_groups, quadratic_interpolation=False):
             
             self.u_init = u_init
@@ -35,7 +35,6 @@ class Tuner:
             self.interpolation_weights = interpolation_weights
             self.bin_metric_nt = bin_metric_nt
             self.output_idx_nt = output_idx_nt
-            self.model_idx_nt = model_idx_nt
             self.train_test_nt_class = train_test_nt_class
             self.user_type_groups = user_type_groups
             self.quadratic_interpolation = quadratic_interpolation
@@ -94,7 +93,6 @@ class Tuner:
             bin_metric_nt=self.bin_metric_nt,
             config_nt=config_nt,
             output_idx_nt=self.output_idx_nt,
-            model_idx_nt=self.model_idx_nt,
             breakdown_groups=breakdown_groups,
             quadratic_interpolation=self.quadratic_interpolation,
             attack_start_fb=attack_start_fb,
@@ -105,24 +103,15 @@ class Tuner:
     #####################################
 
 
-    def make_output_table_row(self, model, output_metrics, config_dict, test_valid, experiment_name):
+    def make_valid_output_table_row(self, model, output_metrics, config_dict, experiment_name):
         ''' 
-        Transforms the output row into a readable dictionary that can be used as an output df row.
-        Args:
-            test_valid : Can take values `test` and `valid` tells us what period we are in
-
+        Creates an output row for the results of validaiton tuning
         '''
 
         # Init variables
-        if test_valid == 'valid':
-            period_idx = 0
-        elif test_valid == 'test':
-            period_idx = 1
-        else:
-            raise ValueError('test_valid must either be `test` or `valid`')
+        period_idx = 0
         n_non_degen_bins = output_metrics[period_idx, self.output_idx_nt.n_bins_scored]
         
-
         output = {
             # Configs
             'smoothed_model_name': model['name'],
@@ -139,7 +128,7 @@ class Tuner:
             'constant_alpha': config_dict['constant_alpha'],
             'smoothing_target': config_dict['smoothing_target'],
             'hurdle_model': config_dict['hurdle_model'],
-            'test_valid' : test_valid,
+            'test_valid' : 'valid',
 
             # Output metrics
             'non_degen_ll': output_metrics[period_idx, self.output_idx_nt.non_degen_ll_sum] / n_non_degen_bins,
@@ -332,10 +321,9 @@ class Tuner:
         Runs the hyperparameter tuning for one fixed experiment name
         '''
 
-        # Creates a dict that allows the runner to not run on test
+        # Creates a copy of train test dict without a test set
         validation_only_dict = self.create_tuning_dict(train_test_dict)
         validation_only_nt = self.train_test_nt_class(**validation_only_dict)
-
 
         seen_configs = self.sample_configs(experiment_name, hyperparams, hurdle_model, seed=config_dict['seed'])
         first_sampled_config = seen_configs[0]
@@ -368,7 +356,7 @@ class Tuner:
             output_metrics, calibration_outputs, *_ = self.run_pipeline_ll(model=model, config_nt=temp_config_nt, train_test_nt=validation_only_nt, config_dict=temp_config, degen_mask=degen_mask)
 
             # Updating outputs
-            result_row = self.make_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, test_valid='valid', experiment_name=experiment_name)
+            result_row = self.make_valid_output_table_row(model=model, output_metrics=output_metrics, config_dict=temp_config, experiment_name=experiment_name)
             results.append(result_row)
 
 
@@ -394,13 +382,6 @@ class Tuner:
         Single seed test runner, using selected config
         Runs the best config on the test set depending on the experiment name
         '''
-        
-        if selected_config is None:
-            raise ValueError(f'Config not found for {experiment_name}')
-
-        if hurdle_nb_model['hurdle_model'] is None:
-            raise ValueError('Should only be run after selecting hurdle or NB model')
-
         # Create one complete runnable configuration
         best_config = ut.merge_configs(base_config, hurdle_nb_model, selected_config)
         best_config['nll_only'] = False
@@ -450,10 +431,9 @@ class Tuner:
             ut.store_run_results(results=test_results, dir=f'test/{experiment_name}/full', run_name=experiment_name)
             ut.store_run_results(results=detection_results, dir=f'test/{experiment_name}/detection', run_name=f'{experiment_name}_detection')
 
-            # We only have seed variation in clustering and calibration therefore the log liklihood table only varies for cluster_smoothing
+            # Save user results for all cluster smoothing or first of other runs as only variation in cluster runs
             if experiment_name == 'cluster_smoothing' or seed_number == 0:
                 ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')
-
 
             print(f'finished_seed {seed_number + 1}/{len(test_seeds)} in {perf_counter() - seed_start_time:.1f}s')
 

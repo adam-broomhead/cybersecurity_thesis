@@ -8,7 +8,7 @@ import d_math as d
 @njit(parallel=True)
 def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cluster_p_init, cluster_groups, 
     n_counts_init, alpha_mu_grid_init, alpha_sigma2_grid_init, alpha_p_grid_init, degen_mask, user_counts_nt, user_interactions_nt, 
-    interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, model_idx_nt, breakdown_groups,
+    interpolation_weights, train_test_nt, bin_metric_nt, config_nt, output_idx_nt, breakdown_groups,
     quadratic_interpolation, attack_start_fb, attack_sizes):
     ''' 
     Runs the lambert liu algorithm
@@ -21,7 +21,6 @@ def run_lambert_liu(u_init, v_init, p_init, cluster_u_init, cluster_v_init, clus
         interpolation_weights : precalculated weights for parameter interpolation
         train_test_nt, bin_metric_nt, config_dt : named tuple versions of dicts train_test_dict, config_dict and bin_metric_dict
         output_idx_nt : a named tuple containing the names and indicies of the outputs we want to store
-        model_idx_nt : a named tuple containing the names and indicies where we store each model outputs
     '''
     ###
     # Initialising grids where we will keep track of parameters and cluster mean parameters

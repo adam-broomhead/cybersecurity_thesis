@@ -35,12 +35,7 @@ def get_fine_bins_per_cb(period_start, period_end, bin_metric_dict):
     ''' 
     Returns the number of fine bins per coarse bin in the period
     '''
-    period_length = period_end - period_start
-
-    if period_length % bin_metric_dict['fine_bins_per_day'] != 0:
-        raise ValueError('Parameter init must be whole number of days')
-
-    return (period_length // bin_metric_dict['fine_bins_per_day']) * bin_metric_dict['fine_bins_per_coarse_bin']
+    return ((period_end - period_start) // bin_metric_dict['fine_bins_per_day']) * bin_metric_dict['fine_bins_per_coarse_bin']
 
 def init_grid_NB(user_counts, n_users, coarse_bins_per_day, period_start, period_end, bin_metric_dict):
     ''' 
@@ -87,11 +82,10 @@ def init_grid_hurdle(user_counts, n_users, coarse_bins_per_day, period_start, pe
     sum_cnt_2_shifted = sum_cnt_2 - (2 * sum_cnt) + n_bins
 
     # Creating a mask we use to assign values
-    mean_mask = n_bins > 0
     var_mask = n_bins > 1
 
     p_init[entries_to_assign[:,0], entries_to_assign[:,1]] = n_bins / fb_per_cb
-    u_init[entries_to_assign[mean_mask, 0], entries_to_assign[mean_mask, 1]] = sum_cnt_shifted[mean_mask]/ n_bins[mean_mask]
+    u_init[entries_to_assign[:, 0], entries_to_assign[:, 1]] = sum_cnt_shifted/ n_bins
     v_init[entries_to_assign[var_mask, 0], entries_to_assign[var_mask, 1]] = (sum_cnt_2_shifted[var_mask] - (sum_cnt_shifted[var_mask] ** 2 / n_bins[var_mask])
                                                                               ) / (n_bins[var_mask] - 1)
 
@@ -185,11 +179,7 @@ def dictionary_to_named_tuple_class(name : str, dictionary : dict):
     Converts a dict to a named tuple with the given name.
     Can be used downstream in the njit functions
     '''
-    if name in globals():
-        raise ValueError(f'Named tuple: {name} already exists')
-    else:
-        return namedtuple(name, dictionary.keys())
-        
+    return namedtuple(name, dictionary.keys())
     
 def df_to_nt(name, df):
     ''' 
@@ -200,18 +190,13 @@ def df_to_nt(name, df):
     return dictionary_to_named_tuple_class(name, table_dict)(**table_dict)
 
 def get_model_and_output_idx_nt():
-    # Creating dictionaries of names of outputs and oder they appear in
+    '''
+    Creating dictionaries of names of outputs and oder they appear in the ll runner
+    '''
     output_names = ['n_bins_scored', 'non_degen_ll_sum']
-    model_names = ['raw_model_calib_index', 'smoothed_model_calib_index']
-
     output_idx_dict = {name : idx for idx, name in enumerate(output_names)}
-    model_idx_dict = {name : idx for idx, name in enumerate(model_names)}
-
-    # For other dicts we dont need to save the class
     output_idx_nt = dictionary_to_named_tuple_class('output_idx_nt', output_idx_dict)(**output_idx_dict)
-    model_idx_nt = dictionary_to_named_tuple_class('model_idx_nt', model_idx_dict)(**model_idx_dict)
-
-    return output_idx_nt, model_idx_nt
+    return output_idx_nt
 
 def converting_dicts_to_nt(static_configs, train_test_dict, bin_metric_dict):
     ''' 

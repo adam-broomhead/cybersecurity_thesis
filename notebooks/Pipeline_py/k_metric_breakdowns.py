@@ -23,7 +23,7 @@ def make_rank_deciles(val_to_rank):
 
     # Init output and assign users
     output = np.empty(n_users, dtype='int8')
-    output[np.argsort(val_to_rank, kind='stable')] = np.minimum(ranked_groups, 9)
+    output[np.argsort(val_to_rank, kind='stable')] = ranked_groups
     return output
 
 def get_metric_breakdown(user_counts_nt, user_type_groups, model, config_dict, u_clustering, v_clustering, p_clustering, train_test_dict):

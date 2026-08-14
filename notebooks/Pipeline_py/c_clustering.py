@@ -10,16 +10,6 @@ runtime_configs = ut.load_json5('runtime_configs')
 #####################################
 # Creating functions that return the correct vector for clustering
 #####################################
-# Matrix construction functions
-def make_u_matrix(u, v, p): return u
-
-def make_log_u_matrix(u, v, p): return np.log(u)
-
-def make_v_matrix(u, v, p): return v
-
-def make_normalised_u_clustering_matrix(u, v, p): return u / u.sum(axis=1)[:, None]
-
-
 # Wrapper function
 def make_clustering_matrix(u, v, p, runtime_configs): 
     ''' 

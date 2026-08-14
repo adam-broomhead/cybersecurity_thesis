@@ -98,7 +98,7 @@ def run_weekly_variant(t, user_counts, user_mapping, train_test_dict, bin_metric
     weekly_t = Tuner(weekly_u_pos_init, weekly_v_pos_init, weekly_p_init, weekly_u_pos_init, weekly_v_pos_init,
         weekly_u_pos_init, weekly_v_pos_init, weekly_u_pos_init, weekly_v_pos_init, weekly_p_init,
         weekly_n_counts_init, t.user_counts_nt, t.user_interactions_nt, t.interpolation_weights, weekly_bin_metric_nt, 
-        t.output_idx_nt, t.model_idx_nt, t.train_test_nt_class, t.user_type_groups)
+        t.output_idx_nt, t.train_test_nt_class, t.user_type_groups)
 
     weekly_results = weekly_t.tune_models(experiment_name=experiment_name, hurdle_model=hurdle_model, hyperparams=hyperparams, 
         train_test_dict=weekly_train_test_dict, config_dict=base_config, degen_mask=weekly_degen_mask, run_name=experiment_name)
@@ -128,7 +128,7 @@ def run_quadratic_variant(t, quadratic_interpolation_weights, hyperparams, train
     hurdle_model = True
 
     quad_t = Tuner(t.u_init, t.v_init, t.p_init, t.u_pos_init, t.v_pos_init, t.u_clustering, t.v_clustering, t.u_pos_clustering, t.v_pos_clustering, t.p_pos_clustering, 
-              t.n_counts_init, t.user_counts_nt, t.user_interactions_nt, quadratic_interpolation_weights, t.bin_metric_nt, t.output_idx_nt, t.model_idx_nt, t.train_test_nt_class, t.user_type_groups, quadratic_interpolation=True)
+              t.n_counts_init, t.user_counts_nt, t.user_interactions_nt, quadratic_interpolation_weights, t.bin_metric_nt, t.output_idx_nt, t.train_test_nt_class, t.user_type_groups, quadratic_interpolation=True)
     results = quad_t.tune_models(experiment_name=experiment_name, hurdle_model=hurdle_model,  hyperparams=hyperparams, 
                         train_test_dict=train_test_dict, config_dict=base_config, degen_mask=degen_mask, run_name=experiment_name)
     return results
