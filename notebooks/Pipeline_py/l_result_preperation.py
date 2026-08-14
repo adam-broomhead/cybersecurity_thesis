@@ -47,19 +47,17 @@ def summarise_decile_improvements(run_results, decile_column):
     Calculates mean and sd improvement for each model for the two deciles:
     activity and distance
     '''
-    # Pivot to have the models on the column
-    results_pvt = run_results.pivot(index=['seed', decile_column], columns='model', values='mean_ll').reset_index()
+    # Getting the ll run results and merging onto the othe rmodels
+    no_smoothing = run_results.loc[run_results['model'] == 'no_smoothing', ['seed', decile_column, 'mean_ll']].rename(columns={'mean_ll': 'no_smoothing'})
+    improvements = run_results.loc[run_results['model'] != 'no_smoothing', ['seed', decile_column, 'model', 'mean_ll']].merge(no_smoothing, on=['seed', decile_column])
 
-    # Calculating improvements
-    improvements = results_pvt[['seed', decile_column, 'no_smoothing']].assign(
-        global_smoothing=results_pvt['global_smoothing'] - results_pvt['no_smoothing'], 
-        cluster_smoothing=results_pvt['cluster_smoothing'] - results_pvt['no_smoothing'])
-
-    # Unpivot and cacluate mean and sd
-    improvements = improvements.melt(id_vars=['seed', decile_column, 'no_smoothing'], var_name='model', value_name='improvement')
-    improvements['relative_improvement'] = 100 * improvements['improvement'] / improvements['no_smoothing'].abs()
+    improvements['improvement'] = improvements['mean_ll'] - improvements['no_smoothing']
+    improvements['relative_improvement'] = (100 * improvements['improvement'] / improvements['no_smoothing'].abs())
     improvements = improvements.groupby([decile_column, 'model'], as_index=False).agg(
-        mean_improvement=('improvement', 'mean'), seed_sd=('improvement', 'std'), mean_relative_improvement=('relative_improvement', 'mean'), relative_seed_sd=('relative_improvement', 'std'))
+        mean_improvement=('improvement', 'mean'),
+        seed_sd=('improvement', 'std'),
+        mean_relative_improvement=('relative_improvement', 'mean'),
+        relative_seed_sd=('relative_improvement', 'std'))
     return improvements
 
 def get_activity_decile_improvement(ll_full_results):
@@ -154,23 +152,23 @@ def get_overall_performance_output(overall_performance, user_type_summary):
     '''
     Gets the initial summary table
     '''
+    # Getting human and machine results for each model
+    human_results = user_type_summary.loc[user_type_summary['user_type'] == 'human', ['model', 'mean_ll', 'seed_sd']]
+    human_results = human_results.rename(columns={'mean_ll': 'human_mean_log_likelihood', 'seed_sd': 'human_seed_sd'})
 
-    usr_typ_means = user_type_summary.pivot(index='model', columns='user_type', values='mean_ll').rename(columns={
-        'human': 'human_mean_log_likelihood',
-        'machine': 'machine_mean_log_likelihood'})
+    machine_results = user_type_summary.loc[user_type_summary['user_type'] == 'machine', ['model', 'mean_ll', 'seed_sd']]
+    machine_results = machine_results.rename(columns={'mean_ll': 'machine_mean_log_likelihood', 'seed_sd': 'machine_seed_sd'})
 
-    usr_typ_sds = user_type_summary.pivot(index='model', columns='user_type', values='seed_sd').rename(columns={
-        'human': 'human_seed_sd',
-        'machine': 'machine_seed_sd'})
-
-    output = pd.concat([overall_performance.set_index('model'), usr_typ_means, usr_typ_sds], axis=1).reset_index()
+    output = overall_performance.merge(human_results, on='model', how='left').merge(machine_results, on='model', how='left')
     output = output.sort_values(by='mean_log_likelihood', ascending=False).reset_index(drop=True)
     output.columns.name = None
 
     # Get the raw model score and add the difference
     unsmoothing_ll_lpmf = output.loc[output['model'] == 'no_smoothing', 'mean_log_likelihood'].iloc[0]
-    output['$\Delta$ LL'] = np.where(output['model'] == 'no_smoothing', '-', (output['mean_log_likelihood'] - unsmoothing_ll_lpmf).map(lambda x: f'{x:+.5f}'))
-    output['model'] = output['model'].map(model_labels)
+    output['$\Delta$ LL'] = output['mean_log_likelihood'] - unsmoothing_ll_lpmf
+    output['$\Delta$ LL'] = output['$\Delta$ LL'].map(lambda x: f'{x:+.5f}')
+
+    output.loc[output['model'] == 'no_smoothing', '$\Delta$ LL'] = '-'
 
     output['Overall'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
     output['Human'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
