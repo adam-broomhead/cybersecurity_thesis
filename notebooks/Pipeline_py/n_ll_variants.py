@@ -7,12 +7,12 @@ import pandas as pd
 import os
 
 ##########################
-# Weekly ablation
+# Weekly variant
 ##########################
 
 def init_weekly_grids(weekly_user_counts, n_users, train_test_dict, bin_metric_dict):
     ''' 
-    Forms our initial parameter grids for the weekly ablation
+    Forms our initial parameter grids for the weekly variant
     '''
     # Init list which stores grid parameters for that day
     weekly_u_days = []
@@ -77,11 +77,11 @@ def get_weekly_configs(bin_metric_dict, train_test_dict):
     return weekly_bin_metric_nt, weekly_train_test_dict
 
 
-def run_weekly_ablation(t, user_counts, user_mapping, train_test_dict, bin_metric_dict, static_configs, base_config, hyperparams):
+def run_weekly_variant(t, user_counts, user_mapping, train_test_dict, bin_metric_dict, static_configs, base_config, hyperparams):
     '''
-    Runs the weekly cycle ablation experiment
+    Runs the weekly cycle variant experiment
     '''
-    experiment_name = 'ablation_weekly'
+    experiment_name = 'variant_weekly'
     hurdle_model = True
     n_users = user_mapping.shape[0]
     weekly_user_counts = user_counts.lazy()
@@ -94,7 +94,7 @@ def run_weekly_ablation(t, user_counts, user_mapping, train_test_dict, bin_metri
     weekly_degen_mask = get_weekly_degen_mask(weekly_user_counts, n_users, train_test_dict, bin_metric_dict, static_configs)
     weekly_n_counts_init = np.zeros_like(weekly_u_pos_init)
 
-    # Creating weekly tuner and running ablation 
+    # Creating weekly tuner and running variant 
     weekly_t = Tuner(weekly_u_pos_init, weekly_v_pos_init, weekly_p_init, weekly_u_pos_init, weekly_v_pos_init,
         weekly_u_pos_init, weekly_v_pos_init, weekly_u_pos_init, weekly_v_pos_init, weekly_p_init,
         weekly_n_counts_init, t.user_counts_nt, t.user_interactions_nt, t.interpolation_weights, weekly_bin_metric_nt, 
@@ -106,25 +106,25 @@ def run_weekly_ablation(t, user_counts, user_mapping, train_test_dict, bin_metri
     return weekly_results, weekly_degen_mask
 
 
-def run_daily_weekly_mask_ablation(t, weekly_degen_mask, hyperparams, train_test_dict, base_config):
+def run_daily_weekly_mask_variant(t, weekly_degen_mask, hyperparams, train_test_dict, base_config):
     ''' 
     Runs the best LL model with the week level degen mask for consistency of comparison
     '''
-    experiment_name = 'ablation_daily_weekly_mask'
+    experiment_name = 'variant_daily_weekly_mask'
     hurdle_model = True
 
     daily_weekly_mask_results = t.tune_models(experiment_name=experiment_name, hurdle_model=hurdle_model, hyperparams=hyperparams, train_test_dict=train_test_dict, config_dict=base_config, degen_mask=weekly_degen_mask, run_name=experiment_name)
     return daily_weekly_mask_results
 
 ##########################
-# Other ablations
+# Other variants
 ##########################
 
-def run_quadratic_ablation(t, quadratic_interpolation_weights, hyperparams, train_test_dict, base_config, degen_mask):
+def run_quadratic_variant(t, quadratic_interpolation_weights, hyperparams, train_test_dict, base_config, degen_mask):
     '''
-    Runs the quadratic ablation experiment
+    Runs the quadratic variant experiment
     '''
-    experiment_name = 'ablation_quadratic'
+    experiment_name = 'variant_quadratic'
     hurdle_model = True
 
     quad_t = Tuner(t.u_init, t.v_init, t.p_init, t.u_pos_init, t.v_pos_init, t.u_clustering, t.v_clustering, t.u_pos_clustering, t.v_pos_clustering, t.p_pos_clustering, 
@@ -134,11 +134,11 @@ def run_quadratic_ablation(t, quadratic_interpolation_weights, hyperparams, trai
     return results
 
 
-def run_nb_ablation(t, hyperparams, train_test_dict, base_config, degen_mask):
+def run_nb_variant(t, hyperparams, train_test_dict, base_config, degen_mask):
     ''' 
-    Runs the negative binomial ablation experiment
+    Runs the negative binomial variant experiment
     '''
-    experiment_name = 'ablation_nb'
+    experiment_name = 'variant_nb'
     hurdle_model = False
     results = t.tune_models(experiment_name=experiment_name, hurdle_model=hurdle_model,  hyperparams=hyperparams, 
                         train_test_dict=train_test_dict, config_dict=base_config, degen_mask=degen_mask, run_name=experiment_name)
@@ -148,24 +148,24 @@ def run_nb_ablation(t, hyperparams, train_test_dict, base_config, degen_mask):
 # Storing final comparison
 ##########################
 
-def store_ablation_results():
+def store_variant_results():
     ''' 
     Calculates the difference from best performing unsmoothed model and stores results
     '''
     outputs_dir = f'{ut.project_root}/outputs'
     os.makedirs(outputs_dir, exist_ok=True)
 
-    ablation_comparison = pd.DataFrame({
+    variant_comparison = pd.DataFrame({
         'Change': ['Ordinary NB', 'Quadratic interpolation', 'Weekly cycle',],
-        'ablation_ll': [
-            pd.read_parquet(f'{ut.results_dir}/ablation_nb/nll_only/')['non_degen_ll'].max(),
-            pd.read_parquet(f'{ut.results_dir}/ablation_quadratic/nll_only/')['non_degen_ll'].max(),
-            pd.read_parquet(f'{ut.results_dir}/ablation_weekly/nll_only/')['non_degen_ll'].max(),
+        'variant_ll': [
+            pd.read_parquet(f'{ut.results_dir}/variant_nb/nll_only/')['non_degen_ll'].max(),
+            pd.read_parquet(f'{ut.results_dir}/variant_quadratic/nll_only/')['non_degen_ll'].max(),
+            pd.read_parquet(f'{ut.results_dir}/variant_weekly/nll_only/')['non_degen_ll'].max(),
         ],
         'comparison_ll': [
             pd.read_parquet(f'{ut.results_dir}/LL_runner/nll_only/')['non_degen_ll'].max(),
             pd.read_parquet(f'{ut.results_dir}/LL_runner/nll_only/')['non_degen_ll'].max(),
-            pd.read_parquet(f'{ut.results_dir}/ablation_daily_weekly_mask/nll_only/')['non_degen_ll'].max()]})
+            pd.read_parquet(f'{ut.results_dir}/variant_daily_weekly_mask/nll_only/')['non_degen_ll'].max()]})
 
-    ablation_comparison['$Log-Likelihood $\Delta$'] = (ablation_comparison['ablation_ll'] - ablation_comparison['comparison_ll'])
-    ablation_comparison[['Change', '$Log-Likelihood $\Delta$']].to_csv(f'{outputs_dir}/ablations.csv', index=False)
+    variant_comparison['$Log-Likelihood $\Delta$'] = (variant_comparison['variant_ll'] - variant_comparison['comparison_ll'])
+    variant_comparison[['Change', '$Log-Likelihood $\Delta$']].to_csv(f'{outputs_dir}/variants.csv', index=False)
