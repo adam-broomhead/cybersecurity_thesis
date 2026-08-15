@@ -171,11 +171,11 @@ def get_overall_performance_output(overall_performance, user_type_summary):
     output.loc[output['model'] == 'no_smoothing', '$\Delta$ LL'] = '-'
     output['model'] = output['model'].map(model_labels)
 
-    output['Overall'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
-    output['Human'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
-    output['Machine'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
+    output['Overall LL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
+    output['Human LL'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
+    output['Machine LL'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
 
-    output = output[['model', 'Overall', '$\Delta$ LL', 'Human', 'Machine']].rename(columns={'model': 'Model'})
+    output = output[['model', 'Overall LL', '$\Delta$ LL', 'Human LL', 'Machine LL']].rename(columns={'model': 'Model'})
     return output
 
 #####################################

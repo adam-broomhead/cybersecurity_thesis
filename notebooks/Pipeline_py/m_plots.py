@@ -107,7 +107,7 @@ def plot_attack_detection(detection_results, runtime_configs, error_bars=True):
             if row == 0:
                 ax.set_title(f'w={alert_w}')
             if col == 0:
-                ax.set_ylabel(f'FPR = {fpr_rate}')
+                ax.set_ylabel(f'FPR = {fpr_rate:.0e}')
             if row == 2:
                 ax.set_xlabel('Attack Strength')
             ax.set_ylim(bottom=0)
@@ -131,8 +131,8 @@ def plot_threshold_heatmap(threshold_differences, model):
 
     # Get the results for that model and and the unsmoothed ll model 
     results = threshold_differences.loc[threshold_differences['model'] == model]
-    threshold_difference = results.pivot(index='fpr_rate', columns='alert_w', values='threshold_difference')
-    ll_threshold = results.pivot(index='fpr_rate', columns='alert_w', values='ll_threshold')
+    threshold_difference = results.pivot(index='fpr_rate', columns='alert_w', values='threshold_difference').sort_index(ascending=False)
+    ll_threshold = results.pivot(index='fpr_rate', columns='alert_w', values='ll_threshold').sort_index(ascending=False)
     heatmap_cell_annot = threshold_difference.copy().astype(str)
 
     # Creating heatmap cell annotations
