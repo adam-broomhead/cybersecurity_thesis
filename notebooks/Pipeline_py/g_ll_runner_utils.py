@@ -341,7 +341,7 @@ def init_runner_grids(u_init, v_init, p_init, cluster_u_init, cluster_v_init, cl
 @njit
 def init_outputs(n_users, breakdown_groups, attack_sizes, train_test_nt, bin_metric_nt, output_idx_nt, config_nt):
     '''
-    Gets outputs off the nl runner init or fills in defaults if we are running with nll only
+    Gets outputs off the nl runner init or fills in defaults if we are running with ll only
     '''
     output_metrics = np.zeros((2, len(output_idx_nt)))
     user_output_metrics = np.zeros((n_users, 2))

@@ -398,12 +398,11 @@ class Tuner:
         # Make results table
         test_results = self.make_calibration_output_rows(model=test_model, calibration_outputs=calibration_outputs, config_dict=best_config, experiment_name=experiment_name)
 
-        # Multi user nll and attack detection outputs
+        # Multi user ll and attack detection outputs
         test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics)
         detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, self.bin_metric_nt, best_config['seed'], experiment_name)
                 
         return test_results, test_user_results, detection_results
-
 
 
     def run_test_seeds(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):

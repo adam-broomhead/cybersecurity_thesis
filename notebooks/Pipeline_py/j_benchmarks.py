@@ -174,9 +174,9 @@ def make_hurdle_benchmark_output_rows(results, config_dict, test_valid):
     return output
 
 
-def make_calibration_hurdle_benchmark_output_rows(full_results, config_dict):
+def make_calibration_hurdle_benchmark_output_rows(calibration_results, config_dict):
     '''
-    Makes full test benchmark outputs
+    Makes calibration test benchmark outputs
     '''
     output = []
 
@@ -188,7 +188,7 @@ def make_calibration_hurdle_benchmark_output_rows(full_results, config_dict):
             for breakdown_group_idx, breakdown_group in enumerate(breakdown_config['groups']):
 
                 # Retrieves the relevant metric from the results table
-                group_output = full_results[model_idx, breakdown_type_idx, breakdown_group_idx]
+                group_output = calibration_results[model_idx, breakdown_type_idx, breakdown_group_idx]
 
                 # Ignore default outputs
                 if group_output[0] == 0:
