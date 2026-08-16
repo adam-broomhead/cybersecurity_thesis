@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 from l_result_preperation import model_labels
 import seaborn as sns
 from l_result_preperation import model_labels, ll_model_names
+import numpy as np
 
 
 def declile_log_likelihood_plot(decile_results, x_label, error_bars=True):
@@ -15,14 +17,16 @@ def declile_log_likelihood_plot(decile_results, x_label, error_bars=True):
         # Getting results for that model
         results = decile_results.loc[decile_results['model'] == model].sort_values('decile')
 
-        if error_bars:
+        if model == 'cluster_smoothing':
             ax.errorbar(results['decile'], results['mean_relative_improvement'], linestyle='none', 
-                        yerr=results['relative_seed_sd'], marker='o', capsize=2, label=model_labels[model])
+                            yerr=results['relative_seed_sd'], marker='o', capsize=2, label=model_labels[model])
+        else: 
+            ax.plot(results['decile'], results['mean_relative_improvement'], linestyle='none', marker='o', label=model_labels[model])
 
     ax.axhline(0, linewidth=0.8)
 
     ax.set_xlabel(x_label)
-    ax.set_ylabel('Mean Log-Likelihood Improvement (%)')
+    ax.set_ylabel('CMLL Change (%)')
     ax.set_xticks(range(1, 11))
     add_legend(ax)
 
@@ -68,7 +72,7 @@ def plot_calibration(calibration_df, extreme, error_bars=True):
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
 
-    ax.set_xlabel('P Value')
+    ax.set_xlabel('P-Value')
     ax.set_ylabel('Observed rate')
     add_legend(ax)
 
@@ -105,12 +109,13 @@ def plot_attack_detection(detection_results, runtime_configs, error_bars=True):
                         ax.plot(results['attack_size'], results['detection_mean'], marker='o', label=model_labels[model_name])
 
             if row == 0:
-                ax.set_title(f'w={alert_w}')
+                ax.set_title(f'\u03BB={alert_w}')
             if col == 0:
-                ax.set_ylabel(f'FPR = {fpr_rate:.0e}')
+                ax.set_ylabel(f'FPR = $10^{{{int(np.log10(fpr_rate))}}}$')
             if row == 2:
-                ax.set_xlabel('Attack Strength')
+                ax.set_xlabel('Additional Counts')
             ax.set_ylim(bottom=0)
+            ax.yaxis.set_major_formatter(PercentFormatter(1))
             ax.set_xscale('log', base=2)
     
     handles, labels = axes[0, 0].get_legend_handles_labels()
@@ -140,12 +145,13 @@ def plot_threshold_heatmap(threshold_differences, model):
         for w in threshold_difference.columns:
             heatmap_cell_annot.loc[fpr, w] = f'{threshold_difference.loc[fpr, w]:.2f} \n No = {ll_threshold.loc[fpr, w]:.2f}'
 
-    sns.heatmap(threshold_difference, ax=ax, annot=heatmap_cell_annot, fmt='', cmap='RdBu_r', center=0, vmin=-0.5, vmax=0.5)
+    sns.heatmap(threshold_difference, ax=ax, annot=heatmap_cell_annot, fmt='', cmap='RdBu_r', center=0, vmin=-0.5, vmax=0.5,
+                cbar_kws={'label' : 'Threshold \u0394'})
 
-    ax.set_xlabel('w')
+    ax.set_xlabel('\u03BB')
     ax.set_ylabel('FPR')
     fig.tight_layout()
-    ax.set_yticklabels([f'{fpr:.0e}' for fpr in threshold_difference.index])
+    ax.set_yticklabels([fr'$10^{{{int(np.log10(fpr))}}}$' for fpr in threshold_difference.index])
 
     return fig, ax
 
@@ -165,10 +171,10 @@ def plot_user_pct_ll_improvemet(user_improvements):
 
     ax.axhline(0, linewidth=0.8)
     ax.set_xlim(0, 1)
-    ax.set_ylim(-10, 20)
+    ax.set_ylim(-5, 10)
 
     ax.set_xlabel('Proportion of users')
-    ax.set_ylabel('Percentage Improvement in Log-Likelihood')
+    ax.set_ylabel('CMLL Change (%)')
 
     add_legend(ax)
 

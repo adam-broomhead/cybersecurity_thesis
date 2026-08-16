@@ -167,5 +167,5 @@ def store_variant_results():
             pd.read_parquet(f'{ut.results_dir}/LL_runner/ll_only/')['non_degen_ll'].max(),
             pd.read_parquet(f'{ut.results_dir}/variant_daily_weekly_mask/ll_only/')['non_degen_ll'].max()]})
 
-    variant_comparison['$Log-Likelihood $\Delta$'] = (variant_comparison['variant_ll'] - variant_comparison['comparison_ll'])
+    variant_comparison['$Log-Likelihood $\Delta$'] = (variant_comparison['variant_ll'] - variant_comparison['comparison_ll']).map('{:.4f}'.format)
     variant_comparison[['Change', '$Log-Likelihood $\Delta$']].to_csv(f'{outputs_dir}/variants.csv', index=False)

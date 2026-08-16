@@ -135,7 +135,7 @@ def format_numeric_cols(table, columns):
     Rounds selected cols to 5pd keeping trailing zeros
     '''
     for column in columns:
-        table[column] = table[column].apply(lambda value: f'{value:.5f}')
+        table[column] = table[column].apply(lambda value: f'{value:.4f}')
     return table
 
 
@@ -143,8 +143,9 @@ def format_mean_and_sd(mean, sd):
     '''
     Combines a mean with \pm sd if aplicable
     '''
+    mean = f'{mean:.4f}'
     if pd.notna(sd):
-        return f'{mean:.5f} $\pm$ {sd:.5f}'
+        return f'{mean} $\pm$ {sd:.4f}'
     else: 
         return mean
 
@@ -166,7 +167,7 @@ def get_overall_performance_output(overall_performance, user_type_summary):
     # Get the raw model score and add the difference
     unsmoothing_ll_lpmf = output.loc[output['model'] == 'no_smoothing', 'mean_log_likelihood'].iloc[0]
     output['$\Delta$ LL'] = output['mean_log_likelihood'] - unsmoothing_ll_lpmf
-    output['$\Delta$ LL'] = output['$\Delta$ LL'].map(lambda x: f'{x:+.5f}')
+    output['$\Delta$ LL'] = output['$\Delta$ LL'].map(lambda x: f'{x:+.4f}')
 
     output.loc[output['model'] == 'no_smoothing', '$\Delta$ LL'] = '-'
     output['model'] = output['model'].map(model_labels)
