@@ -87,20 +87,21 @@ def add_legend(ax, position='best'):
     else:
         ax.legend(loc=position, **legend_args)
 
-def plot_attack_detection(detection_results, runtime_configs, error_bars=True):
+def plot_full_attack_detection(detection_results, runtime_configs, error_bars=True):
     '''
     Plots the attack detection rates
     '''
-    fig, axes = plt.subplots(3, 3, figsize=(11, 9), sharex=True, sharey='row')
+    fig, axes_array = plt.subplots(3, 3, figsize=(11, 9), sharex=True, sharey='row')
 
     for row, fpr_rate in enumerate(runtime_configs['fpr_rates']):
         for col, alert_w in enumerate(runtime_configs['alert_w_vals']):
-            ax = axes[row, col]
+            ax = axes_array[row, col]
             for model_name in ('no_smoothing', 'global_smoothing', 'cluster_smoothing'):
                     results = detection_results.loc[(detection_results['model'] == model_name) & 
                                                   (detection_results['alert_w'] == alert_w) & 
                                                   (detection_results['fpr_rate'] == fpr_rate)]
                     results = results.sort_values('attack_size')
+                    results['attack_size'] = results['attack_size'] // 12
 
                     if error_bars:
                         ax.errorbar(results['attack_size'], results['detection_mean'], yerr=results['detection_sd'], 
@@ -118,14 +119,64 @@ def plot_attack_detection(detection_results, runtime_configs, error_bars=True):
             ax.yaxis.set_major_formatter(PercentFormatter(1))
             ax.set_xscale('log', base=2)
     
-    handles, labels = axes[0, 0].get_legend_handles_labels()
+    handles, labels = axes_array[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.02))
     fig.tight_layout()
     fig.subplots_adjust(top=0.95 ,wspace=0.12, hspace=0.12)
-    axes[2, 0].set_xticks(results['attack_size'].unique())
-    axes[2,0].set_xticklabels(results['attack_size'].unique())
+    axes_array[2, 0].set_xticks(results['attack_size'].unique())
+    axes_array[2,0].set_xticklabels(results['attack_size'].unique())
 
-    return fig, axes
+    return fig, axes_array
+
+def plot_small_attack_detection(detection_results, runtime_configs):
+    '''
+    Plots the attack detection rates
+    '''
+    fig, axes_array = plt.subplots(3, 3, figsize=(11, 9), sharex=True, sharey='row')
+    results = detection_results.copy()
+    results['attack_size'] = results['attack_size'] // 12
+    results = results.loc[results['attack_size'].isin([4, 32])]
+    x = np.array([1,2])
+    bar_width = 0.25
+
+    for row, fpr_rate in enumerate(runtime_configs['fpr_rates']):
+        for col, alert_w in enumerate(runtime_configs['alert_w_vals']):
+            ax = axes_array[row, col]
+            for model_name, bar_offset in zip(('no_smoothing', 'cluster_smoothing', 'global_smoothing'), 
+                                              (-bar_width, 0, bar_width)):
+                    
+                    model_results = results.loc[(results['model'] == model_name) & 
+                                                  (results['alert_w'] == alert_w) & 
+                                                  (results['fpr_rate'] == fpr_rate)]
+                    model_results = model_results.sort_values('attack_size')
+
+                    bars = ax.bar(x + bar_offset, model_results['detection_mean'], 
+                                bar_width, label=model_labels[model_name], edgecolor='black')
+                    labels = [f'{value * 100:.2g}%' for value in model_results['detection_mean']]
+                    ax.bar_label(bars, labels=labels, padding=2, fontsize=8, rotation=45)
+            if row == 0:
+                ax.set_title(f'\u03BB={alert_w}')
+            if col == 0:
+                ax.set_ylabel(f'FPR = {format_fpr_exponent(fpr_rate)}')
+            if row == 2:
+                ax.set_xlabel('Additional Counts')
+
+        axes_array[row, 0].yaxis.set_major_formatter(PercentFormatter(1))
+
+    axes_array[0, 0].set_ylim((0, 0.92))
+    axes_array[1, 0].set_ylim((0, 0.22))
+    axes_array[2, 0].set_ylim((0, 0.031))
+
+                
+    handles, labels = axes_array[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.02))
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.95 ,wspace=0.12, hspace=0.12)
+    axes_array[2, 0].set_xticks(x)
+    axes_array[2,0].set_xticklabels([4, 32])
+
+    return fig, axes_array
+
 
 def plot_threshold_heatmap(threshold_differences, model):
     '''
