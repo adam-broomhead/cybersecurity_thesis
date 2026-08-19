@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from l_result_preperation import model_labels
 import seaborn as sns
-from l_result_preperation import model_labels, ll_model_names
+from l_result_preperation import model_labels, ll_model_names, format_mean_and_sd
 import numpy as np
+import pandas as pd
 
 
 def declile_log_likelihood_plot(decile_results, x_label, error_bars=True):
@@ -164,7 +165,7 @@ def plot_small_attack_detection(detection_results, runtime_configs):
         axes_array[row, 0].yaxis.set_major_formatter(PercentFormatter(1))
 
     axes_array[0, 0].set_ylim((0, 0.92))
-    axes_array[1, 0].set_ylim((0, 0.22))
+    axes_array[1, 0].set_ylim((0, 0.23))
     axes_array[2, 0].set_ylim((0, 0.031))
 
                 
@@ -236,3 +237,39 @@ def plot_user_pct_ll_improvemet(user_improvements):
 def format_fpr_exponent(fpr):
     exponent = int(f'{fpr:.0e}'.split('e')[1])
     return rf'$10^{{{exponent}}}$'
+
+def get_overall_performance_output(overall_performance, ll_calibration_results, benchmark_results):
+    '''
+    Gets the initial summary table
+    '''
+
+    # concat together human and machine results and getting the mean and sd
+    human_machine_results = pd.concat([ll_calibration_results[['model', 'breakdown_group', 'mean_ll', 'breakdown_type']],
+                              benchmark_results[['model', 'breakdown_group', 'mean_ll', 'breakdown_type']]])
+    human_machine_results = human_machine_results.loc[human_machine_results['breakdown_type'] == 'user_type', ['model', 'breakdown_group', 'mean_ll']]
+    human_machine_results = human_machine_results.groupby(['model', 'breakdown_group'],as_index=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
+
+    # Getting human and machine results for each model
+    human_results = human_machine_results.loc[human_machine_results['breakdown_group'] == 'human', ['model', 'mean_ll', 'seed_sd']]
+    human_results = human_results.rename(columns={'mean_ll': 'human_mean_log_likelihood', 'seed_sd': 'human_seed_sd'})
+
+    machine_results = human_machine_results.loc[human_machine_results['breakdown_group'] == 'machine', ['model', 'mean_ll', 'seed_sd']]
+    machine_results = machine_results.rename(columns={'mean_ll': 'machine_mean_log_likelihood', 'seed_sd': 'machine_seed_sd'})
+
+    output = overall_performance.merge(human_results, on='model', how='left').merge(machine_results, on='model', how='left')
+    output = output.sort_values(by='mean_log_likelihood', ascending=False).reset_index(drop=True)
+    output.columns.name = None
+
+    # Get the raw model score and add the difference
+    unsmoothing_ll_lpmf = output.loc[output['model'] == 'no_smoothing', 'mean_log_likelihood'].iloc[0]
+    output['$\Delta$ CMLL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'] - unsmoothing_ll_lpmf, row['seed_sd']), axis=1)
+
+    output.loc[output['model'] == 'no_smoothing', '$\Delta$ CMLL'] = '-'
+    output['model'] = output['model'].map(model_labels)
+
+    output['Overall CMLL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
+    output['Human CMLL'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
+    output['Machine CMLL'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
+
+    output = output[['model', 'Overall CMLL', '$\Delta$ CMLL', 'Human CMLL', 'Machine CMLL']].rename(columns={'model': 'Model'})
+    return output

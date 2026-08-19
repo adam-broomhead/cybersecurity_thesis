@@ -144,39 +144,10 @@ def format_mean_and_sd(mean, sd):
     Combines a mean with \pm sd if aplicable
     '''
     mean = f'{mean:.4f}'
-    if pd.notna(sd):
-        return f'{mean} \n $\pm$ {sd:.4f}'
-    else: 
+    if pd.isna(sd) or sd  == 0:
         return mean
-
-def get_overall_performance_output(overall_performance, user_type_summary):
-    '''
-    Gets the initial summary table
-    '''
-    # Getting human and machine results for each model
-    human_results = user_type_summary.loc[user_type_summary['user_type'] == 'human', ['model', 'mean_ll', 'seed_sd']]
-    human_results = human_results.rename(columns={'mean_ll': 'human_mean_log_likelihood', 'seed_sd': 'human_seed_sd'})
-
-    machine_results = user_type_summary.loc[user_type_summary['user_type'] == 'machine', ['model', 'mean_ll', 'seed_sd']]
-    machine_results = machine_results.rename(columns={'mean_ll': 'machine_mean_log_likelihood', 'seed_sd': 'machine_seed_sd'})
-
-    output = overall_performance.merge(human_results, on='model', how='left').merge(machine_results, on='model', how='left')
-    output = output.sort_values(by='mean_log_likelihood', ascending=False).reset_index(drop=True)
-    output.columns.name = None
-
-    # Get the raw model score and add the difference
-    unsmoothing_ll_lpmf = output.loc[output['model'] == 'no_smoothing', 'mean_log_likelihood'].iloc[0]
-    output['$\Delta$ CMLL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'] - unsmoothing_ll_lpmf, row['seed_sd']), axis=1)
-
-    output.loc[output['model'] == 'no_smoothing', '$\Delta$ CMLL'] = '-'
-    output['model'] = output['model'].map(model_labels)
-
-    output['Overall CMLL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
-    output['Human CMLL'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
-    output['Machine CMLL'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
-
-    output = output[['model', 'Overall CMLL', '$\Delta$ CMLL', 'Human CMLL', 'Machine CMLL']].rename(columns={'model': 'Model'})
-    return output
+    else: 
+        return f'{mean} \n $\pm$ {sd:.4f}'
 
 #####################################
 # Detection outputs
@@ -229,16 +200,3 @@ def get_user_pct_ll_improvement(ll_user_results):
     ll_user_results['pct_improvement'] = ((ll_user_results['mean_ll'] - ll_user_results['unsmooth_ll'])/ ll_user_results['unsmooth_ll'].abs() * 100)
 
     return ll_user_results[['user_idx', 'model', 'pct_improvement']]
-
-#####################################
-# Storage and loading
-#####################################
-
-def store_results(results, results_dir, filename):
-    processed_dir = f'{results_dir}/processed'
-    os.makedirs(processed_dir, exist_ok=True)
-    results.to_parquet(f'{processed_dir}/{filename}.parquet',index=False)
-
-
-def load_results(results_dir, filename):
-    return pd.read_parquet(f'{results_dir}/processed/{filename}.parquet')
