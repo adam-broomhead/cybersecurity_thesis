@@ -372,7 +372,7 @@ class Tuner:
     # Test set runner
     #####################################
 
-    def test_run(self, experiment_name, hurdle_nb_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
+    def test_run(self, experiment_name, hurdle_model, selected_config, train_test_dict, base_config, degen_mask, bin_metric_dict):
         '''
         Single seed test runner, using selected config
         Runs the best config on the test set depending on the experiment name
@@ -380,7 +380,7 @@ class Tuner:
         # Create one complete runnable configuration
         best_config = ut.merge_configs(base_config, selected_config)
         best_config['ll_only'] = False
-        best_config['hurdle_model'] = hurdle_nb_model
+        best_config['hurdle_model'] = hurdle_model
 
         # Creating nts and param grids and model
         _, config_nt, _, train_test_nt, _ = b.converting_dicts_to_nt(best_config, train_test_dict, bin_metric_dict)
