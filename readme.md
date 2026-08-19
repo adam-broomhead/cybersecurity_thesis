@@ -1,12 +1,12 @@
 # Shrinkage thesis codebase
 
 #### Overview
-Code should only be run from the notebooks. Before running any notebooks ensure that the LANL authentication events and red team events datasets are downloaded and stored as parquets. 
+Code should only be run from the notebooks. Before running any notebooks ensure that the LANL authentication events and red team events datasets are downloaded
 
 ##### Data download
 The LANL dataset can be accessed at: https://csr.lanl.gov/data/cyber1/
-The authentication data should be stored in data/raw 
-The redteam data should be stored in data/raw_redteam
+The authentication data should be stored in data/raw as a parquet file
+The redteam data should be stored in data/raw_redteam as a txt file
 
 #### Running the codebase
 To run the codebase run notebooks 100-204 in numberical order. The results will materialise in the outputs folder.

@@ -238,7 +238,7 @@ def format_fpr_exponent(fpr):
     exponent = int(f'{fpr:.0e}'.split('e')[1])
     return rf'$10^{{{exponent}}}$'
 
-def get_overall_performance_output(overall_performance, ll_calibration_results, benchmark_results):
+def get_overall_performance_output(ll_calibration_results, benchmark_results):
     '''
     Gets the initial summary table
     '''

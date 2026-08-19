@@ -14,7 +14,6 @@
     // degen threshold
     "degen_threshold" : 3, 
 
-
     // Likelihood cap
     "min_likelihood": 1e-30,
 
