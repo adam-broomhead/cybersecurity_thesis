@@ -1,0 +1,22 @@
+{
+    // Static configs
+    // These will likely remain unchanged rerun 200 if these are changed
+    // Binning configs
+    "fine_bin_mins" : 5,
+    "coarse_bin_mins" : 60,
+
+    // Train, burn in, test validation split config
+    "train_days" : 1,
+    "burn_in_days" : 34,
+    "validation_days" : 7,
+    "test_days" : 14,
+
+    // degen threshold
+    "degen_threshold" : 3, 
+
+    // Likelihood cap
+    "min_likelihood": 1e-30,
+
+    // Ratio for using the poisson fallback
+    "min_mean_var_ratio" : 1.000001
+}

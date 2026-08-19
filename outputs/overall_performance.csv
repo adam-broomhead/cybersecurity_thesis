@@ -1,0 +1,10 @@
+Model,Overall CMLL,$\Delta$ CMLL,Human CMLL,Machine CMLL
+Cluster shrinkage,"-1.3740 
+ $\pm$ 0.0003","0.0004 
+ $\pm$ 0.0003","-1.0157 
+ $\pm$ 0.0007","-1.6143 
+ $\pm$ 0.0003"
+No shrinkage,-1.3744,-,-1.0085,-1.6198
+Global shrinkage,-1.3750,-0.0006,-1.0126,-1.6181
+Hourly user benchmark,-1.4520,-0.0776,-1.0545,-1.7186
+User level benchmark,-1.4557,-0.0813,-1.0477,-1.7293

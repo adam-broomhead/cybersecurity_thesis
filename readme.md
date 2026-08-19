@@ -1,34 +1,22 @@
-## Tuning axes
+# Shrinkage thesis codebase
 
-#### Key axes for varying
-- Primary (Smoothing strength)
-- Smoothing target (measures how useful clustering actually is, compared to random cluster comparison and smoothing towards global means) This essentially seperates smoothing helps from clustering helps.
+#### Overview
+Code should only be run from the notebooks. Before running any notebooks ensure that the LANL authentication events and red team events datasets are downloaded
 
+##### Data download
+The LANL dataset can be accessed at: https://csr.lanl.gov/data/cyber1/
+The authentication data should be stored in data/raw as a parquet file
+The redteam data should be stored in data/raw_redteam as a txt file
 
-#### If time likely tune and dont vary:
+#### Running the codebase
+To run the codebase run notebooks 100-204 in numberical order. The results will materialise in the outputs folder.
+For test runs first set hyperparameter choices in the best configs json5 file
+For validation runs set the hyperparameter choices you want to use in hyper_choices.json5 file
 
-- Cluster size (controls how many users give useful information)
-    How to tune:
-    Compare multiple cluster sizes and validation performance
-
-- Bin size (Offers its own smoothing effect)
-    This is harder to tune as broader will be easier to predict on the validation set. Instead look at train information loss. This also has an interaction with itself and smoothing strengh with larger and therefore smoother bins likely requiring less smoothing.
-
-- Alert sensitivity to smoothing.
-
-No investigation:
-- Clustering methodology 
-- Count based online detection metholdogy
-(Results will obviously be somewhat dependent on clustering methodology and online detection methodology but they are not key axes for the experiment and likely more influential parameters to tune exist.)
-
-#### How to smooth
-
-- Ideas 2:
-
-1) Smooth by linearly smoothing the mean and variance parameters to the observed cluster means. 
-2) Smooth in a baysian fashion by having a prior
-
-First one allows a clean interpretation of the endpoints of complete smoothing and no smoothing and is computationally easier. The baysian doesnt allow a complete smoothing
-
-Rank order cluster parameters then smooth on the log scale.
-Log smoothing is best because count rates and dispersion are positive, multiplicative quantities: moving halfway from 1 to 100 should usually mean around 10, not 50.5. The search explores many different scales with log smoothing.
+#### Notebook purposes
+100 - initial preprocessing and train test split
+200 - pre run processing
+201 - validation tuning and test runs
+202 - benchmark runs
+203 - results analysis and plots
+204 - variant runs for the appendix table in thesis. Not needed for core results
