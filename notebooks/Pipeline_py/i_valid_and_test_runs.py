@@ -10,7 +10,7 @@ import k_metric_breakdowns as k
 from scipy.special import ndtri
 from numba import njit, prange
 
-metric_breakdowns = ut.load_json5('metric_breakdowns')['breakdowns']
+metric_breakdowns = k.breakdowns
 
 class Tuner:
 

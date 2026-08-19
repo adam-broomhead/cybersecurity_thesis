@@ -1,4 +1,0 @@
-{
-    // determines whether we use the hurdle or NB model after running the model selection experiment
-    "hurdle_model": true,
-}

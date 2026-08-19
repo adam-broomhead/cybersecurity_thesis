@@ -97,47 +97,9 @@ def get_calibration_summary(ll_calibration_results):
     
     return calibration_output
 
-def get_all_model_performance_table(ll_calibration_results, benchmark_results):
-    '''
-    Table of mean log likelihood for 3 models and benchmarks
-    '''
-    ll_performance = ll_calibration_results.loc[ll_calibration_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
-    ll_performance = ll_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
-
-    benchmark_performance = benchmark_results.loc[benchmark_results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
-    benchmark_performance = benchmark_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'))
-    benchmark_performance['seed_sd'] = np.nan
-
-    overall_performance = pd.concat([ll_performance, benchmark_performance], ignore_index=True)
-    overall_performance.loc[overall_performance['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
-
-    return overall_performance
-
 #####################################
 # Final output prep
 #####################################
-
-def get_extreme_calibration_output(calibration):
-    '''
-    Gets the extreme calibration output table
-    '''
-
-    extreme_calibration = calibration.loc[calibration['threshold'].isin([1e-4, 1e-3, 1e-2])].sort_values('threshold')
-    calibration_means = extreme_calibration.pivot_table(index='threshold', columns='model', values='observed_rate_mean', sort=False).add_suffix('_mean')
-    calibration_sds = extreme_calibration.pivot_table(index='threshold', columns='model', values='seed_sd', sort=False).add_suffix('_sd')
-    output = pd.concat([calibration_means, calibration_sds],axis=1).reset_index()
-    output.columns.name = None
-
-    return output
-
-def format_numeric_cols(table, columns):
-    '''
-    Rounds selected cols to 5pd keeping trailing zeros
-    '''
-    for column in columns:
-        table[column] = table[column].apply(lambda value: f'{value:.4f}')
-    return table
-
 
 def format_mean_and_sd(mean, sd):
     '''

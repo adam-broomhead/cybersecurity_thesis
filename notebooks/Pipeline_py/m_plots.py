@@ -242,17 +242,19 @@ def get_overall_performance_output(overall_performance, ll_calibration_results, 
     '''
     Gets the initial summary table
     '''
+    results = pd.concat([ll_calibration_results[['model', 'breakdown_group', 'mean_ll', 'breakdown_type']],
+                         benchmark_results[['model', 'breakdown_group', 'mean_ll', 'breakdown_type']]])
+    overall_performance = results.loc[results['breakdown_type'] == 'overall', ['model', 'mean_ll']]
+    overall_performance = overall_performance.groupby('model', as_index=False, sort=False).agg(mean_log_likelihood=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
+    overall_performance.loc[overall_performance['model'] != 'cluster_smoothing', 'seed_sd'] = np.nan
 
-    # concat together human and machine results and getting the mean and sd
-    human_machine_results = pd.concat([ll_calibration_results[['model', 'breakdown_group', 'mean_ll', 'breakdown_type']],
-                              benchmark_results[['model', 'breakdown_group', 'mean_ll', 'breakdown_type']]])
-    human_machine_results = human_machine_results.loc[human_machine_results['breakdown_type'] == 'user_type', ['model', 'breakdown_group', 'mean_ll']]
-    human_machine_results = human_machine_results.groupby(['model', 'breakdown_group'],as_index=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
-
+    
     # Getting human and machine results for each model
+    human_machine_results = results.loc[results['breakdown_type'] == 'user_type', ['model', 'breakdown_group', 'mean_ll']]
+    human_machine_results = human_machine_results.groupby(['model', 'breakdown_group'], as_index=False).agg(mean_ll=('mean_ll', 'mean'), seed_sd=('mean_ll', 'std'))
+
     human_results = human_machine_results.loc[human_machine_results['breakdown_group'] == 'human', ['model', 'mean_ll', 'seed_sd']]
     human_results = human_results.rename(columns={'mean_ll': 'human_mean_log_likelihood', 'seed_sd': 'human_seed_sd'})
-
     machine_results = human_machine_results.loc[human_machine_results['breakdown_group'] == 'machine', ['model', 'mean_ll', 'seed_sd']]
     machine_results = machine_results.rename(columns={'mean_ll': 'machine_mean_log_likelihood', 'seed_sd': 'machine_seed_sd'})
 

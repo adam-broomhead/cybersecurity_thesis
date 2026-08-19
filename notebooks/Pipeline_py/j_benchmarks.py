@@ -7,8 +7,9 @@ import numpy as np
 import d_math as d
 import polars as pl
 import math
+import k_metric_breakdowns as k
 
-metric_breakdowns = ut.load_json5('metric_breakdowns')['breakdowns']
+metric_breakdowns = k.breakdowns
 hurdle_benchmark_names = ('static_user_hurdle', 'static_user_hour_hurdle')
 
 #####################################
