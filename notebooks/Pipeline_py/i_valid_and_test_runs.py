@@ -400,8 +400,11 @@ class Tuner:
 
         # Multi user ll and attack detection outputs
         test_user_results = self.make_user_output_table(model=test_model, user_output_metrics=user_output_metrics)
-        detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, self.bin_metric_nt, best_config['seed'], experiment_name)
-                
+        for threshold in best_config['calibration_thresholds']:
+            threshold_name = format(threshold, 'f')
+            test_user_results[f'calibration_count_{threshold_name}'] = np.sum(observed_p_vals < threshold, axis=1)
+        detection_results = get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attack_sizes, best_config['alert_w_vals'], best_config['fpr_rates'], train_test_nt, self.bin_metric_nt, best_config['seed'], experiment_name)                
+
         return test_results, test_user_results, detection_results
 
 
@@ -424,8 +427,7 @@ class Tuner:
             ut.store_run_results(results=detection_results, dir=f'test/{experiment_name}/detection', run_name=f'{experiment_name}_detection')
 
             # Save user results for all cluster smoothing or first of other runs as only variation in cluster runs
-            if experiment_name == 'cluster_smoothing' or seed_number == 0:
-                ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')
+            ut.store_run_results(results=user_results, dir=f'test/{experiment_name}/user', run_name=f'{experiment_name}_users')
 
             print(f'finished_seed {seed_number + 1}/{len(test_seeds)} in {perf_counter() - seed_start_time:.1f}s')
 
@@ -522,8 +524,8 @@ def get_detection_results(observed_p_vals, attack_p_vals, attack_start_fb, attac
     n_users = observed_p_vals.shape[0]
     results = []
 
-    # first 6 hours to test end calibration period and shrink the non degen mask to this period
-    threshold_calibration_start = 6 * bin_metric_nt.fine_bins_per_coarse_bin
+    # first day to test end calibration period and shrink the non degen mask to this period
+    threshold_calibration_start = bin_metric_nt.fine_bins_per_day
     threshold_calibration_end = bin_metric_nt.fine_bins_per_week
     non_degen_fb_mask = non_degen_fb_mask[:, threshold_calibration_start:threshold_calibration_end]
 

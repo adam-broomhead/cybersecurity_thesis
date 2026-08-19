@@ -29,7 +29,7 @@ def load_test_results(results_dir, n_test_seeds):
     ll_calibration_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/calibration', expected_files=n_test_seeds).assign(model=model)
                                  for model in ll_model_names], ignore_index=True)
 
-    ll_user_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/user', expected_files=(n_test_seeds if model == 'cluster_smoothing' else 1)).assign(model=model) 
+    ll_user_results = pd.concat([read_all(directory=f'{results_dir}/test/{model}/user', expected_files=n_test_seeds).assign(model=model) 
                                  for model in ll_model_names],ignore_index=True)
 
     benchmark_results = read_all(directory=f'{results_dir}/benchmarks/calibration', expected_files=1).rename(columns={'model_name': 'model'})
@@ -145,7 +145,7 @@ def format_mean_and_sd(mean, sd):
     '''
     mean = f'{mean:.4f}'
     if pd.notna(sd):
-        return f'{mean} $\pm$ {sd:.4f}'
+        return f'{mean} \n $\pm$ {sd:.4f}'
     else: 
         return mean
 
@@ -166,17 +166,16 @@ def get_overall_performance_output(overall_performance, user_type_summary):
 
     # Get the raw model score and add the difference
     unsmoothing_ll_lpmf = output.loc[output['model'] == 'no_smoothing', 'mean_log_likelihood'].iloc[0]
-    output['$\Delta$ LL'] = output['mean_log_likelihood'] - unsmoothing_ll_lpmf
-    output['$\Delta$ LL'] = output['$\Delta$ LL'].map(lambda x: f'{x:+.4f}')
+    output['$\Delta$ CMLL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'] - unsmoothing_ll_lpmf, row['seed_sd']), axis=1)
 
-    output.loc[output['model'] == 'no_smoothing', '$\Delta$ LL'] = '-'
+    output.loc[output['model'] == 'no_smoothing', '$\Delta$ CMLL'] = '-'
     output['model'] = output['model'].map(model_labels)
 
-    output['Overall LL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
-    output['Human LL'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
-    output['Machine LL'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
+    output['Overall CMLL'] = output.apply(lambda row: format_mean_and_sd(row['mean_log_likelihood'], row['seed_sd']), axis=1)
+    output['Human CMLL'] = output.apply(lambda row: format_mean_and_sd(row['human_mean_log_likelihood'], row['human_seed_sd']), axis=1)
+    output['Machine CMLL'] = output.apply(lambda row: format_mean_and_sd(row['machine_mean_log_likelihood'], row['machine_seed_sd']), axis=1)
 
-    output = output[['model', 'Overall LL', '$\Delta$ LL', 'Human LL', 'Machine LL']].rename(columns={'model': 'Model'})
+    output = output[['model', 'Overall CMLL', '$\Delta$ CMLL', 'Human CMLL', 'Machine CMLL']].rename(columns={'model': 'Model'})
     return output
 
 #####################################

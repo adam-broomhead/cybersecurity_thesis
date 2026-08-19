@@ -40,7 +40,7 @@ def plot_calibration(calibration_df, extreme, error_bars=True):
     Creates calibration and extreme calibration plots
     '''
     if extreme:
-        relevant_thresholds = calibration_df.loc[calibration_df['threshold'].isin([1e-4, 1e-3, 1e-2])]
+        relevant_thresholds = calibration_df.loc[calibration_df['threshold'] < 0.1]
     else:
         relevant_thresholds = calibration_df.loc[calibration_df['threshold'] >= 0.1]
 
@@ -111,7 +111,7 @@ def plot_attack_detection(detection_results, runtime_configs, error_bars=True):
             if row == 0:
                 ax.set_title(f'\u03BB={alert_w}')
             if col == 0:
-                ax.set_ylabel(f'FPR = $10^{{{int(np.log10(fpr_rate))}}}$')
+                ax.set_ylabel(f'FPR = {format_fpr_exponent(fpr_rate)}')
             if row == 2:
                 ax.set_xlabel('Additional Counts')
             ax.set_ylim(bottom=0)
@@ -151,7 +151,7 @@ def plot_threshold_heatmap(threshold_differences, model):
     ax.set_xlabel('\u03BB')
     ax.set_ylabel('FPR')
     fig.tight_layout()
-    ax.set_yticklabels([fr'$10^{{{int(np.log10(fpr))}}}$' for fpr in threshold_difference.index])
+    ax.set_yticklabels([format_fpr_exponent(fpr) for fpr in threshold_difference.index])
 
     return fig, ax
 
@@ -182,3 +182,6 @@ def plot_user_pct_ll_improvemet(user_improvements):
 
     return fig, ax
 
+def format_fpr_exponent(fpr):
+    exponent = int(f'{fpr:.0e}'.split('e')[1])
+    return rf'$10^{{{exponent}}}$'
